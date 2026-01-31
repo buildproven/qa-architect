@@ -1851,7 +1851,7 @@ coverage/
         const preCommitPath = path.join(huskyDir, 'pre-commit')
         if (!fs.existsSync(preCommitPath)) {
           const hook =
-            '#!/bin/sh\n. "$(dirname "$0")/_/husky.sh"\n\n# Run lint-staged on staged files\nnpx --no -- lint-staged\n'
+            '# Run lint-staged on staged files\nnpx --no -- lint-staged\n'
           fs.writeFileSync(preCommitPath, hook)
           fs.chmodSync(preCommitPath, 0o755)
           console.log('✅ Added Husky pre-commit hook (lint-staged)')
@@ -1869,10 +1869,7 @@ coverage/
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
         if (!fs.existsSync(prePushPath)) {
-          const hook = `#!/bin/sh
-. "$(dirname "$0")/_/husky.sh"
-
-echo "🔍 Running pre-push validation..."
+          const hook = `echo "🔍 Running pre-push validation..."
 
 # Enforce Free tier pre-push cap (50/month)
 node - <<'EOF'
