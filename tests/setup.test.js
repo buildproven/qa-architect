@@ -488,13 +488,19 @@ console.log('\n🐍 Testing Python project setup...')
 
 const pythonProjectDir = path.join(os.tmpdir(), 'test-python-setup')
 try {
+  if (fs.existsSync(pythonProjectDir)) {
+    fs.rmSync(pythonProjectDir, { recursive: true, force: true })
+  }
   fs.mkdirSync(pythonProjectDir, { recursive: true })
 
-  // Create a Python file to trigger detection
-  fs.writeFileSync(
-    path.join(pythonProjectDir, 'main.py'),
-    'print("hello world")'
-  )
+  // Create enough meaningful Python files to trigger detection (requires 5+)
+  const pyFiles = ['main.py', 'app.py', 'utils.py', 'models.py', 'config.py']
+  for (const f of pyFiles) {
+    fs.writeFileSync(
+      path.join(pythonProjectDir, f),
+      `# ${f}\nprint("hello world")`
+    )
+  }
 
   // Initialize git (required by setup script)
   execSync('git init', { cwd: pythonProjectDir, stdio: 'ignore' })

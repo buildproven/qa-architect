@@ -18,9 +18,11 @@ async function testPythonIntegration() {
   const pythonDir = fs.mkdtempSync(path.join(os.tmpdir(), 'python-test-'))
 
   try {
-    // Create Python project markers
-
-    fs.writeFileSync(path.join(pythonDir, 'main.py'), 'print("Hello World")')
+    // Create 5+ meaningful Python files to trigger detection
+    const pyFiles = ['main.py', 'app.py', 'utils.py', 'models.py', 'routes.py']
+    for (const f of pyFiles) {
+      fs.writeFileSync(path.join(pythonDir, f), `print("${f}")`)
+    }
 
     fs.writeFileSync(
       path.join(pythonDir, 'package.json'),
@@ -121,7 +123,17 @@ async function testPythonIntegration() {
   const configDir = fs.mkdtempSync(path.join(os.tmpdir(), 'py-config-test-'))
 
   try {
-    fs.writeFileSync(path.join(configDir, 'app.py'), 'def main(): pass')
+    // Create 5+ meaningful Python files to trigger detection
+    const cfgPyFiles = [
+      'app.py',
+      'utils.py',
+      'models.py',
+      'views.py',
+      'routes.py',
+    ]
+    for (const f of cfgPyFiles) {
+      fs.writeFileSync(path.join(configDir, f), 'def main(): pass')
+    }
 
     fs.writeFileSync(
       path.join(configDir, 'package.json'),

@@ -724,7 +724,7 @@ async function testMixedLanguageMonorepo() {
       'console.log("JS app")'
     )
 
-    // Create Python package
+    // Create Python package with 5+ meaningful files to trigger detection
     const pyPackageDir = path.join(testDir, 'packages', 'py-lib')
 
     fs.mkdirSync(pyPackageDir, { recursive: true })
@@ -734,10 +734,16 @@ async function testMixedLanguageMonorepo() {
       'print("Python lib")'
     )
 
-    fs.writeFileSync(
-      path.join(pyPackageDir, 'main.py'),
-      'def main():\n    pass'
-    )
+    const pyLibFiles = [
+      'main.py',
+      'models.py',
+      'utils.py',
+      'views.py',
+      'routes.py',
+    ]
+    for (const f of pyLibFiles) {
+      fs.writeFileSync(path.join(pyPackageDir, f), 'def main():\n    pass')
+    }
 
     // Run setup
     execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
