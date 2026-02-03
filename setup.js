@@ -1252,50 +1252,42 @@ HELP:
       )
 
       /**
-       * Recursively check for Python files in directory and subdirectories
+       * Count meaningful Python files recursively (excluding boilerplate like __init__.py, conftest.py)
        * Limited to 2 levels deep to avoid performance issues in large monorepos
        */
-      function hasPythonFilesRecursive(dir, depth = 0, maxDepth = 2) {
-        if (depth > maxDepth) return false
+      function countMeaningfulPythonFiles(dir, depth = 0, maxDepth = 2) {
+        if (depth > maxDepth) return 0
 
         try {
           const entries = safeReadDir(dir)
+          const trivialFiles = ['__init__.py', 'conftest.py']
 
-          // Count .py files in current directory (excluding __pycache__)
-          const pyFiles = entries.filter(
+          let count = entries.filter(
             dirent =>
               dirent.isFile() &&
               dirent.name.endsWith('.py') &&
-              dirent.name !== '__pycache__'
-          )
+              !trivialFiles.includes(dirent.name)
+          ).length
 
-          // Strong indicators: multiple .py files OR main/app/run patterns
-          const hasMultiplePyFiles = pyFiles.length >= 2
-          const hasMainPattern = pyFiles.some(
-            f =>
-              f.name === 'main.py' ||
-              f.name === 'app.py' ||
-              f.name === 'run.py' ||
-              f.name === '__main__.py'
-          )
-
-          // Require stronger evidence than a single random .py file
-          if (hasMultiplePyFiles || hasMainPattern) return true
-
-          // Check subdirectories (skip node_modules, .git, etc.)
-          const skipDirs = ['node_modules', '.git', 'dist', 'build', 'coverage']
+          const skipDirs = [
+            'node_modules',
+            '.git',
+            'dist',
+            'build',
+            'coverage',
+            '__pycache__',
+            'venv',
+            '.venv',
+          ]
           for (const dirent of entries) {
             if (dirent.isDirectory() && !skipDirs.includes(dirent.name)) {
               const subDir = path.join(dir, dirent.name)
-              if (hasPythonFilesRecursive(subDir, depth + 1, maxDepth)) {
-                return true
-              }
+              count += countMeaningfulPythonFiles(subDir, depth + 1, maxDepth)
             }
           }
 
-          return false
+          return count
         } catch (error) {
-          // Silent failure fix: Log unexpected errors in debug mode
           if (
             process.env.DEBUG &&
             error.code !== 'ENOENT' &&
@@ -1305,13 +1297,18 @@ HELP:
               `⚠️  Could not scan ${dir} for Python files: ${error.message}`
             )
           }
-          return false
+          return 0
         }
       }
 
-      const hasPythonFiles = hasPythonFilesRecursive(process.cwd())
+      const meaningfulPyFileCount = countMeaningfulPythonFiles(process.cwd())
+      const hasPythonFiles = meaningfulPyFileCount >= 5
 
-      const usesPython = Boolean(hasPythonConfig || hasPythonFiles)
+      // Config files alone are not enough (qa-architect may have created them previously).
+      // Require config + at least 1 meaningful .py file, OR 5+ meaningful .py files standalone.
+      const usesPython = Boolean(
+        (hasPythonConfig && meaningfulPyFileCount >= 1) || hasPythonFiles
+      )
       if (usesPython) {
         console.log(
           '🐍 Detected Python project; enabling Python quality automation'
@@ -2081,13 +2078,13 @@ echo "✅ Pre-push validation passed!"
           console.log('✅ Added requirements-dev.txt')
         }
 
-        // Copy Python workflow (GitHub Actions only)
+        // Copy/update Python workflow (GitHub Actions only)
         if (ciProvider === 'github') {
           const pythonWorkflowFile = path.join(
             githubWorkflowDir,
             'quality-python.yml'
           )
-          if (!fs.existsSync(pythonWorkflowFile)) {
+          if (!fs.existsSync(pythonWorkflowFile) || isUpdateMode) {
             const templatePythonWorkflow =
               templateLoader.getTemplate(
                 templates,
@@ -2098,7 +2095,11 @@ echo "✅ Pre-push validation passed!"
                 'utf8'
               )
             fs.writeFileSync(pythonWorkflowFile, templatePythonWorkflow)
-            console.log('✅ Added Python GitHub Actions workflow')
+            console.log(
+              isUpdateMode
+                ? '🔄 Updated Python GitHub Actions workflow'
+                : '✅ Added Python GitHub Actions workflow'
+            )
           }
         }
 
@@ -2107,13 +2108,13 @@ echo "✅ Pre-push validation passed!"
 
       // Shell project setup
       if (usesShell) {
-        // Copy Shell CI workflow (GitHub Actions only)
+        // Copy/update Shell CI workflow (GitHub Actions only)
         if (ciProvider === 'github') {
           const shellCiWorkflowFile = path.join(
             githubWorkflowDir,
             'shell-ci.yml'
           )
-          if (!fs.existsSync(shellCiWorkflowFile)) {
+          if (!fs.existsSync(shellCiWorkflowFile) || isUpdateMode) {
             const templateShellCiWorkflow =
               templateLoader.getTemplate(
                 templates,
@@ -2124,15 +2125,19 @@ echo "✅ Pre-push validation passed!"
                 'utf8'
               )
             fs.writeFileSync(shellCiWorkflowFile, templateShellCiWorkflow)
-            console.log('✅ Added Shell CI GitHub Actions workflow')
+            console.log(
+              isUpdateMode
+                ? '🔄 Updated Shell CI GitHub Actions workflow'
+                : '✅ Added Shell CI GitHub Actions workflow'
+            )
           }
 
-          // Copy Shell Quality workflow
+          // Copy/update Shell Quality workflow
           const shellQualityWorkflowFile = path.join(
             githubWorkflowDir,
             'shell-quality.yml'
           )
-          if (!fs.existsSync(shellQualityWorkflowFile)) {
+          if (!fs.existsSync(shellQualityWorkflowFile) || isUpdateMode) {
             const templateShellQualityWorkflow =
               templateLoader.getTemplate(
                 templates,
@@ -2146,7 +2151,11 @@ echo "✅ Pre-push validation passed!"
               shellQualityWorkflowFile,
               templateShellQualityWorkflow
             )
-            console.log('✅ Added Shell Quality GitHub Actions workflow')
+            console.log(
+              isUpdateMode
+                ? '🔄 Updated Shell Quality GitHub Actions workflow'
+                : '✅ Added Shell Quality GitHub Actions workflow'
+            )
           }
         }
 
@@ -2178,6 +2187,38 @@ Quality checks are automated via GitHub Actions:
 `
           fs.writeFileSync(readmePath, basicReadme)
           console.log('✅ Created basic README.md')
+        }
+      }
+
+      // Clean up stale language workflows in update mode
+      if (isUpdateMode && ciProvider === 'github') {
+        const staleWorkflows = []
+        if (!usesPython) {
+          const pythonWf = path.join(githubWorkflowDir, 'quality-python.yml')
+          if (fs.existsSync(pythonWf)) {
+            fs.unlinkSync(pythonWf)
+            staleWorkflows.push('quality-python.yml')
+          }
+        }
+        if (!usesShell) {
+          const shellCiWf = path.join(githubWorkflowDir, 'shell-ci.yml')
+          const shellQualityWf = path.join(
+            githubWorkflowDir,
+            'shell-quality.yml'
+          )
+          if (fs.existsSync(shellCiWf)) {
+            fs.unlinkSync(shellCiWf)
+            staleWorkflows.push('shell-ci.yml')
+          }
+          if (fs.existsSync(shellQualityWf)) {
+            fs.unlinkSync(shellQualityWf)
+            staleWorkflows.push('shell-quality.yml')
+          }
+        }
+        if (staleWorkflows.length > 0) {
+          console.log(
+            `🗑️  Removed stale workflows: ${staleWorkflows.join(', ')}`
+          )
         }
       }
 

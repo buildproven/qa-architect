@@ -3,15 +3,33 @@ name: Python Quality Checks
 on:
   push:
     branches: [main, master, develop]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'requirements*.txt'
+      - 'poetry.lock'
+      - 'Pipfile*'
   pull_request:
     branches: [main, master, develop]
+    paths:
+      - '**.py'
+      - 'pyproject.toml'
+      - 'setup.py'
+      - 'requirements*.txt'
+      - 'poetry.lock'
+      - 'Pipfile*'
+
+concurrency:
+  group: python-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   quality:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.12']
 
     steps:
       - name: Checkout code

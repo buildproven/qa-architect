@@ -3,8 +3,20 @@ name: Shell Script CI
 on:
   push:
     branches: [main, master, develop]
+    paths:
+      - '**.sh'
+      - '**.bash'
+      - '**.bats'
   pull_request:
     branches: [main, master, develop]
+    paths:
+      - '**.sh'
+      - '**.bash'
+      - '**.bats'
+
+concurrency:
+  group: shell-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   shellcheck:
