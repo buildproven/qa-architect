@@ -82,11 +82,17 @@ echo "   ⚡ Speed Bonus: $SPEED_BONUS"
 echo ""
 
 # Test tier selection based on risk score
+# NOTE: E2E tests and slow command tests are ALWAYS excluded from pre-push
+# - E2E tests: Require dev server, browsers, proper infrastructure (run in CI only)
+# - Command tests: Take 60+ seconds, verify npm scripts work (run in CI only)
+# These run in GitHub Actions on every PR and push to main
+
 if [[ $RISK_SCORE -ge 7 ]]; then
-  echo "🔴 HIGH RISK - Comprehensive validation"
-  echo "   • All tests + security audit"
-  # Runs: npm run test:comprehensive 2>/dev/null || npm run test 2>/dev/null || npm test
-  npm run test:comprehensive 2>/dev/null || npm run test 2>/dev/null || npm test
+  echo "🔴 HIGH RISK - Comprehensive validation (pre-push)"
+  echo "   • Unit + integration tests + security audit"
+  echo "   • (E2E and command tests run in CI only)"
+  # Runs: npm run test:medium 2>/dev/null || npm run test:fast 2>/dev/null || npm test
+  npm run test:medium 2>/dev/null || npm run test:fast 2>/dev/null || npm test
 elif [[ $RISK_SCORE -ge 4 ]]; then
   echo "🟡 MEDIUM RISK - Standard validation"
   echo "   • Fast tests + integration (excludes slow tests)"
