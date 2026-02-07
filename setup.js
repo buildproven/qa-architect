@@ -927,6 +927,20 @@ HELP:
         const hasConventionalCommits = hasFeature('conventionalCommits')
         const hasCoverageThresholds = hasFeature('coverageThresholds')
 
+        // Load performance budgets from .qualityrc.json if present
+        let performanceBudgets = null
+        const qualityrcPath = path.join(projectPath, '.qualityrc.json')
+        if (fs.existsSync(qualityrcPath)) {
+          try {
+            const qualityrc = JSON.parse(fs.readFileSync(qualityrcPath, 'utf8'))
+            if (qualityrc.performance) {
+              performanceBudgets = qualityrc.performance
+            }
+          } catch {
+            // Ignore parse errors - config validation handles this elsewhere
+          }
+        }
+
         // 1. Lighthouse CI - available to all, thresholds for Pro+
         if (hasLighthouse) {
           try {
@@ -934,6 +948,10 @@ HELP:
             if (!fs.existsSync(lighthousePath)) {
               writeLighthouseConfig(projectPath, {
                 hasThresholds: hasLighthouseThresholds,
+                budgets:
+                  performanceBudgets && performanceBudgets.lighthouse
+                    ? performanceBudgets.lighthouse
+                    : null,
               })
               addedTools.push(
                 hasLighthouseThresholds
@@ -953,7 +971,12 @@ HELP:
         if (hasBundleSizeLimits) {
           try {
             if (!pkgJson.content['size-limit']) {
-              writeSizeLimitConfig(projectPath)
+              writeSizeLimitConfig(projectPath, {
+                budgets:
+                  performanceBudgets && performanceBudgets.bundleSize
+                    ? performanceBudgets.bundleSize
+                    : null,
+              })
               addedTools.push('Bundle size limits (size-limit)')
             }
           } catch (error) {

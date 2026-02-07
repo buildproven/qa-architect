@@ -91,6 +91,81 @@
         },
         "additionalProperties": false
       }
+    },
+    "performance": {
+      "type": "object",
+      "description": "Performance budget configuration",
+      "properties": {
+        "lighthouse": {
+          "type": "object",
+          "description": "Lighthouse CI performance thresholds",
+          "properties": {
+            "performance": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum performance score (0-1)"
+            },
+            "accessibility": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum accessibility score (0-1)"
+            },
+            "bestPractices": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum best practices score (0-1)"
+            },
+            "seo": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Minimum SEO score (0-1)"
+            },
+            "maxFCP": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max First Contentful Paint in ms"
+            },
+            "maxLCP": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max Largest Contentful Paint in ms"
+            },
+            "maxCLS": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max Cumulative Layout Shift"
+            },
+            "maxTBT": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Max Total Blocking Time in ms"
+            }
+          },
+          "additionalProperties": false
+        },
+        "bundleSize": {
+          "type": "object",
+          "description": "Bundle size limits",
+          "properties": {
+            "maxJs": {
+              "type": "string",
+              "pattern": "^[0-9]+ [kKmM][bB]$",
+              "description": "Max JS bundle size (e.g., '250 kB')"
+            },
+            "maxCss": {
+              "type": "string",
+              "pattern": "^[0-9]+ [kKmM][bB]$",
+              "description": "Max CSS bundle size (e.g., '50 kB')"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

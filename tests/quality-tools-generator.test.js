@@ -173,6 +173,63 @@ assert(coverageOnlyScripts['test:coverage:check'])
 assert(!coverageOnlyScripts['lighthouse:ci'])
 console.log('  ✅ selective scripts work correctly\n')
 
+// Test 15: Lighthouse config with custom performance budgets
+console.log('Test 15: Lighthouse config with custom performance budgets')
+const budgetLighthouseConfig = generateLighthouseConfig({
+  hasThresholds: true,
+  budgets: {
+    maxFCP: 1500,
+    maxLCP: 2000,
+    maxCLS: 0.05,
+    maxTBT: 200,
+    performance: 0.9,
+    accessibility: 0.95,
+    bestPractices: 0.85,
+    seo: 0.8,
+  },
+})
+assert(budgetLighthouseConfig.includes('maxNumericValue: 1500'))
+assert(budgetLighthouseConfig.includes('maxNumericValue: 2000'))
+assert(budgetLighthouseConfig.includes('maxNumericValue: 0.05'))
+assert(budgetLighthouseConfig.includes('maxNumericValue: 200'))
+assert(budgetLighthouseConfig.includes('minScore: 0.9'))
+assert(budgetLighthouseConfig.includes('minScore: 0.95'))
+assert(budgetLighthouseConfig.includes('minScore: 0.85'))
+assert(
+  budgetLighthouseConfig.includes(
+    "'categories:seo': ['warn', { minScore: 0.8 }]"
+  )
+)
+console.log('  ✅ Custom performance budgets applied to Lighthouse config\n')
+
+// Test 16: Lighthouse config with partial budgets (uses defaults for missing)
+console.log('Test 16: Lighthouse config with partial budgets')
+const partialBudgetConfig = generateLighthouseConfig({
+  hasThresholds: true,
+  budgets: { maxLCP: 3000 },
+})
+assert(partialBudgetConfig.includes('maxNumericValue: 2000')) // FCP default
+assert(partialBudgetConfig.includes('maxNumericValue: 3000')) // LCP custom
+assert(partialBudgetConfig.includes('minScore: 0.8')) // perf default
+console.log('  ✅ Partial budgets use defaults for missing values\n')
+
+// Test 17: size-limit config with custom bundle budgets
+console.log('Test 17: size-limit config with custom bundle budgets')
+const budgetSizeConfig = generateSizeLimitConfig({
+  budgets: { maxJs: '500 kB', maxCss: '100 kB' },
+})
+assert(Array.isArray(budgetSizeConfig))
+assert.strictEqual(budgetSizeConfig[0].limit, '500 kB')
+assert.strictEqual(budgetSizeConfig[1].limit, '100 kB')
+console.log('  ✅ Custom bundle size budgets applied correctly\n')
+
+// Test 18: size-limit config with no budgets uses defaults
+console.log('Test 18: size-limit config with no budgets uses defaults')
+const defaultSizeConfig = generateSizeLimitConfig({})
+assert.strictEqual(defaultSizeConfig[0].limit, '250 kB')
+assert.strictEqual(defaultSizeConfig[1].limit, '50 kB')
+console.log('  ✅ Default bundle size limits applied when no budgets\n')
+
 console.log('🎉 All Quality Tools Generator Tests Passed!\n')
 console.log('✅ Lighthouse CI config generation (basic + Pro)')
 console.log('✅ size-limit config generation')
@@ -182,3 +239,4 @@ console.log('✅ Coverage thresholds (default + custom)')
 console.log('✅ axe-core test setup generation')
 console.log('✅ Dependencies and scripts helpers')
 console.log('✅ File writing functions')
+console.log('✅ Performance budgets (Lighthouse + bundle size)')
