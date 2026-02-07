@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.12.1] - 2026-02-07
+
+### Fixed
+
+- **Critical: Stray gitleaks binary reference in consumer workflows** - Minimal mode regex only matched 2 of 3 restore-key lines, leaving `gitleaks-8.28.0-linux-x64-` embedded in the test run step. This caused all consumer repo CI to fail with "command not found" after tests passed.
+
+### Added
+
+- Regression test for gitleaks stripping in minimal mode (workflow-tiers test 9)
+- 77 new tests: ui-helpers (6), setup-enhancements (10), dependency-monitoring-premium (61)
+
 ## [5.12.0] - 2026-02-07
 
 ### Fixed

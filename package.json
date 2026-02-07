@@ -1,6 +1,6 @@
 {
   "name": "create-qa-architect",
-  "version": "5.12.0",
+  "version": "5.12.1",
   "description": "QA Architect - Bootstrap quality automation for JavaScript/TypeScript and Python projects with GitHub Actions, pre-commit hooks, linting, formatting, and smart test strategy",
   "main": "setup.js",
   "bin": {

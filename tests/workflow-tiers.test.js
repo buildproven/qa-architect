@@ -652,4 +652,55 @@ jobs:
   }
 })()
 
+// Test 9: Minimal mode fully removes gitleaks binary references (regression: B-3 stray line)
+;(() => {
+  console.log('Test 9: Minimal mode fully removes gitleaks binary references')
+  const testDir = createTempGitRepo()
+
+  try {
+    const setupPath = path.join(__dirname, '../setup.js')
+    execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
+      cwd: testDir,
+      stdio: 'pipe',
+    })
+
+    const workflowPath = path.join(
+      testDir,
+      '.github',
+      'workflows',
+      'quality.yml'
+    )
+    const workflowContent = fs.readFileSync(workflowPath, 'utf8')
+
+    // Verify no gitleaks binary references remain
+    assert(
+      !workflowContent.includes('gitleaks-8.28.0'),
+      'Minimal mode should not have gitleaks binary references'
+    )
+    assert(
+      !workflowContent.includes('Cache gitleaks binary'),
+      'Minimal mode should not have gitleaks cache step'
+    )
+    assert(
+      !workflowContent.includes('Run real gitleaks binary verification'),
+      'Minimal mode should not have gitleaks verification step'
+    )
+
+    // Verify the test run step doesn't have stray lines
+    const testRunMatch = workflowContent.match(
+      /timeout \d+ npm test[^]*?(?=\n\s+- name:|\n\n {2}#)/
+    )
+    if (testRunMatch) {
+      assert(
+        !testRunMatch[0].includes('gitleaks'),
+        'Test run step should not contain gitleaks text'
+      )
+    }
+
+    console.log('✅ PASS - Minimal mode fully removes gitleaks references\n')
+  } finally {
+    fs.rmSync(testDir, { recursive: true, force: true })
+  }
+})()
+
 console.log('✅ All workflow tier tests passed!\n')
