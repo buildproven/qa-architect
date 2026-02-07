@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.12.0] - 2026-02-07
+
+### Fixed
+
+- **B-1: Remove dev-only gitleaks test from consumer workflows**: Template now strips gitleaks binary cache and verification steps in minimal mode. Consumer repos no longer reference `tests/gitleaks-real-binary-test.js` which only exists in qa-architect itself.
+- **B-3: Fix gitleaks TOML template errors**: Removed overly broad base64-secret rule that caused false positives on 40+ char alphanumeric strings. Fixed invalid `[[rules.allowlist]]` nesting with proper `[allowlist]` section. Added artifact path exclusions.
+- **Maturity detection edge case**: Projects with <3 source files but with test files were incorrectly classified as 'minimal' instead of 'bootstrap'. Fixed threshold logic ordering.
+
+### Added
+
+- **Multi-package-manager pre-push audit**: Pre-push hook now detects pnpm/yarn/npm and uses the appropriate audit command
+- **Smart test strategy optimization**: HIGH RISK pre-push now runs `test:medium`/`test:fast` instead of `test:comprehensive`, excluding E2E and command tests (CI only)
+- **`test:changed` script**: New script for running tests on recently changed files via vitest
+- **Smart Strategy Generator tests**: 18 dedicated tests covering all 6 project types, detection priority, custom overrides, and risk patterns
+- **Maturity boundary tests**: 17 edge case tests for threshold boundaries, malformed inputs, and GitHub Actions output format
+
+### Changed
+
+- **Workflow tier system**: Minimal mode now strips maturity detection steps from consumer CI for faster runs
+- **CI-6 rollout**: Updated 7 consumer projects to 5.12.0 workflow configuration
+
 ## [5.11.3] - 2026-02-03
 
 ### Fixed
