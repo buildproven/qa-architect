@@ -1,6 +1,6 @@
 # QA Architect - Backlog
 
-**Last Updated**: 2026-02-04
+**Last Updated**: 2026-02-06
 **Scoring**: (Revenue + Retention + Differentiation) ÷ Effort = Priority Score
 
 > See [ROADMAP.md](ROADMAP.md) for strategic direction and planned features.
@@ -9,16 +9,23 @@
 
 ## 🔥 High Value - Next Up
 
-| ID  | Item                                                  | Type    | Value Drivers      | Effort | Score | Status  |
-| --- | ----------------------------------------------------- | ------- | ------------------ | ------ | ----- | ------- |
-| B-1 | Remove dev-only gitleaks test from consumer workflows | Bug     | Rev:2 Ret:5 Diff:2 | S      | 9.0   | Ready   |
-| B-2 | Respect .qualityrc.json lighthouse.enabled setting    | Bug     | Rev:2 Ret:4 Diff:2 | S      | 8.0   | Ready   |
-| F-1 | Generate pre-push hooks that mirror CI checks         | Feature | Rev:3 Ret:4 Diff:3 | M      | 5.0   | Backlog |
-| L-1 | Rust support                                          | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
-| L-2 | Go support                                            | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
-| L-3 | Java support (Maven/Gradle)                           | Feature | Rev:4 Ret:4 Diff:3 | M      | 5.5   | Ready   |
-| T-1 | VS Code extension                                     | Feature | Rev:4 Ret:5 Diff:3 | M      | 6.0   | Backlog |
-| T-2 | Performance budgets                                   | Feature | Rev:3 Ret:4 Diff:4 | S      | 11.0  | Ready   |
+| ID  | Item                                                                                 | Type    | Value Drivers      | Effort | Score | Status      |
+| --- | ------------------------------------------------------------------------------------ | ------- | ------------------ | ------ | ----- | ----------- |
+| B-3 | Fix gitleaks template: TOML errors, overly broad base64 rule, missing artifact paths | Bug     | Rev:3 Ret:5 Diff:3 | S      | 11.0  | Ready       |
+| B-1 | Remove dev-only gitleaks test from consumer workflows                                | Bug     | Rev:2 Ret:5 Diff:2 | S      | 9.0   | In Progress |
+| B-2 | Respect .qualityrc.json lighthouse.enabled setting                                   | Bug     | Rev:2 Ret:4 Diff:2 | S      | 8.0   | Ready       |
+| F-1 | Generate pre-push hooks that mirror CI checks                                        | Feature | Rev:3 Ret:4 Diff:3 | M      | 5.0   | Backlog     |
+| L-1 | Rust support                                                                         | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready       |
+| L-2 | Go support                                                                           | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready       |
+| L-3 | Java support (Maven/Gradle)                                                          | Feature | Rev:4 Ret:4 Diff:3 | M      | 5.5   | Ready       |
+| T-1 | VS Code extension                                                                    | Feature | Rev:4 Ret:5 Diff:3 | M      | 6.0   | Backlog     |
+| T-2 | Performance budgets                                                                  | Feature | Rev:3 Ret:4 Diff:4 | S      | 11.0  | Ready       |
+
+| CI-1 | Fix CI: deploy B-1 template fix (hashFiles conditional for gitleaks test) to ALL repos with quality.yml — check every vibebuildlab repo | Bug | Rev:2 Ret:5 Diff:2 | S | 9.0 | Ready |
+| CI-2 | Fix CI: postrail — tests exceed 5-min budget (optimize slow tests or raise budget) | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
+| CI-3 | Fix CI: keyflash — run `prettier --write .` (2 files), fix README .env.local ref | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
+| CI-4 | Fix CI: jobrecon — run `prettier --write .` (7 files), add `*.log` to .gitignore, fix/suppress ESLint security false positives | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
+| CI-5 | Fix CI: retireabroad — fix `@size-limit/file` peer dep conflict in package.json | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
 
 ---
 

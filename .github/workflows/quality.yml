@@ -341,7 +341,7 @@ jobs:
             gitleaks-8.28.0-linux-x64-
 
       - name: Run real gitleaks binary verification test
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && hashFiles('tests/gitleaks-real-binary-test.js') != ''
         run: |
           echo "🔐 Running real gitleaks binary verification test..."
           QAA_DEVELOPER=true RUN_REAL_BINARY_TEST=1 node tests/gitleaks-real-binary-test.js
