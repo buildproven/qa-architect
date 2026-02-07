@@ -90,10 +90,10 @@ for repo_dir in "${CONSUMERS[@]}"; do
     existing_tier="minimal"
   fi
 
-  # Regenerate workflow
+  # Regenerate workflow (must cd to consumer dir — setup.js uses process.cwd())
   echo "  Regenerating workflow (tier: $existing_tier)..."
-  if QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" "--workflow-${existing_tier}" \
-    --cwd "$repo_dir" 2>&1 | { [ "$VERBOSE" = true ] && cat || tail -1; }; then
+  if (cd "$repo_dir" && QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
+    2>&1 | { [ "$VERBOSE" = true ] && cat || tail -1; }); then
     :
   else
     echo "  FAIL: Workflow generation failed"
