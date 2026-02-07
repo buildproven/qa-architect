@@ -18,7 +18,6 @@
 | L-3 | Java support (Maven/Gradle)                        | Feature | Rev:4 Ret:4 Diff:3 | M      | 5.5   | Ready   |
 | T-1 | VS Code extension                                  | Feature | Rev:4 Ret:5 Diff:3 | M      | 6.0   | Backlog |
 
-| CI-1 | Fix CI: deploy B-1 template fix (hashFiles conditional for gitleaks test) to ALL repos with quality.yml — check every vibebuildlab repo | Bug | Rev:2 Ret:5 Diff:2 | S | 9.0 | Ready |
 | CI-2 | Fix CI: postrail — tests exceed 5-min budget (optimize slow tests or raise budget) | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
 | CI-3 | Fix CI: keyflash — run `prettier --write .` (2 files), fix README .env.local ref | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
 | CI-4 | Fix CI: jobrecon — run `prettier --write .` (7 files), add `*.log` to .gitignore, fix/suppress ESLint security false positives | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
@@ -42,23 +41,24 @@
 
 ## ✅ Completed
 
-| ID  | Item                                                           | Type    | Completed  |
-| --- | -------------------------------------------------------------- | ------- | ---------- |
-| -   | ESLint 9 flat config support                                   | Feature | 2026-01-XX |
-| -   | Progressive quality (maturity detection)                       | Feature | 2026-01-XX |
-| -   | Python toolchain support                                       | Feature | 2026-01-XX |
-| -   | Smart Test Strategy (Pro)                                      | Feature | 2026-01-XX |
-| -   | Monorepo support                                               | Feature | 2026-01-XX |
-| -   | Interactive mode with guided setup                             | Feature | 2026-01-XX |
-| -   | Custom template support                                        | Feature | 2026-01-XX |
-| -   | License tier system                                            | Feature | 2026-01-XX |
-| -   | Dependency monitoring                                          | Feature | 2026-01-XX |
-| -   | Quality tools (Lighthouse CI, etc.)                            | Feature | v5.2.0     |
-| -   | Pre-launch validation                                          | Feature | v5.3.0     |
-| -   | Stripe payment flow                                            | Feature | 2025-12-XX |
-| B-1 | Remove dev-only gitleaks test from consumer workflows          | Bug     | 2026-02-06 |
-| B-3 | Fix gitleaks TOML template errors and overly broad base64 rule | Bug     | 2026-02-06 |
-| T-2 | Configurable performance budgets via .qualityrc.json           | Feature | 2026-02-06 |
+| ID   | Item                                                           | Type    | Completed  |
+| ---- | -------------------------------------------------------------- | ------- | ---------- |
+| -    | ESLint 9 flat config support                                   | Feature | 2026-01-XX |
+| -    | Progressive quality (maturity detection)                       | Feature | 2026-01-XX |
+| -    | Python toolchain support                                       | Feature | 2026-01-XX |
+| -    | Smart Test Strategy (Pro)                                      | Feature | 2026-01-XX |
+| -    | Monorepo support                                               | Feature | 2026-01-XX |
+| -    | Interactive mode with guided setup                             | Feature | 2026-01-XX |
+| -    | Custom template support                                        | Feature | 2026-01-XX |
+| -    | License tier system                                            | Feature | 2026-01-XX |
+| -    | Dependency monitoring                                          | Feature | 2026-01-XX |
+| -    | Quality tools (Lighthouse CI, etc.)                            | Feature | v5.2.0     |
+| -    | Pre-launch validation                                          | Feature | v5.3.0     |
+| -    | Stripe payment flow                                            | Feature | 2025-12-XX |
+| B-1  | Remove dev-only gitleaks test from consumer workflows          | Bug     | 2026-02-06 |
+| B-3  | Fix gitleaks TOML template errors and overly broad base64 rule | Bug     | 2026-02-06 |
+| T-2  | Configurable performance budgets via .qualityrc.json           | Feature | 2026-02-06 |
+| CI-1 | Deploy hashFiles gitleaks fix to all vibebuildlab repos        | Bug     | 2026-02-06 |
 
 ---
 
