@@ -59,6 +59,7 @@
 | CI-3 | Fix keyflash prettier formatting                               | Bug     | 2026-02-06 |
 | CI-4 | Fix jobrecon prettier + .gitignore                             | Bug     | 2026-02-06 |
 | CI-5 | Fix retireabroad @size-limit/file peer dep                     | Bug     | 2026-02-06 |
+| CI-6 | Rollout qa-architect 5.12.0 to all 13 consumer projects        | Deploy  | 2026-02-06 |
 
 ---
 
