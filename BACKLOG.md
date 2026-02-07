@@ -9,14 +9,13 @@
 
 ## 🔥 High Value - Next Up
 
-| ID  | Item                                               | Type    | Value Drivers      | Effort | Score | Status  |
-| --- | -------------------------------------------------- | ------- | ------------------ | ------ | ----- | ------- |
-| B-2 | Respect .qualityrc.json lighthouse.enabled setting | Bug     | Rev:2 Ret:4 Diff:2 | S      | 8.0   | Ready   |
-| F-1 | Generate pre-push hooks that mirror CI checks      | Feature | Rev:3 Ret:4 Diff:3 | M      | 5.0   | Backlog |
-| L-1 | Rust support                                       | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
-| L-2 | Go support                                         | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
-| L-3 | Java support (Maven/Gradle)                        | Feature | Rev:4 Ret:4 Diff:3 | M      | 5.5   | Ready   |
-| T-1 | VS Code extension                                  | Feature | Rev:4 Ret:5 Diff:3 | M      | 6.0   | Backlog |
+| ID  | Item                                          | Type    | Value Drivers      | Effort | Score | Status  |
+| --- | --------------------------------------------- | ------- | ------------------ | ------ | ----- | ------- |
+| F-1 | Generate pre-push hooks that mirror CI checks | Feature | Rev:3 Ret:4 Diff:3 | M      | 5.0   | Backlog |
+| L-1 | Rust support                                  | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
+| L-2 | Go support                                    | Feature | Rev:3 Ret:4 Diff:4 | M      | 5.5   | Ready   |
+| L-3 | Java support (Maven/Gradle)                   | Feature | Rev:4 Ret:4 Diff:3 | M      | 5.5   | Ready   |
+| T-1 | VS Code extension                             | Feature | Rev:4 Ret:5 Diff:3 | M      | 6.0   | Backlog |
 
 | CI-2 | Fix CI: postrail — tests exceed 5-min budget (optimize slow tests or raise budget) | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
 | CI-3 | Fix CI: keyflash — run `prettier --write .` (2 files), fix README .env.local ref | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
@@ -59,6 +58,7 @@
 | B-3  | Fix gitleaks TOML template errors and overly broad base64 rule | Bug     | 2026-02-06 |
 | T-2  | Configurable performance budgets via .qualityrc.json           | Feature | 2026-02-06 |
 | CI-1 | Deploy hashFiles gitleaks fix to all vibebuildlab repos        | Bug     | 2026-02-06 |
+| B-2  | Respect .qualityrc.json lighthouse.enabled setting             | Bug     | 2026-02-06 |
 
 ---
 
