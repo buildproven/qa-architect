@@ -18,3 +18,9 @@ legitimate-licenses.json
 legitimate-licenses.public.json
 .vercel
 .serena/
+
+# Generated root files (created by setup-enhancements.js / security-enhancements.js)
+.lighthouserc.js
+lighthouserc.js
+eslint-security.config.js
+QUALITY_TROUBLESHOOTING.md

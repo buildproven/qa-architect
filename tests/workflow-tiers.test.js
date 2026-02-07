@@ -147,14 +147,15 @@ function createTempGitRepo() {
       'Should have schedule trigger'
     )
 
-    // Check for matrix on main branch only (supports both single-line and multi-line if: formats)
+    // Standard: tests only run on main branch (supports both single-line and multi-line if: formats)
     assert(
       workflowContent.includes("github.ref == 'refs/heads/main'"),
-      'Matrix should only run on main'
+      'Tests should only run on main'
     )
+    // Standard: single Node version (matrix is comprehensive-only or --matrix flag)
     assert(
-      workflowContent.includes('node-version: [20, 22]'),
-      'Should have Node 20 and 22 matrix'
+      workflowContent.includes('node-version: [22]'),
+      'Should have single Node 22 (no matrix)'
     )
 
     console.log('✅ PASS\n')
@@ -632,21 +633,31 @@ jobs:
       'Dependency installation should come before maturity detection'
     )
 
-    // Verify dev-only gitleaks steps are RETAINED in standard mode
+    // Verify dev-only gitleaks steps are STRIPPED from all consumer workflows (R-3 fix)
     assert(
-      workflowContent.includes('Cache gitleaks binary for real download test'),
-      'Standard mode should retain gitleaks cache step'
+      !workflowContent.includes('Cache gitleaks binary for real download test'),
+      'Standard mode should NOT have gitleaks cache step (qa-architect-only)'
     )
     assert(
-      workflowContent.includes('Run real gitleaks binary verification test'),
-      'Standard mode should retain gitleaks binary verification step'
+      !workflowContent.includes('Run real gitleaks binary verification test'),
+      'Standard mode should NOT have gitleaks binary verification step (qa-architect-only)'
     )
     assert(
-      workflowContent.includes('gitleaks-real-binary-test.js'),
-      'Standard mode should retain gitleaks-real-binary-test.js reference'
+      !workflowContent.includes('gitleaks-real-binary-test.js'),
+      'Standard mode should NOT reference gitleaks-real-binary-test.js (qa-architect-only)'
     )
 
-    console.log('✅ PASS - Standard mode retains full maturity detection\n')
+    // Verify no section markers leaked into output
+    assert(
+      !workflowContent.includes('{{QA_ARCHITECT_ONLY'),
+      'No section markers should be in output'
+    )
+    assert(
+      !workflowContent.includes('{{FULL_DETECTION'),
+      'No section markers should be in output'
+    )
+
+    console.log('✅ PASS - Standard mode retains full maturity detection, strips qa-architect-only content\n')
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })
   }
