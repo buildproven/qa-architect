@@ -118,28 +118,29 @@
     }
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.0.0",
+    "@commitlint/config-conventional": "^19.0.0",
+    "@lhci/cli": "^0.15.1",
+    "@size-limit/file": "^11.0.0",
     "@types/node": "^25",
+    "@typescript-eslint/eslint-plugin": "^8.9.0",
+    "@typescript-eslint/parser": "^8.9.0",
+    "@vitest/coverage-v8": "^2.1.8",
     "actionlint": "^2.0.6",
-    "typescript": "^5",
+    "axe-core": "^4.10.0",
     "c8": "^10.1.2",
+    "commitlint": "^20.4.1",
     "eslint": "^9.39.2",
     "eslint-plugin-security": "^3.0.1",
     "globals": "^15.9.0",
     "husky": "^9.1.4",
     "lint-staged": "^15.2.10",
     "prettier": "^3.8.0",
+    "size-limit": "^11.0.0",
     "stylelint": "^16.26.1",
     "stylelint-config-standard": "^37.0.0",
-    "@lhci/cli": "^0.15.1",
-    "vitest": "^2.1.8",
-    "@vitest/coverage-v8": "^2.1.8",
-    "@typescript-eslint/eslint-plugin": "^8.9.0",
-    "@typescript-eslint/parser": "^8.9.0",
-    "size-limit": "^11.0.0",
-    "@size-limit/file": "^11.0.0",
-    "@commitlint/cli": "^19.0.0",
-    "@commitlint/config-conventional": "^19.0.0",
-    "axe-core": "^4.10.0"
+    "typescript": "^5",
+    "vitest": "^2.1.8"
   },
   "volta": {
     "node": "20.11.1",
@@ -185,9 +186,19 @@
     ],
     "**/*.{ts,tsx}": [
       "eslint --fix",
-      "prettier --write"
+      "prettier --write",
+      "tsc --noEmit --skipLibCheck"
     ],
     "tests/**/*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write",
+      "tsc --noEmit --project tests/tsconfig.json"
+    ],
+    "**/*.{js,jsx,ts,tsx,mjs,cjs,html}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "**/*.{js,jsx,mjs,cjs,html}": [
       "eslint --fix",
       "prettier --write"
     ]
@@ -200,5 +211,15 @@
     "markdownlint-cli2": "^0.20.0",
     "ora": "^8.1.1",
     "tar": "^7.5.7"
-  }
+  },
+  "size-limit": [
+    {
+      "path": "dist/**/*.js",
+      "limit": "250 kB"
+    },
+    {
+      "path": "dist/**/*.css",
+      "limit": "50 kB"
+    }
+  ]
 }

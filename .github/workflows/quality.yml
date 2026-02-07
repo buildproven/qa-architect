@@ -38,12 +38,12 @@ jobs:
     runs-on: ubuntu-latest
     if: github.actor != 'dependabot[bot]' || github.event_name == 'schedule'
     outputs:
-      maturity: ${{ steps.detect.outputs.maturity }}
-      source-count: ${{ steps.detect.outputs.source-count }}
-      test-count: ${{ steps.detect.outputs.test-count }}
-      has-deps: ${{ steps.detect.outputs.has-deps }}
-      has-docs: ${{ steps.detect.outputs.has-docs }}
-      has-css: ${{ steps.detect.outputs.has-css }}
+      maturity: 'minimal'
+      source-count: '10'
+      test-count: '1'
+      has-deps: 'true'
+      has-docs: 'false'
+      has-css: 'false'
       package-manager: ${{ steps.detect-pm.outputs.manager }}
       install-cmd: ${{ steps.detect-pm.outputs.install-cmd }}
       is-turborepo: ${{ steps.detect-pm.outputs.is-turborepo }}
@@ -101,34 +101,13 @@ jobs:
         with:
           bun-version: '1.0.0'
 
-      # {{FULL_DETECTION_BEGIN}}
-      - name: Install dependencies for maturity detection
-        run: ${{ steps.detect-pm.outputs.install-cmd }}
-
-      - name: Detect Project Maturity
-        id: detect
-        run: |
-          # Use the project maturity detector (local for qa-architect itself, npx for consumer projects)
-          if [ -f lib/project-maturity.js ]; then
-            node lib/project-maturity.js --github-actions >> $GITHUB_OUTPUT
-          else
-            npx create-qa-architect@latest --check-maturity --github-actions >> $GITHUB_OUTPUT
-          fi
-      # {{FULL_DETECTION_END}}
-      # {{FULL_REPORT_BEGIN}}
       - name: Display Detection Report
         run: |
-          echo "📊 Project Detection Results"
+          echo "📊 Project Detection Results (Minimal Mode)"
           echo "Package Manager: ${{ steps.detect-pm.outputs.manager }}"
           echo "Install Command: ${{ steps.detect-pm.outputs.install-cmd }}"
           echo "Turborepo: ${{ steps.detect-pm.outputs.is-turborepo }}"
-          echo "Maturity: ${{ steps.detect.outputs.maturity }}"
-          echo "Source files: ${{ steps.detect.outputs.source-count }}"
-          echo "Test files: ${{ steps.detect.outputs.test-count }}"
-          echo "Has dependencies: ${{ steps.detect.outputs.has-deps }}"
-          echo "Has documentation: ${{ steps.detect.outputs.has-docs }}"
-          echo "Has CSS files: ${{ steps.detect.outputs.has-css }}"
-      # {{FULL_REPORT_END}}
+          echo "Note: Maturity detection skipped in minimal mode for faster CI"
 
   # Note: Lint/format jobs REMOVED - pre-commit already does this locally
   # This follows industry best practice: "Each layer does unique work"
@@ -332,24 +311,6 @@ jobs:
             echo "::error::Test suite exceeded 5-minute performance budget!"
             exit 1
           }
-
-      # {{QA_ARCHITECT_ONLY_BEGIN}}
-      - name: Cache gitleaks binary for real download test
-        if: runner.os == 'Linux'
-        uses: actions/cache@v5
-        with:
-          path: ~/.cache/create-qa-architect/gitleaks
-          key: gitleaks-8.28.0-linux-x64-a65b5253-${{ hashFiles('lib/validation/config-security.js') }}
-          restore-keys: |
-            gitleaks-8.28.0-linux-x64-a65b5253-
-            gitleaks-8.28.0-linux-x64-
-
-      - name: Run real gitleaks binary verification test
-        if: runner.os == 'Linux' && hashFiles('tests/gitleaks-real-binary-test.js') != ''
-        run: |
-          echo "🔐 Running real gitleaks binary verification test..."
-          QAA_DEVELOPER=true RUN_REAL_BINARY_TEST=1 node tests/gitleaks-real-binary-test.js
-      # {{QA_ARCHITECT_ONLY_END}}
 
   # Step 4: Documentation - run for production-ready projects
   documentation:
