@@ -19,7 +19,13 @@ const {
 
 const createTempProject = (options = {}) => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'setup-enhance-test-'))
-  const { hasPackageJson = false, scripts = {}, hasTsConfig = false, hasPreCommit = false, preCommitContent = '' } = options
+  const {
+    hasPackageJson = false,
+    scripts = {},
+    hasTsConfig = false,
+    hasPreCommit = false,
+    preCommitContent = '',
+  } = options
 
   if (hasPackageJson) {
     fs.writeFileSync(
@@ -41,7 +47,11 @@ const createTempProject = (options = {}) => {
 }
 
 const cleanup = dir => {
-  try { fs.rmSync(dir, { recursive: true, force: true }) } catch { /* ignore */ }
+  try {
+    fs.rmSync(dir, { recursive: true, force: true })
+  } catch {
+    /* ignore */
+  }
 }
 
 console.log('🧪 Testing Setup Enhancements...\n')
@@ -56,7 +66,10 @@ console.log('🧪 Testing Setup Enhancements...\n')
   assert(hook.includes('lint-staged'), 'Should include lint-staged')
   assert(hook.includes('type-check'), 'Should include TypeScript check')
   assert(hook.includes('test:fast'), 'Should include fast tests')
-  assert(hook.includes('QUALITY_TROUBLESHOOTING'), 'Should reference troubleshooting guide')
+  assert(
+    hook.includes('QUALITY_TROUBLESHOOTING'),
+    'Should reference troubleshooting guide'
+  )
   console.log('  ✅ PASS')
 }
 
@@ -68,7 +81,10 @@ console.log('🧪 Testing Setup Enhancements...\n')
   const hook = generateEnhancedPreCommitHook(false, false)
 
   assert(hook.includes('lint-staged'), 'Should include lint-staged')
-  assert(!hook.includes('type-check:all'), 'Should NOT include TypeScript check')
+  assert(
+    !hook.includes('type-check:all'),
+    'Should NOT include TypeScript check'
+  )
   assert(hook.includes('test:fast'), 'Should include fast tests')
   console.log('  ✅ PASS')
 }
@@ -97,9 +113,15 @@ console.log('🧪 Testing Setup Enhancements...\n')
     scripts: {},
   })
 
-  const { warnings, errors } = validateProjectSetup(tempDir)
-  assert(errors.length > 0, 'Should report error for missing tests/tsconfig.json')
-  assert(errors.some(e => e.includes('tests/tsconfig.json')), 'Error should mention tests/tsconfig.json')
+  const result = validateProjectSetup(tempDir)
+  assert(
+    result.errors.length > 0,
+    'Should report error for missing tests/tsconfig.json'
+  )
+  assert(
+    result.errors.some(e => e.includes('tests/tsconfig.json')),
+    'Error should mention tests/tsconfig.json'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
@@ -131,8 +153,14 @@ console.log('🧪 Testing Setup Enhancements...\n')
   })
 
   const { warnings } = validateProjectSetup(tempDir)
-  assert(warnings.some(w => w.includes('type-check')), 'Should warn about missing type-check')
-  assert(warnings.some(w => w.includes('test')), 'Should warn about missing test')
+  assert(
+    warnings.some(w => w.includes('type-check')),
+    'Should warn about missing type-check'
+  )
+  assert(
+    warnings.some(w => w.includes('test')),
+    'Should warn about missing test'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
@@ -144,7 +172,8 @@ console.log('🧪 Testing Setup Enhancements...\n')
   console.log('Test 7: Complete pre-commit has no warnings about hooks')
   const tempDir = createTempProject({
     hasPreCommit: true,
-    preCommitContent: '#!/bin/sh\nnpm run type-check:all\nnpm run test:fast\nnpx lint-staged\n',
+    preCommitContent:
+      '#!/bin/sh\nnpm run type-check:all\nnpm run test:fast\nnpx lint-staged\n',
     hasPackageJson: true,
     scripts: {
       'type-check:all': 'tsc --noEmit',
@@ -154,7 +183,11 @@ console.log('🧪 Testing Setup Enhancements...\n')
 
   const { warnings } = validateProjectSetup(tempDir)
   const hookWarnings = warnings.filter(w => w.includes('Pre-commit'))
-  assert.strictEqual(hookWarnings.length, 0, 'Should have no pre-commit warnings')
+  assert.strictEqual(
+    hookWarnings.length,
+    0,
+    'Should have no pre-commit warnings'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
@@ -170,8 +203,14 @@ console.log('🧪 Testing Setup Enhancements...\n')
   })
 
   const { warnings } = validateProjectSetup(tempDir)
-  assert(warnings.some(w => w.includes('type-check:all')), 'Should warn about missing type-check:all')
-  assert(warnings.some(w => w.includes('quality:check')), 'Should warn about missing quality:check')
+  assert(
+    warnings.some(w => w.includes('type-check:all')),
+    'Should warn about missing type-check:all'
+  )
+  assert(
+    warnings.some(w => w.includes('quality:check')),
+    'Should warn about missing quality:check'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
@@ -182,7 +221,12 @@ console.log('🧪 Testing Setup Enhancements...\n')
 {
   console.log('Test 9: Quality troubleshooting guide copy')
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'setup-enhance-test-'))
-  const templatePath = path.join(__dirname, '..', 'templates', 'QUALITY_TROUBLESHOOTING.md')
+  const templatePath = path.join(
+    __dirname,
+    '..',
+    'templates',
+    'QUALITY_TROUBLESHOOTING.md'
+  )
 
   if (fs.existsSync(templatePath)) {
     copyQualityTroubleshootingGuide(tempDir)
@@ -204,9 +248,13 @@ console.log('🧪 Testing Setup Enhancements...\n')
   console.log('Test 10: No package.json produces no script warnings')
   const tempDir = createTempProject({})
 
-  const { warnings, errors } = validateProjectSetup(tempDir)
+  const { warnings } = validateProjectSetup(tempDir)
   const scriptWarnings = warnings.filter(w => w.includes('script'))
-  assert.strictEqual(scriptWarnings.length, 0, 'No script warnings without package.json')
+  assert.strictEqual(
+    scriptWarnings.length,
+    0,
+    'No script warnings without package.json'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
