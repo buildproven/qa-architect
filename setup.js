@@ -927,8 +927,9 @@ HELP:
         const hasConventionalCommits = hasFeature('conventionalCommits')
         const hasCoverageThresholds = hasFeature('coverageThresholds')
 
-        // Load performance budgets from .qualityrc.json if present
+        // Load .qualityrc.json for performance budgets and check overrides
         let performanceBudgets = null
+        let qualityChecks = {}
         const qualityrcPath = path.join(projectPath, '.qualityrc.json')
         if (fs.existsSync(qualityrcPath)) {
           try {
@@ -936,13 +937,25 @@ HELP:
             if (qualityrc.performance) {
               performanceBudgets = qualityrc.performance
             }
+            if (qualityrc.checks) {
+              qualityChecks = qualityrc.checks
+            }
           } catch {
             // Ignore parse errors - config validation handles this elsewhere
           }
         }
 
+        // Helper: check if a quality check is enabled (respects .qualityrc.json overrides)
+        function isCheckEnabled(checkName, licenseDefault) {
+          const override = qualityChecks[checkName]
+          if (override && override.enabled === false) return false
+          if (override && override.enabled === true) return true
+          // "auto" or missing: use license-based default
+          return licenseDefault
+        }
+
         // 1. Lighthouse CI - available to all, thresholds for Pro+
-        if (hasLighthouse) {
+        if (isCheckEnabled('lighthouse', hasLighthouse)) {
           try {
             const lighthousePath = path.join(projectPath, 'lighthouserc.js')
             if (!fs.existsSync(lighthousePath)) {
