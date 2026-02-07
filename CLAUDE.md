@@ -91,7 +91,7 @@ Note: CI does NOT re-run lint/format (pre-commit already did it). This avoids re
 qa-architect defaults to **minimal CI** to avoid unexpected GitHub Actions costs:
 
 - **Minimal (default)**: Single Node 22, weekly security, path filters (~$0-5/mo)
-- **Standard**: Matrix on main only, weekly security, path filters (~$5-20/mo)
+- **Standard**: Single Node 22, tests on main only, weekly security, path filters (~$5-10/mo)
 - **Comprehensive**: Matrix every commit, inline security (~$100-350/mo)
 - **--matrix flag**: Enable Node 20+22 matrix (for library authors)
 
