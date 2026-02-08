@@ -59,4 +59,4 @@ npm deprecate create-qa-architect@VERSION "Critical bug, use VERSION instead"
 ## npm Registry
 
 - Package: https://www.npmjs.com/package/create-qa-architect
-- Documentation: https://github.com/vibebuildlab/qa-architect
+- Documentation: https://github.com/buildproven/qa-architect

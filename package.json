@@ -98,12 +98,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vibebuildlab/qa-architect.git"
+    "url": "git+https://github.com/buildproven/qa-architect.git"
   },
   "bugs": {
-    "url": "https://github.com/vibebuildlab/qa-architect/issues"
+    "url": "https://github.com/buildproven/qa-architect/issues"
   },
-  "homepage": "https://vibebuildlab.com/qa-architect",
+  "homepage": "https://buildproven.ai/qa-architect",
   "engines": {
     "node": ">=20"
   },

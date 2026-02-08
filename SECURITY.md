@@ -4,7 +4,7 @@
 
 **Please do not report security vulnerabilities through public GitHub issues.**
 
-Instead, please report them via email to: **security@vibebuildlab.com**
+Instead, please report them via email to: **security@buildproven.ai**
 
 Include:
 
@@ -50,9 +50,9 @@ We follow responsible disclosure practices:
 
 ## Legal
 
-- [Privacy Policy](https://vibebuildlab.com/privacy-policy)
-- [Terms of Service](https://vibebuildlab.com/terms)
+- [Privacy Policy](https://buildproven.ai/privacy-policy)
+- [Terms of Service](https://buildproven.ai/terms)
 
 ---
 
-> **Vibe Build Lab LLC** · [vibebuildlab.com](https://vibebuildlab.com)
+> **Vibe Build Lab LLC (d/b/a BuildProven)** · [buildproven.ai](https://buildproven.ai)

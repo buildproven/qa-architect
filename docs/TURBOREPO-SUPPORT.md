@@ -75,7 +75,7 @@ See `.github/workflows/pnpm-ci.yml.example` for a complete Turborepo CI workflow
 Typical Turborepo monorepo:
 
 ```
-vibebuildlab/
+buildproven/
 ├── turbo.json              # Turborepo config (triggers detection)
 ├── package.json            # Root package with workspaces
 ├── pnpm-lock.yaml         # pnpm lockfile
@@ -156,7 +156,7 @@ This is expected in monorepos. qa-architect gracefully handles missing package.j
 Test Turborepo detection:
 
 ```bash
-cd ~/Projects/vibebuildlab
+cd ~/Projects/buildproven
 npx create-qa-architect@latest --dry-run
 
 # Should show:
@@ -171,4 +171,4 @@ npx create-qa-architect@latest --dry-run
 
 ---
 
-**Status**: Production-ready, tested with vibebuildlab monorepo
+**Status**: Production-ready, tested with buildproven monorepo

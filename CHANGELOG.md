@@ -125,7 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Package Manager Detection**: Auto-detect pnpm/yarn/npm for security audit commands
   - Pre-push hook now detects lock file and uses correct audit command
   - `security:audit` and `security:audit:fix` scripts now work with pnpm/yarn projects
-  - Fixes vibebuildlab pre-push hook regression from v5.10.1 --update
+  - Fixes pre-push hook regression from v5.10.1 --update
   - Detection order: pnpm-lock.yaml → yarn.lock → npm (default)
 
 ## [5.10.1] - 2026-01-19
@@ -524,7 +524,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Updated all VBL URLs from `/qaa` to `/tools/qa-architect` for consistency with new site structure
-- License validation now uses `vibebuildlab.com/api/licenses/qa-architect.json` instead of subdomain
+- License validation now uses `buildproven.ai/api/licenses/qa-architect.json` instead of subdomain
 
 ## [5.0.2] - 2025-12-07
 
@@ -589,7 +589,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Pro included in Vibe Lab Pro bundle
 - Team/Enterprise are standalone purchases
-- Aligned with Vibe Build Lab product strategy
+- Aligned with BuildProven product strategy
 
 ## [4.2.0] - 2025-11-24
 

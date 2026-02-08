@@ -28,7 +28,7 @@
 - [x] Quality tools (v5.2.0) - Lighthouse CI, size-limit, axe-core, commitlint, coverage thresholds
 - [x] Pre-launch validation (v5.3.0) - SEO, links, a11y, docs, env vars audit
 - [x] Stripe payment flow for Pro tier purchases
-- [x] Landing page at vibebuildlab.com/qa-architect
+- [x] Landing page at buildproven.ai/qa-architect
 
 ## In Progress (This Week)
 

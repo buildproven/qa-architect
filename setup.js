@@ -1161,7 +1161,7 @@ HELP:
           if (!repoCheck.allowed) {
             console.error(`\n❌ ${repoCheck.reason}`)
             console.error(
-              '   Upgrade to Pro for unlimited repos: https://vibebuildlab.com/qa-architect'
+              '   Upgrade to Pro for unlimited repos: https://buildproven.ai/qa-architect'
             )
             process.exit(1)
           }
@@ -1531,7 +1531,7 @@ HELP:
           console.error(`   • Detected maturity: ${detectedMaturity}`)
           console.error(`   • Error count: ${validationResult.errors.length}`)
           console.error(
-            `   • https://github.com/vibebuildlab/qa-architect/issues/new\n`
+            `   • https://github.com/buildproven/qa-architect/issues/new\n`
           )
 
           // Don't continue - this is a bug in the tool itself
@@ -1948,7 +1948,7 @@ try {
 const CAP = 50
 if (usage.prePushRuns >= CAP) {
 console.error('❌ Free tier limit reached: ' + usage.prePushRuns + '/' + CAP + ' pre-push runs this month')
-  console.error('   Upgrade to Pro, Team, or Enterprise: https://vibebuildlab.com/qa-architect')
+  console.error('   Upgrade to Pro, Team, or Enterprise: https://buildproven.ai/qa-architect')
   process.exit(1)
 }
 

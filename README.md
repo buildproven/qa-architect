@@ -2,13 +2,13 @@
 
 Quality automation CLI for JavaScript/TypeScript, Python, and shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Pro tiers add security scanning (Gitleaks), Smart Test Strategy, and multi-language support.
 
-**This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://vibebuildlab.com/qa-architect) (included in VBL Starter Kit).
+**This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://buildproven.ai/qa-architect) (included in VBL Starter Kit).
 
 ---
 
 > **Maintainer & Ownership**
-> This project is maintained by **Vibe Build Lab LLC**, a studio focused on AI-assisted product development, micro-SaaS, and "vibe coding" workflows for solo founders and small teams.
-> Learn more at **https://vibebuildlab.com**.
+> This project is maintained by **Vibe Build Lab LLC (d/b/a BuildProven)**, a studio focused on AI-assisted product development, micro-SaaS, and "vibe coding" workflows for solo founders and small teams.
+> Learn more at **https://buildproven.ai**.
 
 ---
 
@@ -63,7 +63,7 @@ npx create-qa-architect@latest
 | **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                 |
 | **Pro**  | $49/mo or $490/yr | **Security scanning (Gitleaks + ESLint security)**, Smart Test Strategy, multi-language, unlimited |
 
-> **Pro included in [VBL Starter Kit](https://vibebuildlab.com/starter-kit)**
+> **Pro included in [VBL Starter Kit](https://buildproven.ai/starter-kit)**
 
 ### Security Features by Tier
 
@@ -102,7 +102,7 @@ npx create-qa-architect@latest
 
 ### Get Pro
 
-**Purchase:** [vibebuildlab.com/qa-architect](https://vibebuildlab.com/qa-architect)
+**Purchase:** [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
 
 After purchase, you'll receive a license key via email (QAA-XXXX-XXXX-XXXX-XXXX).
 
@@ -426,7 +426,7 @@ Pro tier ($49/mo or $490/yr) includes:
 - Multi-language support (Python, Shell scripts)
 - Unlimited private repos and runs
 
-Purchase at [vibebuildlab.com/qa-architect](https://vibebuildlab.com/qa-architect)
+Purchase at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
 
 ### Server-Side Setup (Maintainers Only)
 
@@ -449,9 +449,9 @@ Commercial freemium license — the base CLI is free to use; Pro features requir
 
 ## Legal
 
-- [Privacy Policy](https://vibebuildlab.com/privacy-policy)
-- [Terms of Service](https://vibebuildlab.com/terms)
+- [Privacy Policy](https://buildproven.ai/privacy-policy)
+- [Terms of Service](https://buildproven.ai/terms)
 
 ---
 
-> **Vibe Build Lab LLC** · [vibebuildlab.com](https://vibebuildlab.com)
+> **Vibe Build Lab LLC (d/b/a BuildProven)** · [buildproven.ai](https://buildproven.ai)

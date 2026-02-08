@@ -17,7 +17,7 @@
 | keyflash                | 74         | 187   | 0.4 min |
 | wfhroulette             | 56         | 138   | 0.4 min |
 | jobrecon                | 56         | 44    | 1.3 min |
-| ai-second-act           | 4          | 33    | 0.1 min |
+| buildproven             | 4          | 33    | 0.1 min |
 | vibebuildlab-newsletter | 1          | 22    | 0.0 min |
 | **TOTAL**               | **~2,400** | 1,350 | 1.8 min |
 
