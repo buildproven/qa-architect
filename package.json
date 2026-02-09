@@ -209,7 +209,7 @@
     "ajv-formats": "^3.0.1",
     "js-yaml": "^4.1.0",
     "markdownlint-cli2": "^0.20.0",
-    "ora": "^8.1.1",
+    "ora": "^9.3.0",
     "tar": "^7.5.7"
   },
   "size-limit": [
