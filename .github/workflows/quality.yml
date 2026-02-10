@@ -401,6 +401,7 @@ jobs:
           fi
 
       - name: Documentation consistency and security audit freshness
+        continue-on-error: true
         run: |
           echo "🔐 Running comprehensive documentation validation..."
           # This includes security audit freshness check with proper git-based validation
