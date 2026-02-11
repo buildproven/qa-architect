@@ -119,6 +119,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",
+    "@vercel/blob": "^2.2.0",
     "@commitlint/config-conventional": "^19.0.0",
     "@lhci/cli": "^0.15.1",
     "@size-limit/file": "^11.0.0",

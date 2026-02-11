@@ -20,9 +20,6 @@
  */
 
 const crypto = require('crypto')
-const fs = require('fs')
-const os = require('os')
-const path = require('path')
 const express = require('express')
 const helmet = require('helmet')
 const {
@@ -33,43 +30,11 @@ const {
   stableStringify,
   loadKeyFromEnv,
 } = require('./lib/license-signing')
-
-/**
- * Validate that a database path is within allowed directories (cwd or home)
- * Security: Prevents path traversal attacks via environment variables
- */
-function validateDatabasePath(envPath, defaultPath) {
-  const cwd = process.cwd()
-  const home = os.homedir()
-  const resolved = path.resolve(cwd, envPath || defaultPath)
-
-  // Must be within cwd or home directory
-  const isInCwd = resolved.startsWith(cwd + path.sep) || resolved === cwd
-  const isInHome = resolved.startsWith(home + path.sep) || resolved === home
-
-  if (!isInCwd && !isInHome) {
-    console.error(
-      `❌ Database path must be within cwd or home directory: ${envPath}`
-    )
-    console.error(`   Using default: ${defaultPath}`)
-    return path.resolve(cwd, defaultPath)
-  }
-
-  return resolved
-}
+const { loadBlob, saveBlob, BLOB_PATHS } = require('./lib/blob-storage')
 
 // Environment variables required
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
-// Security: Validate paths to prevent traversal attacks
-const LICENSE_DATABASE_PATH = validateDatabasePath(
-  process.env.LICENSE_DATABASE_PATH,
-  './legitimate-licenses.json'
-)
-const LICENSE_PUBLIC_DATABASE_PATH = validateDatabasePath(
-  process.env.LICENSE_PUBLIC_DATABASE_PATH,
-  './legitimate-licenses.public.json'
-)
 const LICENSE_REGISTRY_KEY_ID = process.env.LICENSE_REGISTRY_KEY_ID || 'default'
 const LICENSE_REGISTRY_PRIVATE_KEY = loadKeyFromEnv(
   process.env.LICENSE_REGISTRY_PRIVATE_KEY,
@@ -208,47 +173,11 @@ app.use('/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 /**
- * Load legitimate license database
- *
- * DR13 SCALABILITY WARNING: JSON file has known limits
- * - Current JSON file approach works for <10k licenses (~500KB)
- * - At 10k-50k licenses: Performance degrades, consider monitoring
- * - At 50k+ licenses: Migrate to SQLite/PostgreSQL required
- * - Write queue prevents corruption but doesn't scale beyond ~10 req/sec
- * - See docs/SCALING.md for migration guide (when implemented)
+ * Load legitimate license database from Vercel Blob
  */
-function loadLicenseDatabase() {
-  try {
-    // Path resolved once at startup; no untrusted user input is allowed here
-    if (fs.existsSync(LICENSE_DATABASE_PATH)) {
-      const data = fs.readFileSync(LICENSE_DATABASE_PATH, 'utf8')
-      const database = JSON.parse(data)
-
-      // DR13 fix: Warn when approaching scale limits
-      const licenseCount = Object.keys(database).filter(
-        k => k !== '_metadata'
-      ).length
-      if (licenseCount > 5000 && licenseCount % 1000 === 0) {
-        console.warn(
-          `⚠️  Database contains ${licenseCount} licenses - approaching scale limits`
-        )
-        console.warn(
-          `   Consider migrating to SQLite when you reach 10k licenses`
-        )
-      }
-      if (licenseCount > 10000) {
-        console.error(`❌ CRITICAL: Database contains ${licenseCount} licenses`)
-        console.error(`   JSON storage is not recommended beyond 10k licenses`)
-        console.error(
-          `   Performance degradation expected - migrate to SQLite/PostgreSQL`
-        )
-      }
-
-      return database
-    }
-  } catch (error) {
-    console.error('Error loading license database:', error.message)
-  }
+async function loadLicenseDatabase() {
+  const database = await loadBlob(BLOB_PATHS.private)
+  if (database) return database
 
   return {
     _metadata: {
@@ -273,19 +202,11 @@ function queueDatabaseWrite(task) {
 }
 
 /**
- * Save legitimate license database
+ * Save legitimate license database to Vercel Blob
  */
-function saveLicenseDatabase(database) {
+async function saveLicenseDatabase(database) {
   try {
-    // Ensure directory exists
-    const dir = path.dirname(LICENSE_DATABASE_PATH)
-    // Path resolved once at startup; no untrusted user input is allowed here
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
-
     // Compute integrity hash over licenses (excluding metadata)
-    // DR30 fix: Use stableStringify for deterministic hash computation
     // eslint-disable-next-line no-unused-vars -- destructuring to exclude _metadata from licenses
     const { _metadata, ...licenses } = database
     const sha = crypto
@@ -299,19 +220,12 @@ function saveLicenseDatabase(database) {
       sha256: sha,
     }
 
-    const tempPath = `${LICENSE_DATABASE_PATH}.${process.pid}.${Date.now()}.tmp`
-    // Path resolved once at startup; no untrusted user input is allowed here
-    fs.writeFileSync(tempPath, JSON.stringify(database, null, 2))
-    // Path resolved once at startup; no untrusted user input is allowed here
-    fs.renameSync(tempPath, LICENSE_DATABASE_PATH)
+    const privateResult = await saveBlob(BLOB_PATHS.private, database)
+    if (!privateResult) return false
 
     const publicRegistry = buildPublicRegistry(database)
-    const publicTempPath = `${LICENSE_PUBLIC_DATABASE_PATH}.${process.pid}.${Date.now()}.tmp`
-    // Path resolved once at startup; no untrusted user input is allowed here
-    fs.writeFileSync(publicTempPath, JSON.stringify(publicRegistry, null, 2))
-    // Path resolved once at startup; no untrusted user input is allowed here
-    fs.renameSync(publicTempPath, LICENSE_PUBLIC_DATABASE_PATH)
-    return true
+    const publicResult = await saveBlob(BLOB_PATHS.public, publicRegistry)
+    return !!publicResult
   } catch (error) {
     console.error('Error saving license database:', error.message)
     return false
@@ -373,26 +287,14 @@ function buildPublicRegistry(database) {
   }
 }
 
-function loadPublicRegistry() {
-  try {
-    // Path resolved once at startup; no untrusted user input is allowed here
-    if (fs.existsSync(LICENSE_PUBLIC_DATABASE_PATH)) {
-      return JSON.parse(fs.readFileSync(LICENSE_PUBLIC_DATABASE_PATH, 'utf8'))
-    }
-  } catch (error) {
-    console.error('Error loading public license registry:', error.message)
-  }
+async function loadPublicRegistry() {
+  const registry = await loadBlob(BLOB_PATHS.public)
+  if (registry) return registry
 
-  const privateDb = loadLicenseDatabase()
-  const registry = buildPublicRegistry(privateDb)
-  try {
-    const publicTempPath = `${LICENSE_PUBLIC_DATABASE_PATH}.${process.pid}.${Date.now()}.tmp`
-    fs.writeFileSync(publicTempPath, JSON.stringify(registry, null, 2))
-    fs.renameSync(publicTempPath, LICENSE_PUBLIC_DATABASE_PATH)
-  } catch (error) {
-    console.error('Error saving public license registry:', error.message)
-  }
-  return registry
+  const privateDb = await loadLicenseDatabase()
+  const built = buildPublicRegistry(privateDb)
+  await saveBlob(BLOB_PATHS.public, built)
+  return built
 }
 
 /**
@@ -430,10 +332,9 @@ function mapPriceToTier(priceId) {
  * Add license to database
  */
 function addLicenseToDatabase(licenseKey, customerInfo) {
-  return queueDatabaseWrite(() => {
+  return queueDatabaseWrite(async () => {
     try {
       // Validate license key format to prevent object injection
-      // TD15 fix: Use shared constant for license key pattern
       if (
         typeof licenseKey !== 'string' ||
         !LICENSE_KEY_PATTERN.test(licenseKey)
@@ -442,7 +343,7 @@ function addLicenseToDatabase(licenseKey, customerInfo) {
         throw new Error(`Invalid license key format: ${licenseKey}`)
       }
 
-      const database = loadLicenseDatabase()
+      const database = await loadLicenseDatabase()
 
       database[licenseKey] = {
         customerId: customerInfo.customerId,
@@ -459,9 +360,8 @@ function addLicenseToDatabase(licenseKey, customerInfo) {
       database._metadata.lastUpdate = new Date().toISOString()
       database._metadata.totalLicenses = Object.keys(database).length - 1 // Exclude metadata
 
-      const saveResult = saveLicenseDatabase(database)
+      const saveResult = await saveLicenseDatabase(database)
       if (!saveResult) {
-        // DR1 fix: CRITICAL - Payment succeeded but license not saved
         console.error(`❌ CRITICAL: Payment processed but license save failed`)
         console.error(`   License Key: ${licenseKey}`)
         console.error(
@@ -474,7 +374,6 @@ function addLicenseToDatabase(licenseKey, customerInfo) {
       }
       return saveResult
     } catch (error) {
-      // DR1 fix: Re-throw to trigger Stripe webhook retry
       console.error(`❌ Error adding license to database: ${error.message}`)
       console.error(`   License Key: ${licenseKey}`)
       console.error(
@@ -662,7 +561,7 @@ async function handleSubscriptionCanceled(subscription) {
 
   try {
     // DR4 fix: Implement license deactivation with proper error handling
-    const database = loadLicenseDatabase()
+    const database = await loadLicenseDatabase()
     let licenseFound = false
 
     Object.keys(database).forEach(key => {
@@ -680,7 +579,7 @@ async function handleSubscriptionCanceled(subscription) {
       return // Not an error - license may have been manually removed
     }
 
-    const saveResult = saveLicenseDatabase(database)
+    const saveResult = await saveLicenseDatabase(database)
     if (!saveResult) {
       throw new Error(
         `Failed to save license cancellation for subscription ${subscription.id}`
@@ -702,13 +601,21 @@ async function handleSubscriptionCanceled(subscription) {
  * Health check endpoint
  * DR19 fix: Add rate limiting to prevent DoS
  */
-app.get('/health', healthRateLimiter.middleware(), (req, res) => {
-  res.json({
-    status: 'ok',
-    timestamp: new Date().toISOString(),
-    // Path resolved once at startup; no untrusted user input is allowed here
-    database: fs.existsSync(LICENSE_DATABASE_PATH) ? 'exists' : 'missing',
-  })
+app.get('/health', healthRateLimiter.middleware(), async (req, res) => {
+  try {
+    const db = await loadBlob(BLOB_PATHS.private)
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: db ? 'exists' : 'missing',
+    })
+  } catch {
+    res.json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      database: 'unknown',
+    })
+  }
 })
 
 /**
@@ -718,9 +625,9 @@ app.get('/health', healthRateLimiter.middleware(), (req, res) => {
  * the latest legitimate licenses for validation
  * DR19 fix: Add rate limiting to prevent abuse
  */
-app.get('/legitimate-licenses.json', dbRateLimiter.middleware(), (req, res) => {
+app.get('/legitimate-licenses.json', dbRateLimiter.middleware(), async (req, res) => {
   try {
-    const database = loadPublicRegistry()
+    const database = await loadPublicRegistry()
 
     // Add CORS headers for CLI access
     res.header('Access-Control-Allow-Origin', '*')
@@ -743,7 +650,7 @@ app.get('/legitimate-licenses.json', dbRateLimiter.middleware(), (req, res) => {
  * License database status endpoint
  * DR15 fix: Requires authentication
  */
-app.get('/status', (req, res) => {
+app.get('/status', async (req, res) => {
   // DR15 fix: Require Bearer token authentication
   const authHeader = req.headers.authorization
   const expectedToken = process.env.STATUS_API_TOKEN || 'disabled'
@@ -776,7 +683,7 @@ app.get('/status', (req, res) => {
   }
 
   try {
-    const database = loadLicenseDatabase()
+    const database = await loadLicenseDatabase()
     const licenses = Object.keys(database).filter(key => key !== '_metadata')
 
     // TD9 fix: Don't expose actual license keys - show masked versions for debugging
@@ -798,20 +705,36 @@ app.get('/status', (req, res) => {
   }
 })
 
-// Start server
-app.listen(PORT, () => {
-  console.log('🚀 License webhook handler running')
-  console.log(`📡 Port: ${PORT}`)
-  console.log(`📄 Database: ${LICENSE_DATABASE_PATH}`)
-  console.log(`💡 Webhook endpoint: /webhook`)
-  console.log('')
-  console.log('🔧 Setup instructions:')
-  console.log('1. Configure Stripe webhook to point to this endpoint')
-  console.log(
-    '2. Add webhook events: checkout.session.completed, invoice.payment_succeeded'
-  )
-  console.log('3. Set STRIPE_WEBHOOK_SECRET from Stripe dashboard')
-  console.log('')
-})
+// Route alias: CLI fetches /api/licenses/qa-architect.json by default
+app.get(
+  '/api/licenses/qa-architect.json',
+  dbRateLimiter.middleware(),
+  async (req, res) => {
+    try {
+      const database = await loadPublicRegistry()
+      res.header('Access-Control-Allow-Origin', '*')
+      res.header('Access-Control-Allow-Methods', 'GET')
+      res.header('Cache-Control', 'public, max-age=300')
+      res.json(database)
+    } catch (error) {
+      console.error('Failed to serve license database:', error.message)
+      res.status(503).json({
+        error: 'License database temporarily unavailable',
+        message: 'Please retry shortly or use cached license data',
+        retryAfter: 60,
+      })
+    }
+  }
+)
+
+// Start server (Vercel handles listening via module.exports)
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log('🚀 License webhook handler running')
+    console.log(`📡 Port: ${PORT}`)
+    console.log(`💡 Webhook endpoint: /webhook`)
+    console.log('')
+  })
+}
 
 module.exports = app

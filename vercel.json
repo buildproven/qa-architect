@@ -16,7 +16,15 @@
       "dest": "webhook-handler.js"
     },
     {
-      "src": "/db/public",
+      "src": "/health",
+      "dest": "webhook-handler.js"
+    },
+    {
+      "src": "/api/licenses/qa-architect.json",
+      "dest": "webhook-handler.js"
+    },
+    {
+      "src": "/legitimate-licenses.json",
       "dest": "webhook-handler.js"
     }
   ],
