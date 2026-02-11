@@ -140,6 +140,16 @@ assert(fs.existsSync(path.join(testDir, '.github/dependabot.yml')))
 
 The `QAA_DEVELOPER=true` env var bypasses license checks during testing.
 
+## Branching
+
+Always create a feature branch before starting any code changes. Never commit directly to main.
+
+```bash
+git checkout -b feat/short-description   # before writing any code
+```
+
+PreToolUse hooks enforce this (block-commit-main.sh, block-push-main.sh), but branch proactively — don't wait for the hook to catch it.
+
 ## Quality Gates
 
 - Coverage: 75% lines, 70% functions, 65% branches
