@@ -20,6 +20,12 @@ on:
       - '.editorconfig'
   pull_request:
     branches: [main, master, develop]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.editorconfig'
   schedule:
     - cron: '0 0 1 * *' # Monthly on 1st (security scans)
   workflow_dispatch: # Manual trigger
@@ -102,9 +108,6 @@ jobs:
           bun-version: '1.0.0'
 
       # {{FULL_DETECTION_BEGIN}}
-      - name: Install dependencies for maturity detection
-        run: ${{ steps.detect-pm.outputs.install-cmd }}
-
       - name: Detect Project Maturity
         id: detect
         run: |

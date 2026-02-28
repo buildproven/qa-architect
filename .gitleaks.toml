@@ -23,4 +23,4 @@ tags = ["env", "secret"]
 [allowlist]
 description = "Test and example files"
 regexes = ['''test_secret_.*|example_.*|dummy_.*|fake_.*|EXAMPLE_.*|your_.*_here|replace_with_.*|TODO:.*''']
-paths = ['''(tests/|test/|__tests__/|examples/|docs/|\.md$|\.gitleaksignore$|private-key\.pem$|\.serena/|node_modules/)''']
+paths = ['''(tests/|test/|__tests__/|examples/|docs/|\.md$|\.gitleaksignore$|private-key\.pem$|\.serena/|node_modules/|\.env.*\.local$)''']

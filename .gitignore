@@ -24,3 +24,4 @@ legitimate-licenses.public.json
 lighthouserc.js
 eslint-security.config.js
 QUALITY_TROUBLESHOOTING.md
+.env*.local

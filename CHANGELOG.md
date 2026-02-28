@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.0] - 2026-02-11
+
+### Added
+
+- **Staged rollout with canary deployment** for consumer repo updates — deploys to canary first, waits for CI green, then rolls out to remaining repos
+- **Vercel Blob storage** for webhook handler, replacing filesystem storage
+
+### Fixed
+
+- **CI defaults changed from weekly to monthly** to prevent GitHub Actions minutes burn (#81)
+- **Documentation consistency check made non-blocking** (#82)
+- Skip Vercel preview deploys for dependabot branches
+- Security scan schedule changed from weekly to monthly
+- Optimized dependabot config: monthly cadence, limit 2, grouped dependencies
+
 ## [5.12.1] - 2026-02-07
 
 ### Fixed

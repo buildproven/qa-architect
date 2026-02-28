@@ -81,7 +81,7 @@ qa-architect supports three workflow modes:
 ### Minimal Mode (Default)
 
 - Single Node.js version (22)
-- Security scans weekly only
+- Security scans monthly only
 - Path filters enabled
 - Skip Dependabot PRs
 - Concurrency limits
@@ -89,7 +89,7 @@ qa-architect supports three workflow modes:
 ### Standard Mode (`--workflow-standard`)
 
 - Matrix on main only (20, 22)
-- Security on PR + weekly
+- Security on manual/monthly schedule
 - Full test coverage
 
 ### Comprehensive Mode (`--workflow-comprehensive`)

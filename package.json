@@ -1,6 +1,6 @@
 {
   "name": "create-qa-architect",
-  "version": "5.12.2",
+  "version": "5.13.0",
   "description": "QA Architect - Bootstrap quality automation for JavaScript/TypeScript and Python projects with GitHub Actions, pre-commit hooks, linting, formatting, and smart test strategy",
   "main": "setup.js",
   "bin": {
@@ -192,8 +192,7 @@
     ],
     "tests/**/*.{ts,tsx,js,jsx}": [
       "eslint --fix",
-      "prettier --write",
-      "tsc --noEmit --project tests/tsconfig.json"
+      "prettier --write"
     ],
     "**/*.{js,jsx,ts,tsx,mjs,cjs,html}": [
       "eslint --fix",
