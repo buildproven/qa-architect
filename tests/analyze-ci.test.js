@@ -144,9 +144,19 @@ console.log('🧪 Testing analyze-ci module...\n')
 
   const weekly = estimateScheduleRunsPerMonth([{ cron: '0 2 * * 0' }])
   const monthly = estimateScheduleRunsPerMonth([{ cron: '0 0 1 * *' }])
+  const weekdays = estimateScheduleRunsPerMonth([{ cron: '0 9 * * 1-5' }])
 
-  assert.strictEqual(weekly, 4, 'Weekly cron should estimate ~4 runs/month')
+  assert.strictEqual(
+    weekly,
+    5,
+    'Weekly cron (1 DOW) should estimate ~5 runs/month'
+  )
   assert.strictEqual(monthly, 1, 'Monthly cron should estimate ~1 run/month')
+  assert.strictEqual(
+    weekdays,
+    22,
+    'Weekday cron (1-5) should estimate ~22 runs/month'
+  )
   console.log('✅ PASS\n')
 })()
 
@@ -262,10 +272,10 @@ console.log('🧪 Testing analyze-ci module...\n')
 
   const costs = calculateMonthlyCosts(workflows, 3)
   // release: 1 run * 9 min = 9
-  // weekly: 4 runs * 20 min = 80
-  assert.strictEqual(costs.minutesPerMonth, 89)
+  // weekly (1 DOW * 4.3 = ceil 5): 5 runs * 20 min = 100
+  assert.strictEqual(costs.minutesPerMonth, 109)
   assert.strictEqual(costs.breakdown[0].runsPerMonth, 1)
-  assert.strictEqual(costs.breakdown[1].runsPerMonth, 4)
+  assert.strictEqual(costs.breakdown[1].runsPerMonth, 5)
   console.log('✅ PASS\n')
 })()
 
