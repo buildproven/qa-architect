@@ -150,8 +150,8 @@ npm run validate:all      # Full validation
 qa-architect's `quality.yml` is designed to be your **single CI workflow**. Don't use it alongside a separate `ci.yml`:
 
 ```bash
-# If you have both, remove the duplicate
-rm .github/workflows/ci.yml
+# Update and auto-clean duplicate workflow names
+npx create-qa-architect@latest --update --workflow-minimal
 ```
 
 ### Analyze Your Costs (Pro)

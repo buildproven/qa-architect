@@ -80,8 +80,12 @@ function createTempGitRepo() {
       workflowContent.includes("- '**.md'"),
       'Should ignore markdown files'
     )
+    assert(
+      /pull_request:[\s\S]*?paths-ignore:/m.test(workflowContent),
+      'Should apply path filters to pull_request events'
+    )
 
-    // Check for weekly security schedule
+    // Check for monthly security schedule
     assert(
       workflowContent.includes('schedule:'),
       'Should have schedule trigger'
@@ -140,8 +144,12 @@ function createTempGitRepo() {
       workflowContent.includes('paths-ignore:'),
       'Should have path filters'
     )
+    assert(
+      /pull_request:[\s\S]*?paths-ignore:/m.test(workflowContent),
+      'Should apply path filters to pull_request events'
+    )
 
-    // Check for weekly security schedule
+    // Check for monthly security schedule
     assert(
       workflowContent.includes('schedule:'),
       'Should have schedule trigger'
@@ -418,15 +426,15 @@ jobs:
       'Minimal mode should have hardcoded maturity output'
     )
     assert(
-      workflowContent.includes("source-count: '10'"),
+      workflowContent.includes("source-count: '0'"),
       'Minimal mode should have hardcoded source-count output'
     )
     assert(
-      workflowContent.includes("test-count: '1'"),
+      workflowContent.includes("test-count: '0'"),
       'Minimal mode should have hardcoded test-count output'
     )
     assert(
-      workflowContent.includes("has-deps: 'true'"),
+      workflowContent.includes("has-deps: 'false'"),
       'Minimal mode should have hardcoded has-deps output'
     )
 
@@ -577,13 +585,7 @@ jobs:
     )
     const workflowContent = fs.readFileSync(workflowPath, 'utf8')
 
-    // Verify expensive steps are PRESENT in standard mode
-    assert(
-      workflowContent.includes(
-        '- name: Install dependencies for maturity detection'
-      ),
-      'Standard mode should have dependency installation step'
-    )
+    // Verify maturity detection step is PRESENT in standard mode
     assert(
       workflowContent.includes('- name: Detect Project Maturity'),
       'Standard mode should have maturity detection step'
@@ -609,28 +611,20 @@ jobs:
       'Standard mode should have package manager detection'
     )
 
-    // Verify the step order: PM detection → install → maturity
+    // Verify the step order: PM detection → maturity
     const pmDetectIndex = workflowContent.indexOf(
       '- name: Detect Package Manager'
-    )
-    const installIndex = workflowContent.indexOf(
-      '- name: Install dependencies for maturity detection'
     )
     const maturityIndex = workflowContent.indexOf(
       '- name: Detect Project Maturity'
     )
 
     assert(pmDetectIndex > 0, 'Should have package manager detection')
-    assert(installIndex > 0, 'Should have dependency installation')
     assert(maturityIndex > 0, 'Should have maturity detection')
 
     assert(
-      pmDetectIndex < installIndex,
-      'Package manager detection should come before dependency installation'
-    )
-    assert(
-      installIndex < maturityIndex,
-      'Dependency installation should come before maturity detection'
+      pmDetectIndex < maturityIndex,
+      'Package manager detection should come before maturity detection'
     )
 
     // Verify dev-only gitleaks steps are STRIPPED from all consumer workflows (R-3 fix)
@@ -657,7 +651,9 @@ jobs:
       'No section markers should be in output'
     )
 
-    console.log('✅ PASS - Standard mode retains full maturity detection, strips qa-architect-only content\n')
+    console.log(
+      '✅ PASS - Standard mode retains full maturity detection, strips qa-architect-only content\n'
+    )
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })
   }
@@ -709,6 +705,52 @@ jobs:
     }
 
     console.log('✅ PASS - Minimal mode fully removes gitleaks references\n')
+  } finally {
+    fs.rmSync(testDir, { recursive: true, force: true })
+  }
+})()
+
+// Test 10: Update mode removes duplicate CI workflows automatically
+;(() => {
+  console.log('Test 10: Update mode removes duplicate ci.yml workflow')
+  const testDir = createTempGitRepo()
+
+  try {
+    const setupPath = path.join(__dirname, '../setup.js')
+    execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
+      cwd: testDir,
+      stdio: 'pipe',
+    })
+
+    const workflowDir = path.join(testDir, '.github', 'workflows')
+    const duplicateCiPath = path.join(workflowDir, 'ci.yml')
+    fs.writeFileSync(
+      duplicateCiPath,
+      'name: Duplicate CI\\non: [push]\\njobs: { test: { runs-on: ubuntu-latest, steps: [] } }\\n'
+    )
+    assert(
+      fs.existsSync(duplicateCiPath),
+      'Duplicate ci.yml should exist before update'
+    )
+
+    execSync(
+      `QAA_DEVELOPER=true node ${setupPath} --update --workflow-minimal`,
+      {
+        cwd: testDir,
+        stdio: 'pipe',
+      }
+    )
+
+    assert(
+      !fs.existsSync(duplicateCiPath),
+      'Update mode should auto-remove duplicate ci.yml'
+    )
+    assert(
+      fs.existsSync(path.join(workflowDir, 'quality.yml')),
+      'quality.yml must remain after duplicate cleanup'
+    )
+
+    console.log('✅ PASS - Duplicate workflow removed automatically\n')
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })
   }

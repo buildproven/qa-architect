@@ -11,6 +11,8 @@ const os = require('os')
 const {
   discoverWorkflows,
   estimateWorkflowDuration,
+  estimateScheduleRunsPerMonth,
+  estimateWorkflowRunsPerMonth,
   calculateMonthlyCosts,
   analyzeOptimizations,
 } = require('../lib/commands/analyze-ci')
@@ -136,6 +138,39 @@ console.log('🧪 Testing analyze-ci module...\n')
   console.log('✅ PASS\n')
 })()
 
+// Test 6b: estimateScheduleRunsPerMonth() - weekly and monthly
+;(() => {
+  console.log('Test 6b: estimateScheduleRunsPerMonth() - cron frequency')
+
+  const weekly = estimateScheduleRunsPerMonth([{ cron: '0 2 * * 0' }])
+  const monthly = estimateScheduleRunsPerMonth([{ cron: '0 0 1 * *' }])
+
+  assert.strictEqual(weekly, 4, 'Weekly cron should estimate ~4 runs/month')
+  assert.strictEqual(monthly, 1, 'Monthly cron should estimate ~1 run/month')
+  console.log('✅ PASS\n')
+})()
+
+// Test 6c: estimateWorkflowRunsPerMonth() - tag-only push
+;(() => {
+  console.log('Test 6c: estimateWorkflowRunsPerMonth() - tag-only workflow')
+
+  const workflow = {
+    on: {
+      push: {
+        tags: ['v*'],
+      },
+    },
+  }
+
+  const runsPerMonth = estimateWorkflowRunsPerMonth(workflow, 3)
+  assert.strictEqual(
+    runsPerMonth,
+    1,
+    'Tag-only workflow should not scale with commits'
+  )
+  console.log('✅ PASS\n')
+})()
+
 // Test 7: calculateMonthlyCosts() - within free tier
 ;(() => {
   console.log('Test 7: calculateMonthlyCosts() - within free tier')
@@ -195,6 +230,42 @@ console.log('🧪 Testing analyze-ci module...\n')
   assert.strictEqual(costs.tiers.free.cost, 8.0)
 
   console.log('  ✅ Pricing calculations correct')
+  console.log('✅ PASS\n')
+})()
+
+// Test 9b: calculateMonthlyCosts() - schedule and tag triggers don't scale by commits
+;(() => {
+  console.log('Test 9b: calculateMonthlyCosts() - trigger-aware run counts')
+
+  const workflows = [
+    {
+      name: 'release.yml',
+      estimatedDuration: 9,
+      parsed: {
+        on: {
+          push: {
+            tags: ['v*'],
+          },
+        },
+      },
+    },
+    {
+      name: 'weekly.yml',
+      estimatedDuration: 20,
+      parsed: {
+        on: {
+          schedule: [{ cron: '0 2 * * 0' }],
+        },
+      },
+    },
+  ]
+
+  const costs = calculateMonthlyCosts(workflows, 3)
+  // release: 1 run * 9 min = 9
+  // weekly: 4 runs * 20 min = 80
+  assert.strictEqual(costs.minutesPerMonth, 89)
+  assert.strictEqual(costs.breakdown[0].runsPerMonth, 1)
+  assert.strictEqual(costs.breakdown[1].runsPerMonth, 4)
   console.log('✅ PASS\n')
 })()
 
@@ -268,7 +339,9 @@ console.log('🧪 Testing analyze-ci module...\n')
 
 // Test 12: analyzeOptimizations() - detects nightly workflows
 ;(() => {
-  console.log('Test 12: analyzeOptimizations() - detects high frequency')
+  console.log(
+    'Test 12: analyzeOptimizations() - detects high schedule frequency'
+  )
 
   const workflows = [
     {
@@ -286,11 +359,11 @@ console.log('🧪 Testing analyze-ci module...\n')
   const optimizations = analyzeOptimizations(workflows, 1)
   const frequencyRec = optimizations.find(r => r.type === 'frequency')
 
-  assert.ok(frequencyRec, 'Should detect nightly schedule')
-  assert.ok(frequencyRec.description.includes('nightly'))
+  assert.ok(frequencyRec, 'Should detect high-frequency schedule')
+  assert.ok(frequencyRec.description.includes('runs about'))
   assert.ok(frequencyRec.potentialSavings > 0)
   console.log(`  Found: ${frequencyRec.title}`)
-  console.log(`  Current: 30x/month → Proposed: 4x/month`)
+  console.log(`  ${frequencyRec.description}`)
   console.log('✅ PASS\n')
 })()
 

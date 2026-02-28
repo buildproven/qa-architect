@@ -701,9 +701,9 @@ SETUP OPTIONS:
   --dry-run         Preview changes without modifying files
 
 WORKFLOW TIERS (GitHub Actions optimization):
-  --workflow-minimal        Minimal CI (default) - Single Node version, weekly security
-                            ~5-10 min/commit, ~$0-5/mo for typical projects
-  --workflow-standard       Standard CI - Matrix testing on main, weekly security
+  --workflow-minimal        Minimal CI (default) - Single Node version, monthly security
+                            Budget-first mode: detection-only CI (target <1000 min/month)
+  --workflow-standard       Standard CI - Matrix testing on main, monthly security
                             ~15-20 min/commit, ~$5-20/mo for typical projects
   --workflow-comprehensive  Comprehensive CI - Matrix on every push, security inline
                             ~50-100 min/commit, ~$100-350/mo for typical projects
@@ -2167,32 +2167,6 @@ echo "✅ Pre-push validation passed!"
                 : '✅ Added Shell CI GitHub Actions workflow'
             )
           }
-
-          // Copy/update Shell Quality workflow
-          const shellQualityWorkflowFile = path.join(
-            githubWorkflowDir,
-            'shell-quality.yml'
-          )
-          if (!fs.existsSync(shellQualityWorkflowFile) || isUpdateMode) {
-            const templateShellQualityWorkflow =
-              templateLoader.getTemplate(
-                templates,
-                path.join('config', 'shell-quality.yml')
-              ) ||
-              fs.readFileSync(
-                path.join(__dirname, 'config/shell-quality.yml'),
-                'utf8'
-              )
-            fs.writeFileSync(
-              shellQualityWorkflowFile,
-              templateShellQualityWorkflow
-            )
-            console.log(
-              isUpdateMode
-                ? '🔄 Updated Shell Quality GitHub Actions workflow'
-                : '✅ Added Shell Quality GitHub Actions workflow'
-            )
-          }
         }
 
         // Create a basic README if it doesn't exist
@@ -2249,6 +2223,35 @@ Quality checks are automated via GitHub Actions:
           if (fs.existsSync(shellQualityWf)) {
             fs.unlinkSync(shellQualityWf)
             staleWorkflows.push('shell-quality.yml')
+          }
+        } else {
+          // Consolidate shell CI into a single workflow to avoid duplicate runs.
+          const shellQualityWf = path.join(
+            githubWorkflowDir,
+            'shell-quality.yml'
+          )
+          if (fs.existsSync(shellQualityWf)) {
+            fs.unlinkSync(shellQualityWf)
+            staleWorkflows.push('shell-quality.yml')
+          }
+        }
+
+        // Remove known duplicate CI workflow names that overlap quality.yml.
+        const duplicateCiWorkflows = [
+          'ci.yml',
+          'ci.yaml',
+          'test.yml',
+          'test.yaml',
+          'tests.yml',
+          'tests.yaml',
+          'quality-legacy.yml',
+          'quality-legacy.yaml',
+        ]
+        for (const duplicateName of duplicateCiWorkflows) {
+          const duplicatePath = path.join(githubWorkflowDir, duplicateName)
+          if (fs.existsSync(duplicatePath)) {
+            fs.unlinkSync(duplicatePath)
+            staleWorkflows.push(duplicateName)
           }
         }
         if (staleWorkflows.length > 0) {

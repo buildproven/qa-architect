@@ -133,15 +133,15 @@ const setupPath = path.join(__dirname, '../setup.js')
       'Minimal must have hardcoded maturity'
     )
     assert(
-      content.includes("source-count: '10'"),
+      content.includes("source-count: '0'"),
       'Minimal must have hardcoded source-count'
     )
     assert(
-      content.includes("test-count: '1'"),
+      content.includes("test-count: '0'"),
       'Minimal must have hardcoded test-count'
     )
     assert(
-      content.includes("has-deps: 'true'"),
+      content.includes("has-deps: 'false'"),
       'Minimal must have hardcoded has-deps'
     )
 
@@ -161,6 +161,10 @@ const setupPath = path.join(__dirname, '../setup.js')
       'Minimal must have single Node 22'
     )
     assert(content.includes('paths-ignore:'), 'Minimal must have path filters')
+    assert(
+      /pull_request:[\s\S]*?paths-ignore:/m.test(content),
+      'Minimal must apply path filters to pull_request events'
+    )
     assert(content.includes('schedule:'), 'Minimal must have schedule trigger')
     assert(
       content.includes('# WORKFLOW_MODE: minimal'),
@@ -198,10 +202,6 @@ const setupPath = path.join(__dirname, '../setup.js')
     assertValidYamlStructure(content, 'Standard')
 
     // Standard-specific: full detection retained
-    assert(
-      content.includes('Install dependencies for maturity detection'),
-      'Standard must have dep install step'
-    )
     assert(
       content.includes('Detect Project Maturity'),
       'Standard must have maturity detection step'
@@ -254,10 +254,6 @@ const setupPath = path.join(__dirname, '../setup.js')
     assertValidYamlStructure(content, 'Comprehensive')
 
     // Comprehensive-specific: full detection retained
-    assert(
-      content.includes('Install dependencies for maturity detection'),
-      'Comprehensive must have dep install step'
-    )
     assert(
       content.includes('Detect Project Maturity'),
       'Comprehensive must have maturity detection step'

@@ -2,7 +2,7 @@
 
 ## ⚠️ CRITICAL: Do Not Create Additional Workflows
 
-This project uses **qa-architect** for quality automation with **minimal workflow mode** (~$0-5/mo).
+This project uses **qa-architect** for quality automation with **minimal workflow mode** (budget-first: <1000 min/month target).
 
 ### What This Means for AI Assistants (Claude, Copilot, etc.)
 
@@ -25,13 +25,13 @@ This project uses **qa-architect** for quality automation with **minimal workflo
 
 - **Mode:** Minimal (~$0-5/mo per project)
 - **Path filters:** Skip docs/config changes (60% fewer runs)
-- **Security:** Weekly schedule (not every commit)
+- **Security:** Monthly schedule (not every commit)
 - **Node version:** Single version (22)
 
 ### Why This Matters
 
 - **Cost control:** Prevents $20-350/mo per-project bloat
-- **Efficiency:** Path filters + weekly security = 60-90% CI savings
+- **Efficiency:** Path filters + monthly security = 60-90% CI savings
 - **Standards:** Consistent automation across all projects
 
 ### Upgrading CI (User Decision Only)

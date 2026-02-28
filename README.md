@@ -137,15 +137,16 @@ Note: CI does NOT re-run lint/format (pre-commit already did it). This avoids re
 
 qa-architect defaults to **minimal CI** to avoid unexpected GitHub Actions bills. Choose the tier that matches your needs:
 
-### Minimal (Default) - $0-5/month
+### Minimal (Default) - Budget-First (<1000 min/month target)
 
 **Best for:** Solo developers, side projects, open source
 
-- Single Node version (22) testing
-- Security scans run weekly (not on every commit)
+- Single Node version (22) detection workflow
+- CI defaults to detection-only (tests/security/docs disabled in minimal mode)
+- Security scans run monthly (not on every commit)
 - Path filters skip CI for docs/README changes
-- **Runtime:** ~5-10 min/commit
-- **Est. cost:** ~$0-5/mo for typical projects (2-5 commits/day)
+- **Runtime:** ~1-2 min/run
+- **Est. usage target:** under ~1000 minutes/month by default
 
 ```bash
 npx create-qa-architect@latest
@@ -158,7 +159,7 @@ npx create-qa-architect@latest --workflow-minimal
 **Best for:** Small teams, client projects, production apps
 
 - Matrix testing (Node 20 + 22) **only on main branch**
-- Security scans run weekly
+- Security scans run monthly
 - Path filters enabled
 - **Runtime:** ~15-20 min/commit
 - **Est. cost:** ~$5-20/mo for typical projects
@@ -207,15 +208,13 @@ npx create-qa-architect@latest --update --workflow-minimal
 - **Duplicate checks** (ESLint, tests, security scans run twice)
 - **Unexpected billing** (easily exceeds GitHub's 2,000 min/month free tier)
 
-**If you have both `ci.yml` and `quality.yml`:**
+**If you have both `ci.yml` and `quality.yml`, run:**
 
 ```bash
-# Remove the duplicate ci.yml
-rm .github/workflows/ci.yml
-
-# Ensure quality.yml uses minimal mode
 npx create-qa-architect@latest --update --workflow-minimal
 ```
+
+`--update` now automatically removes known duplicate workflow names (`ci.yml`, `test.yml`, `tests.yml`, `quality-legacy.yml`) while preserving `quality.yml`.
 
 The `quality.yml` workflow is adaptive - it runs appropriate checks based on your project's maturity level, so a separate `ci.yml` is unnecessary.
 
