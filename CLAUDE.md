@@ -174,3 +174,7 @@ No OTP/2FA codes needed. The `.github/workflows/release.yml` workflow handles pu
 - Pushed to `main` branch
 
 After publishing, deploy to consumer repos: `./scripts/deploy-consumers.sh --push`
+
+---
+
+**Last Updated:** 2026-03-01
