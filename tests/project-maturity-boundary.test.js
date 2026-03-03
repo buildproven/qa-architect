@@ -110,7 +110,9 @@ const MIN_PRODUCTION = MATURITY_THRESHOLDS.MIN_PRODUCTION_FILES // 10
 const MIN_PROD_TESTS = MATURITY_THRESHOLDS.MIN_PRODUCTION_TESTS // 3
 const MIN_README_LINES = MATURITY_THRESHOLDS.README_MIN_LINES_FOR_DOCS // 100
 
-console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION}, prodTests=${MIN_PROD_TESTS}, readmeLines=${MIN_README_LINES}\n`)
+console.log(
+  `Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION}, prodTests=${MIN_PROD_TESTS}, readmeLines=${MIN_README_LINES}\n`
+)
 
 // ============================================================
 // Test 1: Exact zero files → minimal
@@ -207,7 +209,9 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
 // Test 7: Exact production threshold boundary
 // ============================================================
 {
-  console.log(`Test 7: Exact production threshold (${MIN_PRODUCTION} files, ${MIN_PROD_TESTS} tests, with deps)`)
+  console.log(
+    `Test 7: Exact production threshold (${MIN_PRODUCTION} files, ${MIN_PROD_TESTS} tests, with deps)`
+  )
   const tempDir = createTempProject({
     sourceFiles: MIN_PRODUCTION,
     testFiles: MIN_PROD_TESTS,
@@ -223,7 +227,9 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
 // Test 8: Just below production (9 files, 3 tests) → development
 // ============================================================
 {
-  console.log(`Test 8: Just below production (${MIN_PRODUCTION - 1} files, ${MIN_PROD_TESTS} tests)`)
+  console.log(
+    `Test 8: Just below production (${MIN_PRODUCTION - 1} files, ${MIN_PROD_TESTS} tests)`
+  )
   const tempDir = createTempProject({
     sourceFiles: MIN_PRODUCTION - 1,
     testFiles: MIN_PROD_TESTS,
@@ -239,7 +245,9 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
 // Test 9: Production files but insufficient tests → development
 // ============================================================
 {
-  console.log(`Test 9: ${MIN_PRODUCTION} files, ${MIN_PROD_TESTS - 1} tests → development`)
+  console.log(
+    `Test 9: ${MIN_PRODUCTION} files, ${MIN_PROD_TESTS - 1} tests → development`
+  )
   const tempDir = createTempProject({
     sourceFiles: MIN_PRODUCTION,
     testFiles: MIN_PROD_TESTS - 1,
@@ -255,7 +263,9 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
 // Test 10: Production files + tests but NO docs and NO deps → development
 // ============================================================
 {
-  console.log('Test 10: Production-level files+tests but no docs/deps → development')
+  console.log(
+    'Test 10: Production-level files+tests but no docs/deps → development'
+  )
   const tempDir = createTempProject({
     sourceFiles: MIN_PRODUCTION,
     testFiles: MIN_PROD_TESTS,
@@ -297,7 +307,9 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   // The check is `lines > MIN_README_LINES` so we need N+1 <= MIN_README_LINES
   // i.e. N <= MIN_README_LINES - 1 = 99 repetitions → 100 lines → NOT > 100
   const belowThreshold = MIN_README_LINES - 1
-  console.log(`Test 12: README with ${belowThreshold} text lines (${belowThreshold + 1} after split) → not documented`)
+  console.log(
+    `Test 12: README with ${belowThreshold} text lines (${belowThreshold + 1} after split) → not documented`
+  )
   const tempDir = createTempProject({
     sourceFiles: MIN_PRODUCTION,
     testFiles: MIN_PROD_TESTS,
@@ -305,7 +317,11 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   })
   const detector = new ProjectMaturityDetector({ projectPath: tempDir })
   const stats = detector.analyzeProject()
-  assert.strictEqual(stats.hasDocumentation, false, `${belowThreshold} text lines should NOT qualify`)
+  assert.strictEqual(
+    stats.hasDocumentation,
+    false,
+    `${belowThreshold} text lines should NOT qualify`
+  )
   console.log('  ✅ PASS')
 
   // Now test at threshold (100 repetitions → 101 lines → > 100)
@@ -316,8 +332,14 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   })
   const detector2 = new ProjectMaturityDetector({ projectPath: tempDir2 })
   const stats2 = detector2.analyzeProject()
-  assert.strictEqual(stats2.hasDocumentation, true, `${MIN_README_LINES} text lines should qualify`)
-  console.log(`  ✅ PASS - ${MIN_README_LINES} text lines qualifies as documented`)
+  assert.strictEqual(
+    stats2.hasDocumentation,
+    true,
+    `${MIN_README_LINES} text lines should qualify`
+  )
+  console.log(
+    `  ✅ PASS - ${MIN_README_LINES} text lines qualifies as documented`
+  )
 
   cleanup(tempDir)
   cleanup(tempDir2)
@@ -334,15 +356,24 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   const srcDir = path.join(tempDir, 'src')
   fs.mkdirSync(srcDir)
   for (let i = 0; i < 5; i++) {
-    fs.writeFileSync(path.join(srcDir, `mod${i}.js`), `module.exports = ${i};\n`)
+    fs.writeFileSync(
+      path.join(srcDir, `mod${i}.js`),
+      `module.exports = ${i};\n`
+    )
   }
 
   const detector = new ProjectMaturityDetector({ projectPath: tempDir })
   // Should not throw, should still detect files
   const maturity = detector.detect()
   assert(maturity, 'Should return a maturity level despite bad JSON')
-  assert.strictEqual(maturity, 'development', 'Should detect based on files despite bad JSON')
-  console.log(`  ✅ PASS - Detected as '${maturity}' despite malformed package.json`)
+  assert.strictEqual(
+    maturity,
+    'development',
+    'Should detect based on files despite bad JSON'
+  )
+  console.log(
+    `  ✅ PASS - Detected as '${maturity}' despite malformed package.json`
+  )
   cleanup(tempDir)
 }
 
@@ -358,11 +389,23 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   })
   const detector = new ProjectMaturityDetector({ projectPath: tempDir })
   const maturity = detector.detect()
-  assert.strictEqual(maturity, 'development', 'Should still detect via source files')
+  assert.strictEqual(
+    maturity,
+    'development',
+    'Should still detect via source files'
+  )
 
   const stats = detector.analyzeProject()
-  assert.strictEqual(stats.hasDependencies, false, 'No deps without package.json')
-  assert.strictEqual(stats.packageJsonExists, false, 'Should report no package.json')
+  assert.strictEqual(
+    stats.hasDependencies,
+    false,
+    'No deps without package.json'
+  )
+  assert.strictEqual(
+    stats.packageJsonExists,
+    false,
+    'Should report no package.json'
+  )
   console.log(`  ✅ PASS - '${maturity}' without package.json`)
   cleanup(tempDir)
 }
@@ -380,8 +423,16 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   const stats = detector.analyzeProject()
 
   assert.strictEqual(stats.hasShellScripts, true, 'Should detect shell scripts')
-  assert.strictEqual(stats.isShellProject, true, 'Should be classified as shell project')
-  assert.strictEqual(stats.shellScriptCount, 3, 'Should count shell scripts correctly')
+  assert.strictEqual(
+    stats.isShellProject,
+    true,
+    'Should be classified as shell project'
+  )
+  assert.strictEqual(
+    stats.shellScriptCount,
+    3,
+    'Should count shell scripts correctly'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }
@@ -396,9 +447,15 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   for (const level of levels) {
     assert(MATURITY_LEVELS[level], `Should have level: ${level}`)
     assert(MATURITY_LEVELS[level].name, `${level} should have name`)
-    assert(MATURITY_LEVELS[level].description, `${level} should have description`)
+    assert(
+      MATURITY_LEVELS[level].description,
+      `${level} should have description`
+    )
     assert(MATURITY_LEVELS[level].checks, `${level} should have checks`)
-    assert(Array.isArray(MATURITY_LEVELS[level].checks.required), `${level} should have required checks array`)
+    assert(
+      Array.isArray(MATURITY_LEVELS[level].checks.required),
+      `${level} should have required checks array`
+    )
     assert(MATURITY_LEVELS[level].message, `${level} should have message`)
   }
   console.log('  ✅ PASS - All maturity levels have correct structure')
@@ -424,9 +481,18 @@ console.log(`Thresholds: bootstrap=${MIN_BOOTSTRAP}, production=${MIN_PRODUCTION
   assert(typeof output.hasDeps === 'boolean', 'hasDeps should be boolean')
   assert(typeof output.hasDocs === 'boolean', 'hasDocs should be boolean')
   assert(typeof output.hasCss === 'boolean', 'hasCss should be boolean')
-  assert(typeof output.requiredChecks === 'string', 'requiredChecks should be string')
-  assert(typeof output.optionalChecks === 'string', 'optionalChecks should be string')
-  assert(typeof output.disabledChecks === 'string', 'disabledChecks should be string')
+  assert(
+    typeof output.requiredChecks === 'string',
+    'requiredChecks should be string'
+  )
+  assert(
+    typeof output.optionalChecks === 'string',
+    'optionalChecks should be string'
+  )
+  assert(
+    typeof output.disabledChecks === 'string',
+    'disabledChecks should be string'
+  )
   console.log('  ✅ PASS')
   cleanup(tempDir)
 }

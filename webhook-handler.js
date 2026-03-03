@@ -635,7 +635,11 @@ async function serveLicenseDatabase(req, res) {
   }
 }
 
-app.get('/legitimate-licenses.json', dbRateLimiter.middleware(), serveLicenseDatabase)
+app.get(
+  '/legitimate-licenses.json',
+  dbRateLimiter.middleware(),
+  serveLicenseDatabase
+)
 
 /**
  * License database status endpoint
@@ -698,7 +702,11 @@ app.get('/status', async (req, res) => {
 })
 
 // Route alias: CLI fetches /api/licenses/qa-architect.json by default
-app.get('/api/licenses/qa-architect.json', dbRateLimiter.middleware(), serveLicenseDatabase)
+app.get(
+  '/api/licenses/qa-architect.json',
+  dbRateLimiter.middleware(),
+  serveLicenseDatabase
+)
 
 // Start server (Vercel handles listening via module.exports)
 if (!process.env.VERCEL) {
