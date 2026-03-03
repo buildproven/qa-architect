@@ -22,7 +22,10 @@ console.log('🧪 Testing UI Helpers...\n')
   assert(result.startsWith(icons.success), 'Should start with success icon')
 
   const errorResult = formatMessage('error', 'Something broke')
-  assert(errorResult.includes('Something broke'), 'Should contain error message')
+  assert(
+    errorResult.includes('Something broke'),
+    'Should contain error message'
+  )
   assert(errorResult.startsWith(icons.error), 'Should start with error icon')
 
   console.log('  ✅ PASS')
