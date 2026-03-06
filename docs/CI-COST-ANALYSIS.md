@@ -88,7 +88,7 @@ qa-architect supports three workflow modes:
 
 ### Standard Mode (`--workflow-standard`)
 
-- Matrix on main only (20, 22)
+- Single Node 22 (no matrix), tests restricted to main branch only
 - Security on manual/monthly schedule
 - Full test coverage
 
