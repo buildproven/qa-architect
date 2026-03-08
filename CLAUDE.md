@@ -177,4 +177,16 @@ After publishing, deploy to consumer repos: `./scripts/deploy-consumers.sh --pus
 
 ---
 
-**Last Updated:** 2026-03-01
+**Last Updated:** 2026-03-08
+
+## Agent Workflow
+
+### Session Start
+
+```
+Read docs/dev_guide/CONVENTIONS.md
+```
+
+### Planning: /bs:plan <name> → docs/plans/
+
+### Handoff: /bs:context --save / --resume
