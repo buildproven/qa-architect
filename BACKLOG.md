@@ -19,6 +19,8 @@
 
 | CI-2 | Fix postrail: crypto.test.ts tests taking 12.7s (investigate root cause, not timeout band-aid) | Bug | Rev:2 Ret:4 Diff:1 | S | 7.0 | Ready |
 | F-2 | Repo-type detection: detect config/docs repos vs web apps and generate appropriate hooks (no vitest/rollup/size-limit for repos with only markdown/shell/JSON) | Feature | Rev:3 Ret:5 Diff:4 | M | 6.0 | Ready |
+| B-6 | ESM detection: generate CJS-compatible configs when project has `"type":"module"` | Bug | Rev:2 Ret:3 Diff:2 | S | 5.0 | Pending |
+| F-3 | Staged canary rollout for `--update`: deploy to 1 repo first, wait for CI green, then all | Feature | Rev:3 Ret:5 Diff:4 | M | 6.0 | Pending |
 
 ---
 
