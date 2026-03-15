@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>E2P Starter Kit — BuildProven</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #f0f0f0;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+    .logo {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: #888;
+      margin-bottom: 40px;
+    }
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 12px;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 17px;
+      color: #aaa;
+      margin-bottom: 40px;
+      line-height: 1.6;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #666;
+      margin-bottom: 16px;
+      margin-top: 32px;
+    }
+    .download-card {
+      background: #1a1a1a;
+      border: 1px solid #2a2a2a;
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .download-card:hover {
+      border-color: #4a4a4a;
+      background: #1f1f1f;
+    }
+    .card-info h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+    .card-info p {
+      font-size: 13px;
+      color: #777;
+    }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      margin-left: 16px;
+      flex-shrink: 0;
+    }
+    .badge-pdf {
+      background: #1e3a2a;
+      color: #4ade80;
+      border: 1px solid #2a4a3a;
+    }
+    .badge-html {
+      background: #1e2e4a;
+      color: #60a5fa;
+      border: 1px solid #2a3a5a;
+    }
+    .footer {
+      margin-top: 48px;
+      padding-top: 24px;
+      border-top: 1px solid #1f1f1f;
+      font-size: 13px;
+      color: #555;
+      line-height: 1.6;
+    }
+    .footer a {
+      color: #888;
+      text-decoration: none;
+    }
+    .footer a:hover {
+      color: #aaa;
+    }
+    .arrow {
+      color: #555;
+      font-size: 18px;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">BuildProven</div>
+    
+    <h1>Your E2P Starter Kit</h1>
+    <p class="subtitle">
+      Three tools to help you turn 20+ years of expertise into a product.<br>
+      Download, save, and actually use them.
+    </p>
+
+    <div class="section-label">Worksheets & Frameworks (PDF)</div>
+
+    <a class="download-card" href="expertise-audit.pdf" download>
+      <div class="card-info">
+        <h3>The Expertise Audit</h3>
+        <p>Map what you know that others pay for</p>
+      </div>
+      <div>
+        <span class="badge badge-pdf">PDF</span>
+        <span class="arrow">↓</span>
+      </div>
+    </a>
+
+    <a class="download-card" href="product-archetypes.pdf" download>
+      <div class="card-info">
+        <h3>Product Archetype Cheat Sheet</h3>
+        <p>5 product models — find the right fit for your expertise</p>
+      </div>
+      <div>
+        <span class="badge badge-pdf">PDF</span>
+        <span class="arrow">↓</span>
+      </div>
+    </a>
+
+    <a class="download-card" href="is-this-a-product.pdf" download>
+      <div class="card-info">
+        <h3>"Is This a Product?" Scorecard</h3>
+        <p>12 questions. Binary answers. Clear verdict.</p>
+      </div>
+      <div>
+        <span class="badge badge-pdf">PDF</span>
+        <span class="arrow">↓</span>
+      </div>
+    </a>
+
+    <div class="section-label">Interactive Tools (Open in Browser)</div>
+
+    <a class="download-card" href="expertise-audit-notion.html" target="_blank">
+      <div class="card-info">
+        <h3>Expertise Audit — Interactive</h3>
+        <p>Fill it in directly in your browser</p>
+      </div>
+      <div>
+        <span class="badge badge-html">Interactive</span>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <a class="download-card" href="product-archetypes-notion.html" target="_blank">
+      <div class="card-info">
+        <h3>Archetype Explorer — Interactive</h3>
+        <p>Navigate the 5 archetypes and see which fits</p>
+      </div>
+      <div>
+        <span class="badge badge-html">Interactive</span>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <a class="download-card" href="is-this-a-product-calculator.html" target="_blank">
+      <div class="card-info">
+        <h3>Product Idea Calculator — Interactive</h3>
+        <p>Score your idea in under 5 minutes</p>
+      </div>
+      <div>
+        <span class="badge badge-html">Interactive</span>
+        <span class="arrow">→</span>
+      </div>
+    </a>
+
+    <div class="footer">
+      From <a href="https://buildproven.ai">buildproven.ai</a> — the newsletter for experienced professionals turning expertise into products.<br>
+      Questions? Reply to any BuildProven email.
+    </div>
+  </div>
+</body>
+</html>

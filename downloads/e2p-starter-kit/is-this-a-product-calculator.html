@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>"Is This a Product?" Scorecard — BuildProven</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          'Inter',
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #f8f9fa;
+        color: #1a1a2e;
+        line-height: 1.6;
+        padding: 40px 20px;
+      }
+
+      .page {
+        max-width: 760px;
+        margin: 0 auto;
+      }
+
+      .header {
+        background: #1a1a2e;
+        border-radius: 12px;
+        padding: 32px 36px;
+        margin-bottom: 28px;
+      }
+
+      .brand {
+        font-family: 'Sora', sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        color: #b3703b;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        margin-bottom: 12px;
+      }
+
+      h1 {
+        font-family: 'Sora', sans-serif;
+        font-size: 28px;
+        font-weight: 700;
+        color: #ffffff;
+        line-height: 1.2;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        font-size: 15px;
+        color: #9ca3af;
+      }
+
+      .intro-box {
+        background: #ffffff;
+        border-left: 4px solid #b3703b;
+        padding: 18px 22px;
+        margin-bottom: 28px;
+        border-radius: 0 8px 8px 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+      }
+
+      .intro-box p {
+        font-size: 14px;
+        color: #4a5568;
+        line-height: 1.7;
+      }
+
+      /* Score tracker */
+      .score-tracker {
+        position: sticky;
+        top: 16px;
+        background: #1a1a2e;
+        color: #ffffff;
+        border-radius: 10px;
+        padding: 20px 24px;
+        margin-bottom: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 10;
+        box-shadow: 0 4px 12px rgba(26, 26, 46, 0.2);
+      }
+
+      .score-label {
+        font-size: 14px;
+        color: #9ca3af;
+      }
+
+      .score-display {
+        font-family: 'Sora', sans-serif;
+        font-size: 42px;
+        font-weight: 700;
+        color: #b3703b;
+        line-height: 1;
+      }
+
+      .score-max {
+        font-size: 18px;
+        color: #6b7280;
+      }
+
+      .score-bar-container {
+        flex: 1;
+        margin: 0 28px;
+        background: #374151;
+        border-radius: 8px;
+        height: 10px;
+        overflow: hidden;
+      }
+
+      .score-bar {
+        height: 100%;
+        border-radius: 8px;
+        background: linear-gradient(90deg, #b3703b, #d4924d);
+        transition: width 0.4s ease;
+        width: 0%;
+      }
+
+      .score-verdict {
+        font-size: 14px;
+        font-weight: 600;
+        color: #e2e8f0;
+        text-align: right;
+        min-width: 100px;
+      }
+
+      /* Questions */
+      .question-card {
+        background: #ffffff;
+        border-radius: 10px;
+        padding: 22px 26px;
+        margin-bottom: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+        border: 1.5px solid #e2e8f0;
+        transition: border-color 0.2s;
+      }
+
+      .question-card:focus-within {
+        border-color: #b3703b;
+      }
+
+      .question-header {
+        display: flex;
+        align-items: flex-start;
+        gap: 14px;
+        margin-bottom: 14px;
+      }
+
+      .question-num {
+        background: #f3ede8;
+        color: #b3703b;
+        font-family: 'Sora', sans-serif;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 20px;
+        flex-shrink: 0;
+        margin-top: 2px;
+      }
+
+      .question-text {
+        font-family: 'Sora', sans-serif;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a2e;
+        flex: 1;
+      }
+
+      .question-score {
+        font-family: 'Sora', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: #b3703b;
+        flex-shrink: 0;
+      }
+
+      .options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .option {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 10px 14px;
+        border-radius: 7px;
+        cursor: pointer;
+        border: 1.5px solid #e2e8f0;
+        transition: all 0.15s;
+        background: #fafafa;
+      }
+
+      .option:hover {
+        border-color: #b3703b;
+        background: #fef9f5;
+      }
+      .option.selected {
+        border-color: #b3703b;
+        background: #fef9f5;
+      }
+
+      .option input[type='radio'] {
+        display: none;
+      }
+
+      .option-score-badge {
+        background: #e2e8f0;
+        color: #4a5568;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 4px;
+        flex-shrink: 0;
+        margin-top: 1px;
+        min-width: 36px;
+        text-align: center;
+      }
+
+      .option.selected .option-score-badge {
+        background: #b3703b;
+        color: #ffffff;
+      }
+
+      .option-text {
+        font-size: 14px;
+        color: #1a1a2e;
+        line-height: 1.5;
+      }
+
+      /* Results */
+      .results {
+        background: #1a1a2e;
+        border-radius: 12px;
+        padding: 32px 36px;
+        margin-top: 32px;
+        display: none;
+      }
+
+      .results.visible {
+        display: block;
+      }
+
+      .results h2 {
+        font-family: 'Sora', sans-serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 6px;
+      }
+
+      .result-score {
+        font-family: 'Sora', sans-serif;
+        font-size: 64px;
+        font-weight: 700;
+        color: #b3703b;
+        line-height: 1;
+        margin: 16px 0;
+      }
+
+      .result-verdict {
+        font-size: 20px;
+        font-weight: 600;
+        color: #ffffff;
+        margin-bottom: 16px;
+      }
+
+      .result-description {
+        font-size: 15px;
+        color: #9ca3af;
+        line-height: 1.7;
+        margin-bottom: 24px;
+      }
+
+      .result-cta {
+        display: inline-block;
+        background: #b3703b;
+        color: #ffffff;
+        font-family: 'Sora', sans-serif;
+        font-size: 15px;
+        font-weight: 600;
+        padding: 14px 28px;
+        border-radius: 8px;
+        text-decoration: none;
+        cursor: pointer;
+        border: none;
+        transition: background 0.2s;
+      }
+
+      .result-cta:hover {
+        background: #9a6033;
+      }
+
+      .reset-btn {
+        display: inline-block;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 14px;
+        padding: 14px 20px;
+        border-radius: 8px;
+        cursor: pointer;
+        border: 1px solid #374151;
+        margin-left: 12px;
+        transition: all 0.2s;
+      }
+
+      .reset-btn:hover {
+        color: #ffffff;
+        border-color: #6b7280;
+      }
+
+      .score-breakdown {
+        margin-top: 24px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .breakdown-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        background: #2d3748;
+        border-radius: 6px;
+        font-size: 13px;
+      }
+
+      .breakdown-label {
+        color: #9ca3af;
+      }
+      .breakdown-score {
+        color: #b3703b;
+        font-weight: 700;
+      }
+
+      .footer {
+        text-align: center;
+        font-size: 12px;
+        color: #9ca3af;
+        padding-top: 28px;
+        margin-top: 32px;
+        border-top: 1px solid #e2e8f0;
+      }
+
+      .footer a {
+        color: #b3703b;
+        text-decoration: none;
+      }
+
+      @media (max-width: 600px) {
+        .score-tracker {
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .score-bar-container {
+          display: none;
+        }
+        .score-breakdown {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media print {
+        body {
+          background: white;
+          padding: 0;
+        }
+        .score-tracker {
+          position: static;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="header">
+        <div class="brand">BuildProven — buildproven.ai</div>
+        <h1>"Is This a Product?" Scorecard</h1>
+        <div class="subtitle">10 questions. 100 points. One honest answer.</div>
+      </div>
+
+      <div class="intro-box">
+        <p>
+          Most domain experts have at least one great product idea buried in
+          their career experience. Most never build it — not because the idea's
+          bad, but because they can't tell if it's good enough to be worth the
+          time.
+        </p>
+        <p style="margin-top: 8px">
+          Answer 10 questions about <strong>one specific product idea</strong>.
+          Be honest — the scorecard only works if you are.
+        </p>
+      </div>
+
+      <!-- Live score tracker -->
+      <div class="score-tracker">
+        <div>
+          <div class="score-label">Your current score</div>
+          <div>
+            <span class="score-display" id="liveScore">0</span
+            ><span class="score-max"> / 100</span>
+          </div>
+        </div>
+        <div class="score-bar-container">
+          <div class="score-bar" id="scoreBar"></div>
+        </div>
+        <div class="score-verdict" id="liveVerdict">—</div>
+      </div>
+
+      <form id="scorecard">
+        <!-- Q1 -->
+        <div class="question-card" data-q="1">
+          <div class="question-header">
+            <span class="question-num">Q1</span>
+            <div class="question-text">
+              Market Size — How many potential customers exist for this product?
+            </div>
+            <div class="question-score" id="score-1">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q1" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >Fewer than 100 potential customers — probably too niche</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q1" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >100–1,000 customers — viable if they pay well</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q1" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >1,000–10,000 customers — solid sweet spot</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q1" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >More than 10,000 customers — strong opportunity</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="question-card" data-q="2">
+          <div class="question-header">
+            <span class="question-num">Q2</span>
+            <div class="question-text">
+              Expertise Moat — How hard would it be for someone without your
+              expertise to build this?
+            </div>
+            <div class="question-score" id="score-2">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q2" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >Anyone could build it with a few hours of research</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q2" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >Someone in the industry could figure it out</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q2" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >Would take years of hands-on experience to do properly</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q2" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >Only a handful of people in the world have this depth</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="question-card" data-q="3">
+          <div class="question-header">
+            <span class="question-num">Q3</span>
+            <div class="question-text">
+              AI Buildability — How well does AI fit the work this product needs
+              to do?
+            </div>
+            <div class="question-score" id="score-3">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q3" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >Requires physical presence or real-world action — AI can't help
+                much</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q3" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >AI could assist but humans still need to do most of the
+                work</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q3" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >AI could handle 60–80% of the work with the right
+                framework</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q3" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >This is exactly what AI is built for — text, data, documents,
+                analysis</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="question-card" data-q="4">
+          <div class="question-header">
+            <span class="question-num">Q4</span>
+            <div class="question-text">
+              Willingness to Pay — Are customers already paying for something
+              similar?
+            </div>
+            <div class="question-score" id="score-4">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q4" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >No evidence anyone would pay — it's a "nice to have"</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q4" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >People pay consultants for this occasionally</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q4" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >Companies budget for this regularly — tools, services,
+                contractors</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q4" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >This is a budget line item — companies pay for it every
+                year</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q5 -->
+        <div class="question-card" data-q="5">
+          <div class="question-header">
+            <span class="question-num">Q5</span>
+            <div class="question-text">
+              Time to MVP — How quickly could you ship something people could
+              actually use?
+            </div>
+            <div class="question-score" id="score-5">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q5" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >More than 6 months to a usable product</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q5" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text">3–6 months</span>
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q5" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text">4–8 weeks</span>
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q5" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >1–3 weeks — it's a focused, scoped problem</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q6 -->
+        <div class="question-card" data-q="6">
+          <div class="question-header">
+            <span class="question-num">Q6</span>
+            <div class="question-text">
+              Personal Energy — Do you actually want to work on this for 12+
+              months?
+            </div>
+            <div class="question-score" id="score-6">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q6" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text">I'd be bored by month 3</span>
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q6" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text">It's practical but not exciting</span>
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q6" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text">I find it genuinely interesting</span>
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q6" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >I'd build this even if I wasn't sure it would make money</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q7 -->
+        <div class="question-card" data-q="7">
+          <div class="question-header">
+            <span class="question-num">Q7</span>
+            <div class="question-text">
+              Distribution Path — Can you see a clear path to finding the first
+              10 customers?
+            </div>
+            <div class="question-score" id="score-7">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q7" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text">No idea how I'd reach customers</span>
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q7" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >I'd have to figure out a new distribution channel</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q7" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >I have a network or community I could reach directly</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q7" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >I know exactly who to call tomorrow</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q8 -->
+        <div class="question-card" data-q="8">
+          <div class="question-header">
+            <span class="question-num">Q8</span>
+            <div class="question-text">
+              Revenue Potential — What's the realistic annual revenue ceiling if
+              this works?
+            </div>
+            <div class="question-score" id="score-8">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q8" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >Less than $10K/year at full potential</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q8" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text">$10K–$50K/year</span>
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q8" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text">$50K–$200K/year</span>
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q8" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >$200K+/year — can fund a real business</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q9 -->
+        <div class="question-card" data-q="9">
+          <div class="question-header">
+            <span class="question-num">Q9</span>
+            <div class="question-text">
+              Competitive Gap — Is there a clear reason your product wins
+              against what already exists?
+            </div>
+            <div class="question-score" id="score-9">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q9" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >Strong direct competitors, nothing differentiating about
+                mine</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q9" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >Competitors exist but mine would be better in one meaningful
+                way</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q9" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >Competitors exist but they miss this specific use case</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q9" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >No direct competitors — this gap is clearly underserved</span
+              >
+            </label>
+          </div>
+        </div>
+
+        <!-- Q10 -->
+        <div class="question-card" data-q="10">
+          <div class="question-header">
+            <span class="question-num">Q10</span>
+            <div class="question-text">
+              Feedback Access — Can you get in front of real potential customers
+              quickly?
+            </div>
+            <div class="question-score" id="score-10">–</div>
+          </div>
+          <div class="options">
+            <label class="option" data-score="1">
+              <input type="radio" name="q10" value="1" />
+              <span class="option-score-badge">1</span>
+              <span class="option-text"
+                >No access — I'd be building completely blind</span
+              >
+            </label>
+            <label class="option" data-score="4">
+              <input type="radio" name="q10" value="4" />
+              <span class="option-score-badge">4</span>
+              <span class="option-text"
+                >I could find people through cold outreach</span
+              >
+            </label>
+            <label class="option" data-score="7">
+              <input type="radio" name="q10" value="7" />
+              <span class="option-score-badge">7</span>
+              <span class="option-text"
+                >I know people in this space who'd give me honest feedback</span
+              >
+            </label>
+            <label class="option" data-score="10">
+              <input type="radio" name="q10" value="10" />
+              <span class="option-score-badge">10</span>
+              <span class="option-text"
+                >I could call 5 people today who would tell me if this is
+                real</span
+              >
+            </label>
+          </div>
+        </div>
+      </form>
+
+      <!-- Results -->
+      <div class="results" id="results">
+        <h2>Your Score</h2>
+        <div class="result-score" id="finalScore">0</div>
+        <div class="result-verdict" id="finalVerdict">—</div>
+        <div class="result-description" id="finalDescription"></div>
+
+        <div class="score-breakdown" id="scoreBreakdown"></div>
+
+        <div style="margin-top: 28px">
+          <a href="https://buildproven.ai" class="result-cta" id="ctaButton"
+            >Join BuildProven →</a
+          >
+          <button class="reset-btn" onclick="resetScorecard()">
+            Start over
+          </button>
+        </div>
+      </div>
+
+      <div class="footer">
+        <p>
+          BuildProven — Helping domain experts turn career knowledge into
+          AI-powered products.
+        </p>
+        <p style="margin-top: 4px">
+          <a href="https://buildproven.ai">buildproven.ai</a>
+        </p>
+      </div>
+    </div>
+
+    <script>
+      const questions = [
+        'Market Size',
+        'Expertise Moat',
+        'AI Buildability',
+        'Willingness to Pay',
+        'Time to MVP',
+        'Personal Energy',
+        'Distribution Path',
+        'Revenue Potential',
+        'Competitive Gap',
+        'Feedback Access',
+      ]
+
+      const scores = {}
+
+      function getVerdict(total) {
+        if (total >= 80)
+          return {
+            verdict: 'Build it.',
+            description:
+              'Strong signal across the board. You have expertise, a real market, and a clear path. The risk now is waiting too long. Scope down to the smallest useful version and ship it in the next 4 weeks.',
+            cta: "Join BuildProven — we'll help you build it →",
+          }
+        if (total >= 60)
+          return {
+            verdict: 'Worth exploring seriously.',
+            description:
+              "Solid fundamentals with a few gaps — nothing that can't be tested. Pick the 2 lowest-scoring questions and work out if they're fixable before committing. Then build anyway.",
+            cta: 'Join BuildProven — get support building it →',
+          }
+        if (total >= 40)
+          return {
+            verdict: 'Proceed with caution.',
+            description:
+              "There's something here but real gaps in the case. Don't quit the day job to build this yet. Run quick customer discovery first — 5 conversations with potential customers will tell you if you're missing something.",
+            cta: 'Join BuildProven — validate your idea first →',
+          }
+        if (total >= 20)
+          return {
+            verdict: 'Not yet.',
+            description:
+              "The idea might have merit, but something significant is missing. Most common culprits: no real market, no customer access, or it's a consulting offer in disguise. Go back to the Expertise Audit and find a better problem.",
+            cta: 'Start the Expertise Audit →',
+          }
+        return {
+          verdict: 'Hard pass.',
+          description:
+            "Move on. The fastest way to find a good idea is to discard the bad ones quickly. Go back to the Expertise Audit — there's almost certainly a stronger problem in your history.",
+          cta: 'Start the Expertise Audit →',
+        }
+      }
+
+      function getVerdictShort(total) {
+        if (total >= 80) return 'Build it'
+        if (total >= 60) return 'Worth exploring'
+        if (total >= 40) return 'Needs validation'
+        if (total >= 20) return 'Not yet'
+        return 'Hard pass'
+      }
+
+      function getBarColor(total) {
+        if (total >= 80) return 'linear-gradient(90deg, #22C55E, #16A34A)'
+        if (total >= 60) return 'linear-gradient(90deg, #B3703B, #D4924D)'
+        if (total >= 40) return 'linear-gradient(90deg, #EAB308, #CA8A04)'
+        return 'linear-gradient(90deg, #EF4444, #DC2626)'
+      }
+
+      document.querySelectorAll('.option').forEach(option => {
+        option.addEventListener('click', function () {
+          const radio = this.querySelector('input[type="radio"]')
+          const name = radio.name
+          const val = parseInt(radio.value)
+          const qNum = name.replace('q', '')
+
+          // Deselect siblings
+          document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+            r.closest('.option').classList.remove('selected')
+          })
+
+          radio.checked = true
+          this.classList.add('selected')
+          scores[name] = val
+
+          // Update question score display
+          document.getElementById(`score-${qNum}`).textContent = val
+
+          updateLiveScore()
+          checkComplete()
+        })
+      })
+
+      function calcTotal() {
+        return Object.values(scores).reduce((a, b) => a + b, 0)
+      }
+
+      function updateLiveScore() {
+        const total = calcTotal()
+        document.getElementById('liveScore').textContent = total
+        document.getElementById('scoreBar').style.width = total + '%'
+        document.getElementById('scoreBar').style.background =
+          getBarColor(total)
+        document.getElementById('liveVerdict').textContent =
+          total > 0 ? getVerdictShort(total) : '—'
+      }
+
+      function checkComplete() {
+        if (Object.keys(scores).length === 10) {
+          showResults()
+        }
+      }
+
+      function showResults() {
+        const total = calcTotal()
+        const result = getVerdict(total)
+
+        document.getElementById('finalScore').textContent = total
+        document.getElementById('finalVerdict').textContent = result.verdict
+        document.getElementById('finalDescription').textContent =
+          result.description
+        document.getElementById('ctaButton').textContent = result.cta
+
+        // Breakdown
+        const breakdown = document.getElementById('scoreBreakdown')
+        breakdown.innerHTML = ''
+        questions.forEach((q, i) => {
+          const key = `q${i + 1}`
+          const s = scores[key] || 0
+          breakdown.innerHTML += `
+        <div class="breakdown-item">
+          <span class="breakdown-label">${q}</span>
+          <span class="breakdown-score">${s}/10</span>
+        </div>
+      `
+        })
+
+        const results = document.getElementById('results')
+        results.classList.add('visible')
+        results.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }
+
+      function resetScorecard() {
+        Object.keys(scores).forEach(k => delete scores[k])
+        document
+          .querySelectorAll('.option')
+          .forEach(o => o.classList.remove('selected'))
+        document
+          .querySelectorAll('input[type="radio"]')
+          .forEach(r => (r.checked = false))
+        document
+          .querySelectorAll('.question-score')
+          .forEach(s => (s.textContent = '–'))
+        document.getElementById('liveScore').textContent = '0'
+        document.getElementById('scoreBar').style.width = '0%'
+        document.getElementById('liveVerdict').textContent = '—'
+        document.getElementById('results').classList.remove('visible')
+        window.scrollTo({ top: 0, behavior: 'smooth' })
+      }
+    </script>
+  </body>
+</html>
