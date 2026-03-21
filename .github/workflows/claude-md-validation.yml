@@ -20,6 +20,7 @@ on:
 jobs:
   validate-claude-md:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     name: Validate CLAUDE.md Consistency
 
     steps:

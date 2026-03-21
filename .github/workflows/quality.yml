@@ -42,6 +42,7 @@ jobs:
   # This reduces GitHub Actions minutes by ~50% on active repos
   detect-maturity:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     if: github.actor != 'dependabot[bot]' || github.event_name == 'schedule'
     outputs:
       maturity: ${{ steps.detect.outputs.maturity }}
@@ -149,6 +150,7 @@ jobs:
   # provide better reliability on GHES/self-hosted and unlock premium features
   security:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: detect-maturity
     if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.detect-maturity.outputs.has-deps == 'true'
 
@@ -280,6 +282,7 @@ jobs:
   # Smart skip: Draft PRs skip tests (saves CI costs during WIP)
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: detect-maturity
     if: |
       fromJSON(needs.detect-maturity.outputs.test-count) > 0 &&
@@ -357,6 +360,7 @@ jobs:
   # Step 4: Documentation - run for production-ready projects
   documentation:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: detect-maturity
     if: needs.detect-maturity.outputs.maturity == 'production-ready'
 
@@ -498,6 +502,7 @@ jobs:
   # Step 5: Summary - report what checks ran
   summary:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs:
       - detect-maturity
       - security
