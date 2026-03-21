@@ -20,7 +20,11 @@ on:
 jobs:
   validate-claude-md:
     runs-on: ubuntu-latest
+<<<<<<< HEAD
     if: github.actor != 'dependabot[bot]' || github.event_name != 'pull_request'
+=======
+    timeout-minutes: 10
+>>>>>>> 5fbc311 (chore: optimize CI — monthly crons, timeouts, deduplicate)
     name: Validate CLAUDE.md Consistency
 
     steps:

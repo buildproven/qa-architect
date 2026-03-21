@@ -1,17 +1,18 @@
-name: Weekly Gitleaks Real Download Verification
+name: Monthly Gitleaks Real Download Verification
 
-# Run weekly to verify real gitleaks download and checksum verification
+# Run monthly to verify real gitleaks download and checksum verification
 # This catches upstream asset changes, checksum drift, and download issues
 on:
   schedule:
-    # Run at 2 AM UTC every Sunday (weekly)
-    - cron: '0 2 * * 0'
+    # Run at 2 AM UTC on the 1st of each month (monthly)
+    - cron: '0 2 1 * *'
   workflow_dispatch: # Allow manual trigger
 
 jobs:
   real-download-verification:
     name: Real Gitleaks Download Test (Linux x64)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Checkout code
@@ -136,6 +137,7 @@ jobs:
   alert-on-failure:
     name: Alert on Verification Failure
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: real-download-verification
     if: failure()
 
