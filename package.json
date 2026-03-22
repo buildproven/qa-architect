@@ -55,7 +55,10 @@
     "test:changed": "vitest run --changed HEAD~1 --passWithNoTests",
     "dead-code": "knip --no-exit-code || echo \"Dead code found (non-blocking)\"",
     "dead-code:strict": "knip",
-    "pattern-check": "bash scripts/pattern-check.sh"
+    "pattern-check": "bash scripts/pattern-check.sh",
+    "security:scan": "bash scripts/run-semgrep.sh",
+    "security:scan:ci": "bash scripts/run-semgrep.sh --ci",
+    "license:check": "license-checker --onlyAllow \"MIT;ISC;BSD-2-Clause;BSD-3-Clause;Apache-2.0;0BSD;BlueOak-1.0.0;CC0-1.0;CC-BY-3.0;CC-BY-4.0;Unlicense;Python-2.0;MPL-2.0\" --excludePrivatePackages"
   },
   "keywords": [
     "qa-architect",
@@ -140,6 +143,7 @@
     "globals": "^15.9.0",
     "husky": "^9.1.4",
     "knip": "^6.0.1",
+    "license-checker": "^25.0.1",
     "lint-staged": "^15.2.10",
     "prettier": "^3.8.0",
     "size-limit": "^11.0.0",
