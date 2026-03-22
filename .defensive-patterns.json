@@ -15,7 +15,9 @@
     "**/test/**",
     "**/__tests__/**",
     "**/*.test.*",
-    "**/*.spec.*"
+    "**/*.spec.*",
+    "lib/**",
+    "scripts/**"
   ],
   "disabled": []
 }
