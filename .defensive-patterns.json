@@ -17,7 +17,8 @@
     "**/*.test.*",
     "**/*.spec.*",
     "lib/**",
-    "scripts/**"
+    "scripts/**",
+    "config/**"
   ],
   "disabled": []
 }
