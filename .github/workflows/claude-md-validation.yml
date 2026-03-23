@@ -1,13 +1,6 @@
 name: CLAUDE.md Validation
 
 on:
-  push:
-    branches: [main, master, develop]
-    paths:
-      - 'CLAUDE.md'
-      - 'package.json'
-      - 'scripts/validate-claude-md.js'
-      - '.github/workflows/claude-md-validation.yml'
   pull_request:
     branches: [main, master, develop]
     paths:
