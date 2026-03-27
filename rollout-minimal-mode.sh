@@ -19,7 +19,7 @@ EXISTING_PROJECTS=(
   "postrail"
   "retireabroad"
   "stark-program-intelligence"
-  "vibebuildlab"
+  "buildproven"
 )
 
 # Projects to INSTALL (don't have qa-architect yet)
