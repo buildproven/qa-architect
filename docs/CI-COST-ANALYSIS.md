@@ -7,18 +7,18 @@
 
 ## Current Status: Within Budget (with fixes)
 
-### Actual January 2026 Usage (vibebuildlab org)
+### Actual January 2026 Usage (buildproven org)
 
 | Repo                    | Minutes    | Runs  | Avg/Run |
 | ----------------------- | ---------- | ----- | ------- |
 | qa-architect            | 340        | 349   | 1.0 min |
 | postrail                | 1,769      | 295   | 6.0 min |
-| vibebuildlab            | 89         | 282   | 0.3 min |
+| buildproven            | 89         | 282   | 0.3 min |
 | keyflash                | 74         | 187   | 0.4 min |
 | wfhroulette             | 56         | 138   | 0.4 min |
 | jobrecon                | 56         | 44    | 1.3 min |
 | buildproven             | 4          | 33    | 0.1 min |
-| vibebuildlab-newsletter | 1          | 22    | 0.0 min |
+| buildproven-newsletter | 1          | 22    | 0.0 min |
 | **TOTAL**               | **~2,400** | 1,350 | 1.8 min |
 
 ### February Projection (Pre-Fix)
@@ -37,7 +37,7 @@ Based on Feb 1-3 data extrapolated:
 | postrail     | 63%                  |
 | keyflash     | 53%                  |
 | qa-architect | 8%                   |
-| vibebuildlab | 0%                   |
+| buildproven | 0%                   |
 
 ---
 
