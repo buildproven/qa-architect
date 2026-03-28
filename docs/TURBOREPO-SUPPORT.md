@@ -156,7 +156,7 @@ This is expected in monorepos. qa-architect gracefully handles missing package.j
 Test Turborepo detection:
 
 ```bash
-cd ~/Projects/buildproven
+cd ~/Projects/internal/buildproven
 npx create-qa-architect@latest --dry-run
 
 # Should show:
