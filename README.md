@@ -2,7 +2,7 @@
 
 Quality automation CLI for JavaScript/TypeScript, Python, and shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Pro tiers add security scanning (Gitleaks), Smart Test Strategy, and multi-language support.
 
-**This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://buildproven.ai/qa-architect) (included in VBL Starter Kit).
+**This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://buildproven.ai/qa-architect) (included in BuildProven Starter Kit).
 
 ---
 
@@ -63,7 +63,7 @@ npx create-qa-architect@latest
 | **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                 |
 | **Pro**  | $49/mo or $490/yr | **Security scanning (Gitleaks + ESLint security)**, Smart Test Strategy, multi-language, unlimited |
 
-> **Pro included in [VBL Starter Kit](https://buildproven.ai/starter-kit)**
+> **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
 ### Security Features by Tier
 
