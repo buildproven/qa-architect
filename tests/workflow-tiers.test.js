@@ -155,10 +155,10 @@ function createTempGitRepo() {
       'Should have schedule trigger'
     )
 
-    // Standard: tests only run on main branch (supports both single-line and multi-line if: formats)
+    // Standard: push/PR triggers scoped to main branch
     assert(
-      workflowContent.includes("github.ref == 'refs/heads/main'"),
-      'Tests should only run on main'
+      workflowContent.includes('branches: [main, master, develop]'),
+      'Should scope triggers to main/master/develop branches'
     )
     // Standard: single Node version (matrix is comprehensive-only or --matrix flag)
     assert(
@@ -198,16 +198,16 @@ function createTempGitRepo() {
       'Should have comprehensive mode marker'
     )
 
-    // Check NO path filters
+    // Comprehensive mode includes path filters (security runs inline, not on schedule)
     assert(
-      !workflowContent.includes('paths-ignore:'),
-      'Should NOT have path filters'
+      workflowContent.includes('paths-ignore:'),
+      'Should have path filters'
     )
 
-    // Check NO security schedule (runs inline)
+    // Comprehensive: no schedule trigger (security runs inline on every push)
     assert(
       !workflowContent.includes('schedule:'),
-      'Should NOT have schedule trigger'
+      'Should NOT have schedule trigger (security runs inline)'
     )
 
     // Check for matrix on every push
@@ -290,8 +290,8 @@ function createTempGitRepo() {
       'Initial setup should be comprehensive'
     )
     assert(
-      !workflowContent.includes('paths-ignore:'),
-      'Comprehensive should not have path filters'
+      workflowContent.includes('paths-ignore:'),
+      'Comprehensive should have path filters'
     )
 
     // Update to minimal mode
