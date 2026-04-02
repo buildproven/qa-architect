@@ -198,10 +198,10 @@ function createTempGitRepo() {
       'Should have comprehensive mode marker'
     )
 
-    // Comprehensive mode includes path filters (security runs inline, not on schedule)
+    // Comprehensive mode removes path filters so every change gets full CI.
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Should have path filters'
+      !workflowContent.includes('paths-ignore:'),
+      'Should NOT have path filters'
     )
 
     // Comprehensive: no schedule trigger (security runs inline on every push)
@@ -290,8 +290,8 @@ function createTempGitRepo() {
       'Initial setup should be comprehensive'
     )
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Comprehensive should have path filters'
+      !workflowContent.includes('paths-ignore:'),
+      'Comprehensive should NOT have path filters'
     )
 
     // Update to minimal mode

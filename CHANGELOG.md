@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.1] - 2026-04-02
+
+### Fixed
+
+- **Comprehensive consumer workflow generation** now removes `paths-ignore` consistently, so generated comprehensive CI matches the intended full-coverage contract.
+- **Workflow tier regression coverage** now asserts the comprehensive-mode contract correctly in both consumer and tier tests.
+
 ## [5.13.0] - 2026-02-11
 
 ### Added
