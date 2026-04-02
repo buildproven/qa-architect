@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.2] - 2026-04-02
+
+### Fixed
+
+- **GitHub trusted publishing release path** now publishes without `NPM_TOKEN`, allowing the configured npm trusted publisher for `buildproven/qa-architect` to handle release auth via OIDC.
+
 ## [5.13.1] - 2026-04-02
 
 ### Fixed
