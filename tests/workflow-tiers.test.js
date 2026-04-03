@@ -160,6 +160,10 @@ function createTempGitRepo() {
       workflowContent.includes('branches: [main, master, develop]'),
       'Should scope triggers to main/master/develop branches'
     )
+    assert(
+      workflowContent.includes("github.ref == 'refs/heads/main' &&"),
+      'Should gate standard-mode tests to main branch'
+    )
     // Standard: single Node version (matrix is comprehensive-only or --matrix flag)
     assert(
       workflowContent.includes('node-version: [22]'),
@@ -198,10 +202,10 @@ function createTempGitRepo() {
       'Should have comprehensive mode marker'
     )
 
-    // Comprehensive mode includes path filters (security runs inline, not on schedule)
+    // Comprehensive mode removes path filters so every change gets full CI.
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Should have path filters'
+      !workflowContent.includes('paths-ignore:'),
+      'Should NOT have path filters'
     )
 
     // Comprehensive: no schedule trigger (security runs inline on every push)
@@ -290,8 +294,8 @@ function createTempGitRepo() {
       'Initial setup should be comprehensive'
     )
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Comprehensive should have path filters'
+      !workflowContent.includes('paths-ignore:'),
+      'Comprehensive should NOT have path filters'
     )
 
     // Update to minimal mode
@@ -763,6 +767,99 @@ jobs:
 
     console.log(
       '✅ PASS - Provenance-based cleanup: removes qa-architect files, preserves user files\n'
+    )
+  } finally {
+    fs.rmSync(testDir, { recursive: true, force: true })
+  }
+})()
+
+// Test 11: Plain --update refreshes quality.yml while preserving detected mode
+;(() => {
+  console.log('Test 11: Plain --update refreshes existing workflow template')
+  const testDir = createTempGitRepo()
+
+  try {
+    const setupPath = path.join(__dirname, '../setup.js')
+    execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
+      cwd: testDir,
+      stdio: 'pipe',
+    })
+
+    const workflowPath = path.join(
+      testDir,
+      '.github',
+      'workflows',
+      'quality.yml'
+    )
+
+    // Simulate an older standard workflow missing the main-branch test gate.
+    const staleWorkflow = fs
+      .readFileSync(workflowPath, 'utf8')
+      .replace("      github.ref == 'refs/heads/main' &&\n", '')
+    fs.writeFileSync(workflowPath, staleWorkflow)
+
+    execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
+      cwd: testDir,
+      stdio: 'pipe',
+    })
+
+    const refreshedWorkflow = fs.readFileSync(workflowPath, 'utf8')
+    assert(
+      refreshedWorkflow.includes('# WORKFLOW_MODE: standard'),
+      'Plain update should preserve detected workflow mode'
+    )
+    assert(
+      refreshedWorkflow.includes("github.ref == 'refs/heads/main' &&"),
+      'Plain update should refresh workflow template content'
+    )
+
+    console.log(
+      '✅ PASS - Plain update refreshes workflow content while preserving mode\n'
+    )
+  } finally {
+    fs.rmSync(testDir, { recursive: true, force: true })
+  }
+})()
+
+// Test 12: Plain --update preserves existing matrix configuration
+;(() => {
+  console.log('Test 12: Plain --update preserves existing matrix configuration')
+  const testDir = createTempGitRepo()
+
+  try {
+    const setupPath = path.join(__dirname, '../setup.js')
+    execSync(
+      `QAA_DEVELOPER=true node ${setupPath} --workflow-standard --matrix`,
+      {
+        cwd: testDir,
+        stdio: 'pipe',
+      }
+    )
+
+    const workflowPath = path.join(
+      testDir,
+      '.github',
+      'workflows',
+      'quality.yml'
+    )
+
+    execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
+      cwd: testDir,
+      stdio: 'pipe',
+    })
+
+    const refreshedWorkflow = fs.readFileSync(workflowPath, 'utf8')
+    assert(
+      refreshedWorkflow.includes('# MATRIX_ENABLED: true'),
+      'Plain update should preserve existing matrix marker'
+    )
+    assert(
+      refreshedWorkflow.includes('node-version: [20, 22]'),
+      'Plain update should preserve existing matrix node versions'
+    )
+
+    console.log(
+      '✅ PASS - Plain update preserves existing matrix configuration\n'
     )
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })

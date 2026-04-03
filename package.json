@@ -1,10 +1,10 @@
 {
   "name": "create-qa-architect",
-  "version": "5.13.0",
+  "version": "5.13.3",
   "description": "QA Architect - Bootstrap quality automation for JavaScript/TypeScript and Python projects with GitHub Actions, pre-commit hooks, linting, formatting, and smart test strategy",
   "main": "setup.js",
   "bin": {
-    "create-qa-architect": "./setup.js"
+    "create-qa-architect": "setup.js"
   },
   "scripts": {
     "prepare": "[ \"$CI\" = \"true\" ] && echo 'Skipping Husky in CI' || husky",
@@ -80,7 +80,7 @@
     "dependency-monitoring",
     "security-audit"
   ],
-  "author": "Brett Stark",
+  "author": "BuildProven",
   "license": "SEE LICENSE IN LICENSE",
   "files": [
     "setup.js",

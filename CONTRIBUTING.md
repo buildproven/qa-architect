@@ -303,4 +303,4 @@ For project-specific questions, see `CLAUDE.md` for development notes.
 
 ---
 
-> **Vibe Build Lab LLC (d/b/a BuildProven)** · [buildproven.ai](https://buildproven.ai)
+> **BuildProven** · [buildproven.ai](https://buildproven.ai)

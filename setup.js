@@ -125,6 +125,7 @@ const { runInteractiveFlow } = require('./lib/interactive/questions')
 const { TemplateLoader } = require('./lib/template-loader')
 const {
   detectExistingWorkflowMode,
+  detectExistingMatrix,
   injectWorkflowMode,
   injectMatrix,
 } = require('./lib/workflow-config')
@@ -693,7 +694,7 @@ Usage: npx create-qa-architect@latest [options]
 SETUP OPTIONS:
   (no args)         Run complete quality automation setup
   --interactive     Interactive mode with guided configuration prompts
-  --update          Update existing configuration
+  --update          Update existing configuration (refreshes quality.yml, preserves detected workflow tier)
   --deps            Add basic dependency monitoring (Free Tier)
   --dependency-monitoring  Same as --deps
   --ci <provider>   Select CI provider: github (default) | gitlab | circleci
@@ -703,7 +704,7 @@ SETUP OPTIONS:
 WORKFLOW TIERS (GitHub Actions optimization):
   --workflow-minimal        Minimal CI (default) - Single Node version, monthly security
                             Budget-first mode: detection-only CI (target <1000 min/month)
-  --workflow-standard       Standard CI - Matrix testing on main, monthly security
+  --workflow-standard       Standard CI - Main-branch tests, monthly security
                             ~15-20 min/commit, ~$5-20/mo for typical projects
   --workflow-comprehensive  Comprehensive CI - Matrix on every push, security inline
                             ~50-100 min/commit, ~$100-350/mo for typical projects
@@ -1651,6 +1652,16 @@ HELP:
           }
         }
 
+        const hasExplicitWorkflowMode =
+          isWorkflowMinimal || isWorkflowStandard || isWorkflowComprehensive
+        const existingMatrixEnabled =
+          fs.existsSync(workflowFile) &&
+          !isMatrixEnabled &&
+          !hasExplicitWorkflowMode
+            ? detectExistingMatrix(process.cwd())
+            : false
+        const matrixEnabled = isMatrixEnabled || existingMatrixEnabled
+
         if (!fs.existsSync(workflowFile)) {
           let templateWorkflow =
             templateLoader.getTemplate(
@@ -1666,7 +1677,7 @@ HELP:
           templateWorkflow = injectWorkflowMode(templateWorkflow, workflowMode)
 
           // Inject matrix testing if enabled (for library authors)
-          templateWorkflow = injectMatrix(templateWorkflow, isMatrixEnabled)
+          templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
 
           // Inject collaboration steps
           templateWorkflow = injectCollaborationSteps(templateWorkflow, {
@@ -1677,58 +1688,47 @@ HELP:
           fs.writeFileSync(workflowFile, templateWorkflow)
           console.log(`✅ Added GitHub Actions workflow (${workflowMode} mode)`)
         } else if (isUpdateMode) {
-          // Update existing workflow with new mode if explicitly specified
-          if (
-            isWorkflowMinimal ||
-            isWorkflowStandard ||
-            isWorkflowComprehensive
-          ) {
-            // Load fresh template and re-inject
-            let templateWorkflow =
-              templateLoader.getTemplate(
-                templates,
-                path.join('.github', 'workflows', 'quality.yml')
-              ) ||
-              fs.readFileSync(
-                path.join(__dirname, '.github/workflows/quality.yml'),
-                'utf8'
-              )
-
-            // Inject workflow mode configuration
-            templateWorkflow = injectWorkflowMode(
-              templateWorkflow,
-              workflowMode
+          // Refresh existing workflow from the current template.
+          let templateWorkflow =
+            templateLoader.getTemplate(
+              templates,
+              path.join('.github', 'workflows', 'quality.yml')
+            ) ||
+            fs.readFileSync(
+              path.join(__dirname, '.github/workflows/quality.yml'),
+              'utf8'
             )
 
-            // Inject matrix testing if enabled (for library authors)
-            templateWorkflow = injectMatrix(templateWorkflow, isMatrixEnabled)
+          // Inject workflow mode configuration
+          templateWorkflow = injectWorkflowMode(templateWorkflow, workflowMode)
 
-            // Inject collaboration steps (preserve from existing if present)
-            const existingWorkflow = fs.readFileSync(workflowFile, 'utf8')
-            const hasSlackAlerts =
-              existingWorkflow.includes('SLACK_WEBHOOK_URL')
-            const hasPrComments = existingWorkflow.includes(
-              'PR_COMMENT_PLACEHOLDER'
-            )
+          // Inject matrix testing if enabled (for library authors)
+          templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
 
-            templateWorkflow = injectCollaborationSteps(templateWorkflow, {
-              enableSlackAlerts: hasSlackAlerts,
-              enablePrComments: hasPrComments,
-            })
+          // Inject collaboration steps (preserve from existing if present)
+          const existingWorkflow = fs.readFileSync(workflowFile, 'utf8')
+          const hasSlackAlerts = existingWorkflow.includes('SLACK_WEBHOOK_URL')
+          const hasPrComments = existingWorkflow.includes(
+            'PR_COMMENT_PLACEHOLDER'
+          )
 
-            fs.writeFileSync(workflowFile, templateWorkflow)
-            if (workflowMode === 'minimal') {
-              console.log(
-                '⚠️  Minimal mode disables tests and security scans in CI (detection-only).'
-              )
-              console.log(
-                '   Use --workflow-standard to re-enable full CI checks.'
-              )
-            }
+          templateWorkflow = injectCollaborationSteps(templateWorkflow, {
+            enableSlackAlerts: hasSlackAlerts,
+            enablePrComments: hasPrComments,
+          })
+
+          fs.writeFileSync(workflowFile, templateWorkflow)
+          if (workflowMode === 'minimal') {
             console.log(
-              `♻️  Updated GitHub Actions workflow to ${workflowMode} mode`
+              '⚠️  Minimal mode disables tests and security scans in CI (detection-only).'
+            )
+            console.log(
+              '   Use --workflow-standard to re-enable full CI checks.'
             )
           }
+          console.log(
+            `♻️  Updated GitHub Actions workflow to ${workflowMode} mode`
+          )
         }
       }
 
@@ -1918,8 +1918,26 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
-const licenseDir =
+function validateLicenseDir(dirPath) {
+  const resolved = path.resolve(dirPath)
+  const home = os.homedir()
+  const tmp = os.tmpdir()
+  const isInHome = resolved.startsWith(home + path.sep) || resolved === home
+  const isInTmp = resolved.startsWith(tmp + path.sep) || resolved === tmp
+
+  if (!isInHome && !isInTmp) {
+    console.warn(
+      '⚠️  QAA_LICENSE_DIR must be within home or temp directory, ignoring: ' + dirPath
+    )
+    return path.join(home, '.create-qa-architect')
+  }
+
+  return resolved
+}
+
+const requestedLicenseDir =
   process.env.QAA_LICENSE_DIR || path.join(os.homedir(), '.create-qa-architect')
+const licenseDir = validateLicenseDir(requestedLicenseDir)
 const licenseFile = path.join(licenseDir, 'license.json')
 const usageFile = path.join(licenseDir, 'usage.json')
 const now = new Date()

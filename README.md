@@ -7,7 +7,7 @@ Quality automation CLI for JavaScript/TypeScript, Python, and shell script proje
 ---
 
 > **Maintainer & Ownership**
-> This project is maintained by **Vibe Build Lab LLC (d/b/a BuildProven)**, a studio focused on AI-assisted product development, micro-SaaS, and "vibe coding" workflows for solo founders and small teams.
+> This project is maintained by **BuildProven**, a studio focused on AI-assisted product development, micro-SaaS, and "vibe coding" workflows for solo founders and small teams.
 > Learn more at **https://buildproven.ai**.
 
 ---
@@ -158,7 +158,7 @@ npx create-qa-architect@latest --workflow-minimal
 
 **Best for:** Small teams, client projects, production apps
 
-- Matrix testing (Node 20 + 22) **only on main branch**
+- Single Node 22 testing **only on main branch**
 - Security scans run monthly
 - Path filters enabled
 - **Runtime:** ~15-20 min/commit
@@ -275,6 +275,8 @@ npx create-qa-architect@latest --update
 npm install
 npm run lint
 ```
+
+`--update` refreshes the existing `quality.yml` from the latest template while preserving the detected workflow tier and existing matrix setting unless you explicitly override the tier with `--workflow-minimal`, `--workflow-standard`, or `--workflow-comprehensive`.
 
 ### Dependency Monitoring (Free)
 
@@ -453,4 +455,4 @@ Commercial freemium license — the base CLI is free to use; Pro features requir
 
 ---
 
-> **Vibe Build Lab LLC (d/b/a BuildProven)** · [buildproven.ai](https://buildproven.ai)
+> **BuildProven** · [buildproven.ai](https://buildproven.ai)
