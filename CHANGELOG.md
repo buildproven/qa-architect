@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.3] - 2026-04-02
+
+### Fixed
+
+- **License path hardening now applies to writes as well as reads**, preventing `QAA_LICENSE_DIR` from redirecting local license and usage files outside the validated home/temp sandbox.
+- **Plain `--update` now preserves existing matrix workflows** while still allowing explicit tier switches to return to single-node CI when requested.
+- **Generated `security:audit` and `validate:pre-push` scripts now fail correctly** instead of masking earlier errors through shell operator precedence.
+- **Standard workflow documentation now matches runtime behavior**, describing main-branch single-node tests instead of a default matrix.
+
 ## [5.13.2] - 2026-04-02
 
 ### Fixed

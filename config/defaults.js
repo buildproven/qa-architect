@@ -19,7 +19,7 @@ const baseScripts = {
   'test:coverage': 'vitest run --coverage',
   'test:changed': 'vitest run --changed HEAD~1 --passWithNoTests',
   'security:audit':
-    '[ -f pnpm-lock.yaml ] && pnpm audit --audit-level high || [ -f yarn.lock ] && yarn audit || npm audit --audit-level high',
+    'if [ -f pnpm-lock.yaml ]; then pnpm audit --audit-level high; elif [ -f yarn.lock ]; then yarn audit; else npm audit --audit-level high; fi',
   'security:secrets':
     "node -e \"const fs=require('fs');const content=fs.readFileSync('package.json','utf8');if(/[\\\"\\'][a-zA-Z0-9+/]{20,}[\\\"\\']/.test(content)){console.error('❌ Potential hardcoded secrets in package.json');process.exit(1)}else{console.log('✅ No secrets detected in package.json')}\"",
   'security:config': 'npx create-qa-architect@latest --security-config',
@@ -28,8 +28,7 @@ const baseScripts = {
   'validate:docs': 'npx create-qa-architect@latest --validate-docs',
   'validate:comprehensive': 'npx create-qa-architect@latest --comprehensive',
   'validate:all': 'npm run validate:comprehensive && npm run security:audit',
-  'validate:pre-push':
-    'npm run test:patterns --if-present && npm run test:commands --if-present && npm run test:changed --if-present || npm test --if-present',
+  'validate:pre-push': `npm run test:patterns --if-present && npm run test:commands --if-present && if node -e "const pkg=require('./package.json');process.exit(pkg.scripts&&pkg.scripts['test:changed']?0:1)" 2>/dev/null; then npm run test:changed; else npm test --if-present; fi`,
 }
 
 const normalizeStylelintTargets = stylelintTargets => {

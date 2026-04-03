@@ -8,6 +8,8 @@
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const originalHomedir = os.homedir
+const originalTmpdir = os.tmpdir
 const {
   createTestKeyPair,
   setTestPublicKeyEnv,
@@ -553,6 +555,65 @@ function testShowUpgradeMessageFree() {
 }
 
 /**
+ * Test 9: saveLicense() validates QAA_LICENSE_DIR before writing
+ */
+function testInvalidLicenseDirFallsBackToSafePath() {
+  setupTest()
+  console.log('Test 9: saveLicense() hardens invalid QAA_LICENSE_DIR')
+
+  const fakeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'cqa-home-'))
+  const fakeTmp = fs.mkdtempSync(path.join(os.tmpdir(), 'cqa-tmp-'))
+  const invalidDir = path.join(
+    path.sep,
+    'var',
+    'tmp',
+    `cqa-invalid-${Date.now()}`
+  )
+  const expectedLicenseFile = path.join(
+    fakeHome,
+    '.create-qa-architect',
+    'license.json'
+  )
+
+  os.homedir = () => fakeHome
+  os.tmpdir = () => fakeTmp
+  process.env.QAA_LICENSE_DIR = invalidDir
+
+  try {
+    const result = saveLicense(
+      LICENSE_TIERS.PRO,
+      'QAA-ABCD-EF12-3456-7890',
+      'safe-path@example.com'
+    )
+
+    if (!result.success) {
+      console.error('  ❌ Failed to save license with hardened path')
+      console.error('  Error:', result.error)
+      process.exit(1)
+    }
+
+    if (!fs.existsSync(expectedLicenseFile)) {
+      console.error('  ❌ License was not written to validated fallback path')
+      process.exit(1)
+    }
+
+    if (fs.existsSync(path.join(invalidDir, 'license.json'))) {
+      console.error('  ❌ License should not be written to invalid path')
+      process.exit(1)
+    }
+
+    console.log('  ✅ Invalid QAA_LICENSE_DIR falls back to safe path\n')
+  } finally {
+    removeLicense()
+    os.homedir = originalHomedir
+    os.tmpdir = originalTmpdir
+    process.env.QAA_LICENSE_DIR = TEST_LICENSE_DIR
+    fs.rmSync(fakeHome, { recursive: true, force: true })
+    fs.rmSync(fakeTmp, { recursive: true, force: true })
+  }
+}
+
+/**
  * Test 12: showUpgradeMessage() for PRO tier
  */
 function testShowUpgradeMessagePro() {
@@ -729,6 +790,7 @@ testHasFeature()
 testGetDependencyMonitoringLevel()
 testGetSupportedLanguages()
 testSaveAndRemoveLicense()
+testInvalidLicenseDirFallsBackToSafePath()
 testShowUpgradeMessageFree()
 testShowUpgradeMessagePro()
 testShowLicenseStatusFree()
