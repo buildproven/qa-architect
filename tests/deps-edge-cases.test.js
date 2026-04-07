@@ -193,10 +193,7 @@ gem "pg", "~> 1.5"
         : error.stdout
           ? error.stdout.toString()
           : error.message || ''
-      assert.ok(
-        output.includes('Pro, Team, or Enterprise'),
-        'Should require Pro tier'
-      )
+      assert.ok(output.includes('Pro license'), 'Should require Pro tier')
     }
 
     console.log('✅ PASS\n')
