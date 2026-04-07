@@ -149,7 +149,7 @@ Turborepo caches and parallelizes tasks based on `turbo.json`:
 
 ### Issue: "package.json not found" in subdirectory
 
-This is expected in monorepos. qa-architect gracefully handles missing package.json in workspace subdirectories (see `docs/MONOREPO-COMPATIBILITY-FIX.md`).
+This is expected in monorepos. qa-architect gracefully handles missing package.json in workspace subdirectories.
 
 ## Testing
 
@@ -165,7 +165,6 @@ npx create-qa-architect@latest --dry-run
 
 ## Related Documentation
 
-- [Monorepo Compatibility Fix](./MONOREPO-COMPATIBILITY-FIX.md) - Handling workspaces
 - [CI Cost Analysis](./CI-COST-ANALYSIS.md) - Workflow tier pricing
 - [pnpm CI Example](../.github/workflows/pnpm-ci.yml.example) - Complete example
 

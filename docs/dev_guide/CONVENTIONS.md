@@ -11,7 +11,7 @@ QA Architect (`create-qa-architect`) is a CLI tool that bootstraps quality autom
 
 **Entry point:** `setup.js` — CLI argument parsing and orchestration. Run as `npx create-qa-architect` or `node setup.js`.
 
-**npm package:** `create-qa-architect` v5.13.2 (published via GitHub trusted publishing)
+**npm package:** `create-qa-architect` v5.13.3 (published via GitHub trusted publishing)
 
 ## Directory Structure
 

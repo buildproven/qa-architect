@@ -121,7 +121,8 @@
       "table": {
         "ajv": "$ajv"
       }
-    }
+    },
+    "picomatch": "^2.3.2"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.0.0",

@@ -442,15 +442,9 @@
           )
         } finally {
           checkoutBtn.disabled = false
-          if (selectedTier === 'pro') {
-            checkoutBtn.textContent = isFounder
-              ? 'Start Pro Subscription - $24.50/month (Founder Price)'
-              : 'Start Pro Subscription - $49/month'
-          } else {
-            checkoutBtn.textContent = isFounder
-              ? 'Start Enterprise Subscription - $74.50/month (Founder Price)'
-              : 'Start Enterprise Subscription - $149/month'
-          }
+          checkoutBtn.textContent = isFounder
+            ? 'Start Pro Subscription - $24.50/month (Founder Price)'
+            : 'Start Pro Subscription - $49/month'
         }
       }
 

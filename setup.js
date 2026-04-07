@@ -723,7 +723,7 @@ VALIDATION OPTIONS:
 
 LICENSE, TELEMETRY & ERROR REPORTING:
   --license-status          Show current license tier and available features
-  --activate-license        Activate Pro/Team/Enterprise license key from Stripe purchase
+  --activate-license        Activate Pro license key from Stripe purchase
   --telemetry-status        Show telemetry status and opt-in instructions
   --error-reporting-status  Show error reporting status and privacy information
 
@@ -750,7 +750,7 @@ EXAMPLES:
     → Show current license tier and upgrade options
 
   npx create-qa-architect@latest --activate-license
-    → Activate Pro/Team/Enterprise license after Stripe purchase
+    → Activate Pro license after Stripe purchase
 
   npx create-qa-architect@latest --telemetry-status
     → Show telemetry status and privacy information
@@ -1974,7 +1974,7 @@ try {
 const CAP = 50
 if (usage.prePushRuns >= CAP) {
 console.error('❌ Free tier limit reached: ' + usage.prePushRuns + '/' + CAP + ' pre-push runs this month')
-  console.error('   Upgrade to Pro, Team, or Enterprise: https://buildproven.ai/qa-architect')
+  console.error('   Upgrade to Pro: https://buildproven.ai/qa-architect')
   process.exit(1)
 }
 

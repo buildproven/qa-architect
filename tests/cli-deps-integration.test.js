@@ -217,10 +217,10 @@ pytest-django = "^4.5.0"
     // Run --deps command (should fail gracefully with upgrade message)
     const result = runDepsCommand(testDir, false)
     testAssert(
-      result.error?.message?.includes('Pro, Team, or Enterprise license') ||
-        result.error?.stdout?.includes('Pro, Team, or Enterprise license') ||
-        result.output?.includes('Pro, Team, or Enterprise license'),
-      'Should prompt for Pro/Team/Enterprise license for Python-only projects'
+      result.error?.message?.includes('Pro license') ||
+        result.error?.stdout?.includes('Pro license') ||
+        result.output?.includes('Pro license'),
+      'Should prompt for Pro license for Python-only projects'
     )
 
     console.log(
@@ -266,10 +266,10 @@ serde_json = "1.0"
     // Run --deps command (should fail gracefully with upgrade message)
     const result = runDepsCommand(testDir, false)
     testAssert(
-      result.error?.message?.includes('Pro, Team, or Enterprise license') ||
-        result.error?.stdout?.includes('Pro, Team, or Enterprise license') ||
-        result.output?.includes('Pro, Team, or Enterprise license'),
-      'Should prompt for Pro/Team/Enterprise license for Rust-only projects'
+      result.error?.message?.includes('Pro license') ||
+        result.error?.stdout?.includes('Pro license') ||
+        result.output?.includes('Pro license'),
+      'Should prompt for Pro license for Rust-only projects'
     )
 
     console.log('  ✅ Rust-only project rejected with clear upgrade message\n')
@@ -447,10 +447,10 @@ django-environ==0.11.0
     // Run --deps command (should fail gracefully with upgrade message)
     const result = runDepsCommand(testDir, false)
     testAssert(
-      result.error?.message?.includes('Pro, Team, or Enterprise license') ||
-        result.error?.stdout?.includes('Pro, Team, or Enterprise license') ||
-        result.output?.includes('Pro, Team, or Enterprise license'),
-      'Should prompt for Pro/Team/Enterprise license for Python-only projects'
+      result.error?.message?.includes('Pro license') ||
+        result.error?.stdout?.includes('Pro license') ||
+        result.output?.includes('Pro license'),
+      'Should prompt for Pro license for Python-only projects'
     )
 
     // Note: The important validation is that command detects Python correctly
