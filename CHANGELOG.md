@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.4] - 2026-04-19
+
+### Fixed
+
+- **ESM target project support (#101)** — `create-qa-architect` now detects `"type": "module"` in the target project's `package.json` and emits `commitlint.config.cjs` instead of `.js`, preventing `ReferenceError: module is not defined in ES module scope`. When the target already has `vitest@>=3`, the injected `@vitest/coverage-v8` version is aligned to the same major to avoid `ERESOLVE` peer-dep failures.
+- **High-severity npm audit advisory** in the `basic-ftp` transitive chain is now resolved via `package.json` overrides; additional overrides for `tmp`, `inquirer`, `external-editor`, and `esbuild` clear up the `@lhci/cli` cluster. Remaining advisories are all dev-only vite path traversal inside `vitest@2`'s internal dependency tree (not reachable in published builds).
+
 ## [5.13.3] - 2026-04-02
 
 ### Fixed
