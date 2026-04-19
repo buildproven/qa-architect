@@ -22,11 +22,12 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      # Pin npm to a known-good version that supports OIDC trusted publishing.
-      # `npm install -g npm@latest` fails on self-upgrade under Node 22 due to
-      # a MODULE_NOT_FOUND (promise-retry) regression in npm 11.x arborist.
+      # OIDC trusted publishing requires npm >= 11.5. We pin to 11.5.2 (the
+      # first OIDC-stable release) instead of `npm@latest` to avoid the
+      # MODULE_NOT_FOUND (promise-retry) regression hit when self-upgrading
+      # over the setup-node-provided npm on top of the newest 11.x.
       - name: Pin npm for OIDC trusted publishing
-        run: npm install -g npm@10.9.2
+        run: npm install -g npm@11.5.2
 
       - name: Install dependencies
         run: npm ci --no-audit
