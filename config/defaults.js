@@ -1,5 +1,7 @@
 'use strict'
 
+const { detectDepMajor } = require('../lib/project-module-type')
+
 const STYLELINT_EXTENSIONS = ['css', 'scss', 'sass', 'less', 'pcss']
 const DEFAULT_STYLELINT_TARGET = `**/*.{${STYLELINT_EXTENSIONS.join(',')}}`
 
@@ -123,13 +125,27 @@ function getDefaultScripts({ stylelintTargets } = {}) {
 }
 
 /**
- * @param {DefaultsOptions} [options]
+ * @param {DefaultsOptions & {projectPath?: string}} [options]
  */
-function getDefaultDevDependencies({ typescript } = {}) {
+function getDefaultDevDependencies({ typescript, projectPath } = {}) {
   const devDeps = { ...clone(baseDevDependencies) }
   if (typescript) {
     Object.assign(devDeps, typeScriptDevDependencies)
   }
+
+  // Align @vitest/coverage-v8 with the target project's installed vitest
+  // major. vitest and its coverage adapter must share a major or npm install
+  // fails with ERESOLVE. Without this, a project already on vitest@4 gets
+  // our @vitest/coverage-v8@^2.x injected and breaks.
+  if (projectPath) {
+    const vitestMajor = detectDepMajor(projectPath, 'vitest')
+    if (vitestMajor && vitestMajor >= 3) {
+      devDeps['@vitest/coverage-v8'] = `^${vitestMajor}.0.0`
+      // Also drop our pinned vitest so we don't downgrade the project
+      delete devDeps.vitest
+    }
+  }
+
   return devDeps
 }
 

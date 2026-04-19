@@ -1398,6 +1398,7 @@ HELP:
       console.log('📦 Adding devDependencies...')
       const defaultDevDependencies = getDefaultDevDependencies({
         typescript: usesTypeScript,
+        projectPath: process.cwd(),
       })
       packageJson.devDependencies = mergeDevDependencies(
         packageJson.devDependencies || {},
