@@ -22,8 +22,11 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Upgrade npm for OIDC trusted publishing
-        run: npm install -g npm@latest
+      # Pin npm to a known-good version that supports OIDC trusted publishing.
+      # `npm install -g npm@latest` fails on self-upgrade under Node 22 due to
+      # a MODULE_NOT_FOUND (promise-retry) regression in npm 11.x arborist.
+      - name: Pin npm for OIDC trusted publishing
+        run: npm install -g npm@10.9.2
 
       - name: Install dependencies
         run: npm ci --no-audit
