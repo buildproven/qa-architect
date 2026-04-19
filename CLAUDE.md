@@ -2,7 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**npm**: `create-qa-architect` | **Version**: 5.13.3
+**npm**: `create-qa-architect` | **Version**: 5.13.4
 
 ## Project Overview
 
