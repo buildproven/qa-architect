@@ -56,69 +56,25 @@ setup.js                    # Main CLI entry - argument parsing, orchestration
 └── tests/                  # 40+ test files
 ```
 
-### Data Flow
-
-1. **Parse args** → `parseArguments()` handles CLI flags
-2. **Route command** → validation-only, deps, license, or full setup
-3. **Detect project** → TypeScript, Python, Shell scripts, Stylelint targets
-4. **Load templates** → merge custom templates with defaults
-5. **Generate configs** → ESLint, Prettier, Husky hooks, workflows
-6. **Apply enhancements** → production quality fixes
-
-### License Tier System
-
-The tool uses a freemium model with feature gating in `lib/licensing.js`:
+### License Tiers
 
 - **FREE**: Basic linting/formatting, 1 private repo, 50 runs/month
 - **PRO**: Security scanning, Smart Test Strategy, unlimited
+- Check tier: `hasFeature('smartTestStrategy')` or `getLicenseInfo()` in `lib/licensing.js`
 
-Check tier with `hasFeature('smartTestStrategy')` or `getLicenseInfo()`.
+### Workflow Tiers
 
-### Layered Testing Strategy (Best Practice)
-
-qa-architect follows industry best practice: "Fail fast locally, verify comprehensively remotely"
-
-| Layer          | Time     | What Runs                          | Files Modified                     |
-| -------------- | -------- | ---------------------------------- | ---------------------------------- |
-| **Pre-commit** | < 5s     | Lint + format (staged files)       | `config/defaults.js` (lint-staged) |
-| **Pre-push**   | < 30s    | Type check + tests (changed files) | `setup.js` (hook generation)       |
-| **CI**         | 3-10 min | Full test suite + security         | `.github/workflows/quality.yml`    |
-
-Note: CI does NOT re-run lint/format (pre-commit already did it). This avoids redundant work.
-
-### Workflow Tier System
-
-qa-architect defaults to **minimal CI** to avoid unexpected GitHub Actions costs:
-
-- **Minimal (default)**: Single Node 22, weekly security, path filters (~$0-5/mo)
-- **Standard**: Single Node 22, tests on main only, weekly security, path filters (~$5-10/mo)
-- **Comprehensive**: Matrix every commit, inline security (~$100-350/mo)
-- **--matrix flag**: Enable Node 20+22 matrix (for library authors)
-
-Implementation:
-
-- `detectExistingWorkflowMode()` - Reads `# WORKFLOW_MODE:` marker or detects legacy
-- `injectWorkflowMode()` - Applies mode-specific transformations
-- `injectMatrix()` - Adds Node.js version matrix when `--matrix` flag is used
-
-See `docs/CI-COST-ANALYSIS.md` for full analysis and `tests/workflow-tiers.test.js` for test patterns.
+Defaults to **minimal CI** to avoid unexpected GitHub Actions costs. Selectable via `--workflow-minimal/standard/comprehensive`. See `docs/CI-COST-ANALYSIS.md` and `tests/workflow-tiers.test.js`.
 
 ### Template-as-Product Contract
 
-`quality.yml` is both qa-architect's own CI AND the template deployed to 15+ consumer repos. Every template change is a multi-repo product deployment.
+`quality.yml` is both qa-architect's own CI AND the template deployed to 15+ consumer repos. Key invariants:
 
-Rules:
-
-- Never reference `node_modules/create-qa-architect` — consumers use `npx @latest`, not a devDep
-- Never use `\s*` in YAML cleanup regexes — `\s` matches `\n` and collapses lines. Use `[ \t]*`
-- Conditional content uses section markers (`# {{NAME_BEGIN/END}}`) stripped by `stripSection()` in `workflow-config.js`
-- `CONSUMER_FORBIDDEN_CONTENT` in `consumer-workflow-integration.test.js` gates what can appear in consumer output
-
-Validation:
-
-- `node tests/consumer-workflow-integration.test.js` — validates all 3 tiers
-- `./scripts/deploy-consumers.sh` — auto-discovers and validates all local consumer repos
-- `./scripts/deploy-consumers.sh --push` — regenerate + commit + push to all consumers
+- Never reference `node_modules/create-qa-architect` — consumers use `npx @latest`
+- Never use `\s*` in YAML cleanup regexes — use `[ \t]*` (prevents line collapse)
+- Conditional content uses section markers (`# {{NAME_BEGIN/END}}`) stripped by `stripSection()`
+- `CONSUMER_FORBIDDEN_CONTENT` in `consumer-workflow-integration.test.js` gates consumer output
+- Validate: `node tests/consumer-workflow-integration.test.js` | Deploy: `./scripts/deploy-consumers.sh --push`
 
 ## Key Files
 
@@ -128,65 +84,14 @@ Validation:
 - `lib/project-maturity.js` - Maturity detection algorithm
 - `config/defaults.js` - Default scripts, dependencies, lint-staged config
 
-## Testing Patterns
-
-Tests use real filesystem operations with temp directories:
-
-```javascript
-const testDir = createTempGitRepo()
-execSync('node setup.js --deps', { cwd: testDir })
-assert(fs.existsSync(path.join(testDir, '.github/dependabot.yml')))
-```
-
-The `QAA_DEVELOPER=true` env var bypasses license checks during testing.
-
-## Branching
-
-Always create a feature branch before starting any code changes. Never commit directly to main.
-
-```bash
-git checkout -b feat/short-description   # before writing any code
-```
-
-PreToolUse hooks enforce this (block-commit-main.sh, block-push-main.sh), but branch proactively — don't wait for the hook to catch it.
-
 ## Quality Gates
 
-- Coverage: 75% lines, 70% functions, 65% branches
-- Pre-commit: lint + format (staged files via lint-staged)
-- Pre-push: type check (tsc), test:patterns, test:commands, test:changed
-- Pre-release: `npm run prerelease` (docs:check + all tests + e2e)
+Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre-push: tsc + test:patterns + test:commands + test:changed. Pre-release: `npm run prerelease`.
 
 ## Publishing
 
-**This repo uses GitHub trusted publishing for npm** - DO NOT run `npm publish` manually.
-
-Publishing workflow:
-
-1. Run `npm run prerelease` to validate
-2. Commit and push changes to `main`
-3. GitHub Actions automatically publishes to npm via trusted publishing
-
-No OTP/2FA codes needed. The `.github/workflows/release.yml` workflow handles publishing when:
-
-- Version in `package.json` changes
-- All tests pass
-- Pushed to `main` branch
-
-After publishing, deploy to consumer repos: `./scripts/deploy-consumers.sh --push`
-
----
-
-**Last Updated:** 2026-03-08
+**Uses GitHub trusted publishing — do NOT run `npm publish` manually.** Push version bump to `main`; `release.yml` handles npm publish automatically (no OTP needed). After publishing, deploy consumers: `./scripts/deploy-consumers.sh --push`.
 
 ## Agent Workflow
 
-### Session Start
-
-```
-Read docs/dev_guide/CONVENTIONS.md
-```
-
-### Planning: /bs:plan <name> → docs/plans/
-
-### Handoff: /bs:context --save / --resume
+Session start: read `docs/dev_guide/CONVENTIONS.md`. Planning: `/bs:plan <name>` → `docs/plans/`. Handoff: `/bs:context --save` / `--resume`.
