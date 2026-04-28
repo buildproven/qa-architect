@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.5] - 2026-04-28
+
+### Changed
+
+- **License registry URL** updated to `https://licenses.buildproven.ai/api/licenses/qa-architect.json`. The fulfillment service is now live at this Vercel-hosted endpoint (signed JSON, RSA-SHA256). Override with `QAA_LICENSE_DB_URL` for self-hosted enterprise registries.
+- **Internal:** signing primitives now imported from `@buildproven/license-core` (a published npm package, MIT). The local `lib/license-signing.js` is a thin re-export shim. `lib/license-validator.js` uses `validateRegistryEntry` and `verifyRegistryMetadata` from the package. Bit-for-bit signature compatibility with prior releases verified via golden-vector tests.
+
 ## [5.13.4] - 2026-04-19
 
 ### Fixed
