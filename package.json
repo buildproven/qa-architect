@@ -214,7 +214,7 @@
     ]
   },
   "dependencies": {
-    "@buildproven/license-core": "^1.0.1",
+    "@buildproven/license-core": "^1.0.2",
     "@npmcli/package-json": "^7.0.4",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
