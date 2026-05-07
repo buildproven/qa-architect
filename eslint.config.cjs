@@ -25,6 +25,7 @@ const configs = [
       '**/build/**',
       '**/coverage/**',
       '**/*.html',
+      'webhook-handler.js', // server-side deployment script, deps installed separately
     ],
   },
   js.configs.recommended,
