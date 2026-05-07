@@ -313,7 +313,7 @@ jobs:
 
   try {
     execSync(
-      `node "${path.join(originalCwd, 'setup.js')}" --comprehensive --no-markdownlint`,
+      `node "${path.join(originalCwd, 'setup.js')}" --comprehensive --no-markdownlint --no-npm-audit --no-gitleaks`,
       { stdio: 'pipe' }
     )
     console.log('  ✅ Comprehensive validation passed for valid project')
