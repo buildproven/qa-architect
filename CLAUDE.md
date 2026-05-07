@@ -92,6 +92,15 @@ Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre
 
 **Uses GitHub trusted publishing — do NOT run `npm publish` manually.** Push version bump to `main`; `release.yml` handles npm publish automatically (no OTP needed). After publishing, deploy consumers: `./scripts/deploy-consumers.sh --push`.
 
+## Coding Style & Testing Conventions
+
+- JavaScript (Node.js) — no TypeScript
+- Tests use real filesystem operations with temp directories via `createTempGitRepo()` helper
+- Use `QAA_DEVELOPER=true` env var to bypass license checks during testing
+- Never use `\s*` in YAML cleanup regexes — use `[ \t]*` (avoids cross-line collapse)
+- `quality.yml` is both the project's own CI and the template deployed to 15+ consumer repos — treat every change as a multi-repo product deployment
+- Feature branch before any code changes — pre-commit hooks enforce this
+
 ## Agent Workflow
 
 Session start: read `docs/dev_guide/CONVENTIONS.md`. Planning: `/bs:plan <name>` → `docs/plans/`. Handoff: `/bs:context --save` / `--resume`.
