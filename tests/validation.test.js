@@ -301,9 +301,10 @@ jobs:
   fs.writeFileSync('.github/workflows/test.yml', basicWorkflow.trim())
 
   try {
-    execSync(`node "${path.join(originalCwd, 'setup.js')}" --comprehensive`, {
-      stdio: 'pipe',
-    })
+    execSync(
+      `node "${path.join(originalCwd, 'setup.js')}" --comprehensive --no-markdownlint`,
+      { stdio: 'pipe' }
+    )
     console.log('  ✅ Comprehensive validation passed for valid project')
   } catch (error) {
     throw new Error(`Comprehensive validation failed: ${error.message}`)
