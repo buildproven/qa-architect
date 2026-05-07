@@ -165,7 +165,7 @@ wait_for_ci() {
 
   # Extract owner/repo from URL (handles both HTTPS and SSH)
   local repo_slug
-  repo_slug=$(echo "$remote_url" | sed -E 's|^.*[:/]([^/]+/[^/]+)(\.git)?$|\1|')
+  repo_slug=$(echo "$remote_url" | sed -E 's|\.git$||' | sed -E 's|^.*[:/]([^/]+/[^/]+)$|\1|')
 
   # Get the current branch
   local branch
