@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.13.6] - 2026-05-05
+
+### Fixed
+
+- **Coverage gate** now passes (75.09% lines) after including `blob-storage.test.js` in the default test suite — the file had 8 passing tests but was not being run.
+- **ESLint errors** in `webhook-handler.js` (`n/no-missing-require` for `helmet` and `stripe`) resolved by adding the file to ESLint ignores; it is a server deployment script with separately-installed dependencies, not CLI code.
+- **`tests/validation.test.js` flakiness** fixed by passing `--no-npm-audit --no-gitleaks` to subprocess invocations that run `setup.js` in a minimal temp directory with no `node_modules` or lock file; those tests target config content scanning only.
+
+### Changed
+
+- **CLAUDE.md and AGENTS.md** merged into a single `CLAUDE.md` with `AGENTS.md` as a symlink for tool compatibility.
+
 ## [5.13.5] - 2026-04-28
 
 ### Changed
