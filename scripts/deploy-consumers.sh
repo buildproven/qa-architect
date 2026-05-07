@@ -15,10 +15,12 @@ set -euo pipefail
 #   3. If CI passes, deploy to remaining repos
 #   4. If CI fails, abort rollout (prevents cascading failures)
 #
-# Auto-discovers repos by scanning ~/Projects for .github/workflows/quality.yml
-# files that contain the WORKFLOW_MODE marker from qa-architect.
+# Auto-discovers repos by scanning ~/Projects, ~/Projects/internal, ~/Projects/products,
+# and ~/Projects/personal for .github/workflows/quality.yml files containing the
+# WORKFLOW_MODE marker from qa-architect.
 
-PROJECTS_DIR="$HOME/Projects"
+# Scan these directories for consumer repos (space-separated)
+PROJECTS_DIRS=("$HOME/Projects" "$HOME/Projects/internal" "$HOME/Projects/products" "$HOME/Projects/personal")
 QA_ARCHITECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CANARY_REPO="buildproven"
 PUSH=false
@@ -97,7 +99,9 @@ echo ""
 # Excludes qa-architect itself
 CONSUMERS=()
 CANARY_DIR=""
-for workflow in "$PROJECTS_DIR"/*/".github/workflows/quality.yml"; do
+for projects_dir in "${PROJECTS_DIRS[@]}"; do
+  [ -d "$projects_dir" ] || continue
+  for workflow in "$projects_dir"/*/".github/workflows/quality.yml"; do
   [ -f "$workflow" ] || continue
   repo_dir="$(dirname "$(dirname "$(dirname "$workflow")")")"
   repo_name="$(basename "$repo_dir")"
@@ -113,6 +117,7 @@ for workflow in "$PROJECTS_DIR"/*/".github/workflows/quality.yml"; do
       CONSUMERS+=("$repo_dir")
     fi
   fi
+  done
 done
 
 # Ensure canary was found
