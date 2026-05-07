@@ -65,6 +65,10 @@ build/
 `
   fs.writeFileSync('.gitignore', gitignoreContent.trim())
 
+  // Use --no-npm-audit and --no-gitleaks: temp dir has no node_modules or lock
+  // file, so npm audit would fail. These tests target config content scanning.
+  const securityConfigFlags = '--security-config --no-npm-audit --no-gitleaks'
+
   // Test 1: Valid Next.js config (should pass)
   const validNextConfig = `
 /** @type {import('next').NextConfig} */
@@ -80,12 +84,17 @@ module.exports = nextConfig
   fs.writeFileSync('next.config.js', validNextConfig)
 
   try {
-    execSync(`node "${path.join(originalCwd, 'setup.js')}" --security-config`, {
-      stdio: 'pipe',
-    })
+    execSync(
+      `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
+      { stdio: 'pipe' }
+    )
     console.log('  ✅ Valid Next.js config passed security check')
   } catch (error) {
-    throw new Error(`Valid Next.js config failed: ${error.message}`)
+    const out = (error.stdout || '').toString().slice(-500)
+    const err = (error.stderr || '').toString().slice(-500)
+    throw new Error(
+      `Valid Next.js config failed: ${error.message}\nstdout: ${out}\nstderr: ${err}`
+    )
   }
 
   // Test 2: Insecure Next.js config (should fail)
@@ -103,9 +112,10 @@ module.exports = nextConfig
   fs.writeFileSync('next.config.js', insecureNextConfig)
 
   try {
-    execSync(`node "${path.join(originalCwd, 'setup.js')}" --security-config`, {
-      stdio: 'pipe',
-    })
+    execSync(
+      `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
+      { stdio: 'pipe' }
+    )
     throw new Error('Insecure Next.js config should have failed but passed')
   } catch (error) {
     if (error.message.includes('should have failed')) {
@@ -128,9 +138,10 @@ export default defineConfig({
   fs.writeFileSync('vite.config.js', insecureViteConfig)
 
   try {
-    execSync(`node "${path.join(originalCwd, 'setup.js')}" --security-config`, {
-      stdio: 'pipe',
-    })
+    execSync(
+      `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
+      { stdio: 'pipe' }
+    )
     throw new Error('Insecure Vite config should have failed but passed')
   } catch (error) {
     if (error.message.includes('should have failed')) {
