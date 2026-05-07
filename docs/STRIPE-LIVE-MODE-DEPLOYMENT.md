@@ -5,6 +5,7 @@ Deploy the `webhook-handler.js` server to process real Stripe payments and issue
 ## Overview
 
 The payment flow:
+
 1. Customer purchases Pro at `buildproven.ai/qa-architect`
 2. Stripe fires a `checkout.session.completed` webhook to your server
 3. `webhook-handler.js` validates the event, generates a signed license key, and saves it to Vercel Blob
@@ -25,10 +26,10 @@ The payment flow:
 
 In the [Stripe Dashboard](https://dashboard.stripe.com/products) → Products → Add product:
 
-| Product | Price | Billing | Price ID (example) |
-|---|---|---|---|
-| QA Architect Pro | $49.00 | Monthly | `price_1St9K2Gv7Su9XNJbdYoH3K32` |
-| QA Architect Pro | $490.00 | Yearly | `price_1St9KGGv7Su9XNJbrwKMsh1R` |
+| Product          | Price   | Billing | Price ID (example)               |
+| ---------------- | ------- | ------- | -------------------------------- |
+| QA Architect Pro | $49.00  | Monthly | `price_1St9K2Gv7Su9XNJbdYoH3K32` |
+| QA Architect Pro | $490.00 | Yearly  | `price_1St9KGGv7Su9XNJbrwKMsh1R` |
 
 The price IDs above are already mapped in `webhook-handler.js:315-318`. If your actual Stripe price IDs differ, update `mapPriceToTier()` in `webhook-handler.js`.
 
@@ -78,15 +79,15 @@ Your webhook URL will be: `https://your-project.vercel.app/webhook`
 
 In the Vercel dashboard → Project → Settings → Environment Variables, add:
 
-| Variable | Value | Notes |
-|---|---|---|
-| `STRIPE_SECRET_KEY` | `sk_live_...` | From Stripe Dashboard → Developers → API keys |
-| `STRIPE_WEBHOOK_SECRET` | `whsec_...` | Generated in Step 5 below |
-| `LICENSE_REGISTRY_PRIVATE_KEY` | Base64-encoded ED25519 private key | See note below |
-| `LICENSE_REGISTRY_KEY_ID` | `default` | Or a versioned ID like `v1` |
-| `BLOB_READ_WRITE_TOKEN` | `vercel_blob_...` | From Vercel Blob store settings |
-| `STATUS_API_TOKEN` | A strong random string | Protects the `/status` endpoint |
-| `NODE_ENV` | `production` | Enables HSTS and production error handling |
+| Variable                       | Value                              | Notes                                         |
+| ------------------------------ | ---------------------------------- | --------------------------------------------- |
+| `STRIPE_SECRET_KEY`            | `sk_live_...`                      | From Stripe Dashboard → Developers → API keys |
+| `STRIPE_WEBHOOK_SECRET`        | `whsec_...`                        | Generated in Step 5 below                     |
+| `LICENSE_REGISTRY_PRIVATE_KEY` | Base64-encoded ED25519 private key | See note below                                |
+| `LICENSE_REGISTRY_KEY_ID`      | `default`                          | Or a versioned ID like `v1`                   |
+| `BLOB_READ_WRITE_TOKEN`        | `vercel_blob_...`                  | From Vercel Blob store settings               |
+| `STATUS_API_TOKEN`             | A strong random string             | Protects the `/status` endpoint               |
+| `NODE_ENV`                     | `production`                       | Enables HSTS and production error handling    |
 
 **Private key format:** The key must be a PEM-encoded ED25519 private key, base64-encoded as a single line (no newlines):
 
@@ -157,6 +158,7 @@ Switch to live mode keys once the test flow works end-to-end.
 ## Step 8: Connect Your Checkout Page
 
 Your Stripe Checkout session must:
+
 - Use one of the two price IDs mapped in `mapPriceToTier()`
 - Be a **subscription** mode checkout (not one-time payment)
 - Collect a customer email
@@ -168,7 +170,8 @@ const session = await stripe.checkout.sessions.create({
   mode: 'subscription',
   payment_method_types: ['card'],
   line_items: [{ price: 'price_1St9K2Gv7Su9XNJbdYoH3K32', quantity: 1 }],
-  success_url: 'https://buildproven.ai/qa-architect/success?session_id={CHECKOUT_SESSION_ID}',
+  success_url:
+    'https://buildproven.ai/qa-architect/success?session_id={CHECKOUT_SESSION_ID}',
   cancel_url: 'https://buildproven.ai/qa-architect',
 })
 ```
@@ -199,10 +202,10 @@ When a subscription is canceled in Stripe, the `customer.subscription.deleted` e
 
 ## Troubleshooting
 
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| Webhook returns 400 | Wrong `STRIPE_WEBHOOK_SECRET` | Re-copy the signing secret from Stripe Dashboard |
-| License not created after payment | Unknown price ID | Update `mapPriceToTier()` with your actual Stripe price IDs |
-| CLI can't find license | Wrong blob URL | Check `BLOB_PATHS` in `lib/blob-storage.js` matches your Vercel Blob store |
-| `sk_test_` warning in logs | Test key in production | Replace with `sk_live_...` key |
-| `/status` returns 503 | `STATUS_API_TOKEN` not set | Add the env var in Vercel settings |
+| Symptom                           | Likely cause                  | Fix                                                                        |
+| --------------------------------- | ----------------------------- | -------------------------------------------------------------------------- |
+| Webhook returns 400               | Wrong `STRIPE_WEBHOOK_SECRET` | Re-copy the signing secret from Stripe Dashboard                           |
+| License not created after payment | Unknown price ID              | Update `mapPriceToTier()` with your actual Stripe price IDs                |
+| CLI can't find license            | Wrong blob URL                | Check `BLOB_PATHS` in `lib/blob-storage.js` matches your Vercel Blob store |
+| `sk_test_` warning in logs        | Test key in production        | Replace with `sk_live_...` key                                             |
+| `/status` returns 503             | `STATUS_API_TOKEN` not set    | Add the env var in Vercel settings                                         |
