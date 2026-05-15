@@ -1,6 +1,6 @@
 # QA Architect
 
-Quality automation CLI for JavaScript/TypeScript, Python, and shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Pro tiers add security scanning (Gitleaks), Smart Test Strategy, and multi-language support.
+Quality automation CLI for JavaScript/TypeScript, Python, and shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. **Pro adds release-confidence gates for AI-assisted teams: Ship Check, PR Risk Check, CI Doctor, and full-history secret scanning.**
 
 **This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://buildproven.ai/qa-architect) (included in BuildProven Starter Kit).
 
@@ -25,6 +25,13 @@ Quality automation CLI for JavaScript/TypeScript, Python, and shell script proje
 - **Security Automation** - npm audit (Free), Gitleaks + ESLint security (Pro)
 - **Progressive Quality** - Adaptive checks based on project maturity
 - **Smart Test Strategy** - Risk-based pre-push validation (Pro feature)
+
+### Release Confidence (Pro)
+
+- **Ship Check** (`--ship-check`) - Unified SHIP/REVIEW/BLOCK verdict across lint, tests, security, coverage, bundle, Lighthouse, env vars, and CI cost. Markdown/JSON output for PR comments.
+- **PR Risk Check** (`--pr-check --base main`) - Diff-aware risk classifier. Flags HIGH/MEDIUM/LOW per file, surfaces source changes missing tests, blocks high-risk PRs without coverage.
+- **CI Doctor** (`--analyze-ci --doctor`) - Detects duplicated jobs, missing path filters, oversized matrices, and flaky workflows.
+- **History Secrets Scan** (`--history-scan`) - Full git-history audit via gitleaks `--all`. Reports oldest exposures and secret-type counts.
 
 ### Quality Tools
 
@@ -61,9 +68,18 @@ npx create-qa-architect@latest
 | Tier     | Price             | What You Get                                                                                       |
 | -------- | ----------------- | -------------------------------------------------------------------------------------------------- |
 | **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                 |
-| **Pro**  | $49/mo or $490/yr | **Security scanning (Gitleaks + ESLint security)**, Smart Test Strategy, multi-language, unlimited |
+| **Pro**  | $49/mo or $490/yr | **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
+
+### Release Confidence by Tier
+
+| Feature                              | Free | Pro+ |
+| ------------------------------------ | ---- | ---- |
+| Ship Check (release-readiness)       | ❌   | ✅   |
+| PR Risk Check (diff classifier)      | ❌   | ✅   |
+| CI Doctor (workflow waste detection) | ❌   | ✅   |
+| Full-history secrets scan            | ❌   | ✅   |
 
 ### Security Features by Tier
 
@@ -422,6 +438,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 Pro tier ($49/mo or $490/yr) includes:
 
+- **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
 - Smart Test Strategy (risk-based pre-push validation)
 - Multi-language support (Python, Shell scripts)
