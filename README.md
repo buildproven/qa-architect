@@ -65,9 +65,9 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                       |
-| -------- | ----------------- | -------------------------------------------------------------------------------------------------- |
-| **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                 |
+| Tier     | Price             | What You Get                                                                                                                                 |
+| -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                           |
 | **Pro**  | $49/mo or $490/yr | **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
