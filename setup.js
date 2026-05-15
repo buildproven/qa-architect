@@ -456,6 +456,71 @@ const validateAndSanitizeInput = input => {
 }
 
 /**
+ * Detect which (if any) Pro release-confidence command was invoked.
+ * Returns the command name, or null if none.
+ */
+function detectProCommand(sanitizedArgs) {
+  if (sanitizedArgs.includes('--ship-check')) return 'ship-check'
+  if (sanitizedArgs.includes('--pr-check')) return 'pr-check'
+  if (sanitizedArgs.includes('--history-scan')) return 'history-scan'
+  return null
+}
+
+/**
+ * Dispatch to the matching Pro command handler. Always exits the process
+ * (the handlers manage their own exit codes).
+ */
+async function runProCommand(command, sanitizedArgs, rawArgs) {
+  try {
+    const cmdOptions = parseProCommandOptions(sanitizedArgs, rawArgs)
+    if (command === 'ship-check') {
+      const { handleShipCheck } = require('./lib/commands/ship-check')
+      await handleShipCheck(cmdOptions)
+    } else if (command === 'pr-check') {
+      const { handlePrCheck } = require('./lib/commands/pr-check')
+      await handlePrCheck(cmdOptions)
+    } else {
+      const { handleHistoryScan } = require('./lib/commands/history-scan')
+      await handleHistoryScan(cmdOptions)
+    }
+    process.exit(0)
+  } catch (error) {
+    console.error(`Command error: ${error.message}`)
+    process.exit(1)
+  }
+}
+
+/**
+ * Extract options for Pro release-confidence commands (ship-check, pr-check,
+ * history-scan). Kept separate from parseArguments() to avoid bloating the
+ * main parser's cyclomatic complexity.
+ *
+ * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
+ * @param {string[]} rawArgs - Original args (for path values that may include `..`)
+ * @returns {{json:boolean, skipTests:boolean, noFail:boolean, base:string|null, depth:string|null, outPath:string|null}}
+ */
+function parseProCommandOptions(sanitizedArgs, rawArgs) {
+  const pickValue = (flag, source) => {
+    const idx = source.findIndex(arg => arg === flag)
+    if (idx === -1) return null
+    return source[idx + 1] || null
+  }
+
+  const baseValue = pickValue('--base', sanitizedArgs)
+  const depthValue = pickValue('--depth', sanitizedArgs)
+  const outValue = pickValue('--out', rawArgs)
+
+  return {
+    json: sanitizedArgs.includes('--json'),
+    skipTests: sanitizedArgs.includes('--skip-tests'),
+    noFail: sanitizedArgs.includes('--no-fail'),
+    base: baseValue,
+    depth: depthValue,
+    outPath: outValue ? path.resolve(outValue) : null,
+  }
+}
+
+/**
  * Parse CLI arguments and return configuration object
  * @param {string[]} rawArgs - Raw command line arguments
  * @returns {Object} Parsed configuration
@@ -711,6 +776,20 @@ WORKFLOW TIERS (GitHub Actions optimization):
   --matrix                 Enable Node.js version matrix testing (20 + 22)
                             Use for npm libraries/CLI tools that support multiple Node versions
   --analyze-ci             Analyze GitHub Actions usage and get optimization tips (Pro)
+  --analyze-ci --doctor    Add CI Doctor: flaky tests, duplicated jobs, waste detection (Pro)
+
+RELEASE CONFIDENCE (Pro):
+  --ship-check             Unified release-readiness report (lint, tests, security,
+                           coverage, bundle, env, CI cost, docs) with SHIP/REVIEW/BLOCK verdict
+  --pr-check               Diff-aware risk classifier — flags high-risk file changes and
+                           missing tests, emits PR-comment-ready markdown
+  --history-scan           Full git-history secrets audit (gitleaks --log-opts=--all)
+  --base <branch>          Base branch for --pr-check (default: main, falls back to master)
+  --depth <N>              Limit --history-scan to last N commits (default: full history)
+  --skip-tests             Skip running tests in --ship-check (e.g. when slow)
+  --json                   Emit JSON output for --ship-check/--pr-check/--history-scan
+  --out <path>             Write markdown report to <path> (PR-comment-ready)
+  --no-fail                Always exit 0 from --pr-check (report-only mode)
 
 VALIDATION OPTIONS:
   --validate        Run comprehensive validation (same as --comprehensive)
@@ -805,6 +884,13 @@ HELP:
     process.exit(0)
   }
 
+  // Pro release-confidence commands must run BEFORE handleDryRun() so they
+  // don't get a "🚀 Setting up Quality Automation..." banner in their output.
+  const proCommand = detectProCommand(sanitizedArgs)
+  if (proCommand) {
+    return runProCommand(proCommand, sanitizedArgs, args)
+  }
+
   // Handle dry-run mode and show mode banner
   handleDryRun({ isDryRun, isUpdateMode, isDependencyMonitoringMode })
 
@@ -826,12 +912,13 @@ HELP:
     handleMaturityCheck()
   }
 
-  // Handle CI cost analysis command
+  // Handle CI cost analysis command (with optional --doctor expansion)
   if (isAnalyzeCiMode) {
     return (async () => {
       try {
         const { handleAnalyzeCi } = require('./lib/commands/analyze-ci')
-        await handleAnalyzeCi()
+        const doctor = sanitizedArgs.includes('--doctor')
+        await handleAnalyzeCi({ doctor })
         process.exit(0)
       } catch (error) {
         console.error('CI cost analysis error:', error.message)
