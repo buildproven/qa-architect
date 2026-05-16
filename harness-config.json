@@ -1,0 +1,122 @@
+{
+  "version": "1.0",
+  "description": "Risk-aware code review harness for qa-architect (npm: create-qa-architect)",
+  "riskTierRules": {
+    "critical": [
+      "setup.js",
+      "lib/licensing.js",
+      "templates/quality.yml",
+      "scripts/deploy-consumers.sh",
+      "webhook-handler.js",
+      ".github/workflows/**",
+      ".husky/**",
+      "package.json",
+      "install.sh"
+    ],
+    "high": [
+      "lib/commands/**",
+      "lib/validation/**",
+      "lib/smart-strategy-generator.js",
+      "lib/project-maturity.js",
+      "lib/template-loader.js",
+      "lib/dependency-monitoring-*.js",
+      "templates/**",
+      "tests/consumer-workflow-integration.test.js",
+      "tests/licensing.test.js",
+      "tests/workflow-tiers.test.js"
+    ],
+    "medium": [
+      "lib/**",
+      "config/**",
+      "tests/**",
+      "schemas/**",
+      "scripts/**"
+    ],
+    "low": ["docs/**", "README.md", "*.md", "LICENSE", "CHANGELOG.md"]
+  },
+  "mergePolicy": {
+    "critical": {
+      "requiredChecks": [
+        "lint-and-format",
+        "test-unit",
+        "test-integration",
+        "consumer-workflow-integration",
+        "security-scan",
+        "code-review-agent",
+        "manual-approval"
+      ],
+      "reviewRequirement": "manual-approval-required",
+      "evidenceRequirement": "full-test-suite-passing"
+    },
+    "high": {
+      "requiredChecks": [
+        "lint-and-format",
+        "test-unit",
+        "test-integration",
+        "code-review-agent"
+      ],
+      "reviewRequirement": "agent-review-required",
+      "evidenceRequirement": "tests-passing"
+    },
+    "medium": {
+      "requiredChecks": ["lint-and-format", "test-unit"],
+      "reviewRequirement": "agent-review-optional",
+      "evidenceRequirement": "lint-passing"
+    },
+    "low": {
+      "requiredChecks": ["lint-and-format"],
+      "reviewRequirement": "none",
+      "evidenceRequirement": "format-check"
+    }
+  },
+  "checkDefinitions": {
+    "lint-and-format": {
+      "description": "ESLint + Prettier + Stylelint",
+      "command": "npm run lint && npm run format:check",
+      "timeoutMinutes": 5,
+      "blocking": true
+    },
+    "test-unit": {
+      "description": "Fast unit tests",
+      "command": "npm run test:unit",
+      "timeoutMinutes": 10,
+      "blocking": true
+    },
+    "test-integration": {
+      "description": "Integration tests (Python, monorepo, slow paths)",
+      "command": "npm run test:slow",
+      "timeoutMinutes": 20,
+      "blocking": true
+    },
+    "consumer-workflow-integration": {
+      "description": "Validates quality.yml template output against CONSUMER_FORBIDDEN_CONTENT — required because quality.yml ships to 15+ consumer repos",
+      "command": "node tests/consumer-workflow-integration.test.js",
+      "timeoutMinutes": 5,
+      "blocking": true
+    },
+    "security-scan": {
+      "description": "npm audit + secret scanning",
+      "command": "npm audit --audit-level=high",
+      "timeoutMinutes": 5,
+      "blocking": true
+    },
+    "code-review-agent": {
+      "description": "AI code review via agents/code-reviewer.md",
+      "agent": "code-reviewer",
+      "timeoutMinutes": 15,
+      "blocking": true,
+      "retryOnFailure": true
+    },
+    "manual-approval": {
+      "description": "Manual approval required for critical changes (template-as-product surface, licensing, CLI entry)",
+      "type": "manual-gate",
+      "requiredApprovers": ["@buildproven/maintainers"],
+      "blocking": true
+    }
+  },
+  "notes": {
+    "templateAsProduct": "templates/quality.yml is classified critical because it is both this repo's own CI AND the template deployed to 15+ consumer repos via scripts/deploy-consumers.sh. A regression here is a multi-repo incident.",
+    "licensing": "lib/licensing.js gates Pro features (security scanning, Smart Test Strategy, ship-check, pr-check, ci-doctor, history-scan). Changes here affect revenue + Stripe webhook integration.",
+    "developerBypass": "Tests set QAA_DEVELOPER=true to bypass license checks. CI does not — production paths run with real license validation."
+  }
+}
