@@ -74,6 +74,28 @@ const config = {
 
 console.log('🧪 risk-policy-gate.test.js\n')
 
+console.log(
+  'Test 0: riskTierRules drift guard — keys are exactly {critical,high,medium,low}'
+)
+{
+  const fs = require('fs')
+  const path = require('path')
+  const harnessPath = path.join(__dirname, '..', 'harness-config.json')
+  const harness = JSON.parse(fs.readFileSync(harnessPath, 'utf8'))
+  const actualKeys = Object.keys(harness.riskTierRules).sort()
+  const expectedKeys = ['critical', 'high', 'low', 'medium']
+  check(
+    'harness-config.json riskTierRules keys are exactly the 4 known tiers',
+    JSON.stringify(actualKeys) === JSON.stringify(expectedKeys),
+    `got ${JSON.stringify(actualKeys)}`
+  )
+  check(
+    'harness-config.json mergePolicy keys match riskTierRules keys',
+    JSON.stringify(Object.keys(harness.mergePolicy).sort()) ===
+      JSON.stringify(expectedKeys)
+  )
+}
+
 console.log('Test 1: calculateRiskTier — critical glob matches scripts/**')
 check(
   'scripts/deploy-consumers.sh → critical',
