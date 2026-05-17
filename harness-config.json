@@ -25,13 +25,7 @@
       "tests/licensing.test.js",
       "tests/workflow-tiers.test.js"
     ],
-    "medium": [
-      "lib/**",
-      "config/**",
-      "tests/**",
-      "schemas/**",
-      "scripts/**"
-    ],
+    "medium": ["lib/**", "config/**", "tests/**", "schemas/**", "scripts/**"],
     "low": ["docs/**", "README.md", "*.md", "LICENSE", "CHANGELOG.md"]
   },
   "mergePolicy": {
