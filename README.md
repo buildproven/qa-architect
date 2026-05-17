@@ -33,6 +33,105 @@ Quality automation CLI for JavaScript/TypeScript, Python, and shell script proje
 - **CI Doctor** (`--analyze-ci --doctor`) - Detects duplicated jobs, missing path filters, oversized matrices, and flaky workflows.
 - **History Secrets Scan** (`--history-scan`) - Full git-history audit via gitleaks `--all`. Reports oldest exposures and secret-type counts.
 
+### Release Confidence in Action
+
+**Ship Check** — unified go/no-go verdict before merging:
+
+```bash
+npx create-qa-architect@latest --ship-check --out ship-check.md
+```
+
+```
+🚀 Ship Check
+────────────────────────────────────────────────────────────
+✅ Lint                   lint passed
+✅ Tests                  test passed
+✅ Security (secrets)     security:secrets passed
+✅ Coverage               lines 78% (threshold 75%) · functions 72% (threshold 70%)
+✅ CI cost                ~312 min/mo, ~$0.62/mo across 4 workflow(s)
+✅ Docs                   README.md present
+⏭️ Bundle size            No dist/ directory (skip)
+⏭️ Env vars               No .env.example file (skip)
+────────────────────────────────────────────────────────────
+Summary: 6 passed · 0 warn · 0 fail · 2 skip
+
+✅ Verdict: SHIP
+```
+
+The `--out ship-check.md` flag writes a PR-comment-ready markdown table alongside the terminal output.
+
+**PR Risk Check** — diff-aware file classifier before review:
+
+```bash
+npx create-qa-architect@latest --pr-check --base main --out pr-risk.md
+```
+
+```
+🔍 PR Risk Check
+────────────────────────────────────────────────────────────
+Base: main  Head: feat/add-auth
+Risk: 🔴 1 high  🟡 3 medium  🟢 2 low
+Files changed: 6
+────────────────────────────────────────────────────────────
+🔴 HIGH   src/auth/session.js          source change — no test coverage
+🟡 MEDIUM package.json                 config/dependency/public-API surface
+🟡 MEDIUM src/middleware/rate-limit.js source change
+🟡 MEDIUM src/routes/api.js            source change
+🟢 LOW    tests/auth.test.js           docs/tests/assets only
+🟢 LOW    README.md                    docs/tests/assets only
+────────────────────────────────────────────────────────────
+⚠️  Verdict: REVIEW — request careful review
+```
+
+**CI Doctor** — detects flaky workflows, missing path filters, and runaway matrices:
+
+```bash
+npx create-qa-architect@latest --analyze-ci --doctor
+```
+
+```
+🩺 CI Doctor
+────────────────────────────────────────────────────────────
+Findings: 1 high · 1 medium · 1 low
+────────────────────────────────────────────────────────────
+🔴 Flaky workflow — dependabot-auto-merge.yml
+   0/15 recent runs succeeded (0%, threshold 90%).
+   Fix: Identify the flaky job/test — retry-with-backoff is a smell.
+        Fix root cause (timing, external service, shared state).
+
+🟡 Missing path filter — release.yml
+   Workflow runs on every push without `paths:` or `paths-ignore:` filters.
+   Fix: Add `paths:` filter so docs/test-only changes do not trigger this workflow.
+
+🟢 Frequent scheduled run — stale-prs.yml (cron: 0 11 * * *)
+   Cron runs ~7× per week. Most maintenance jobs only need weekly.
+   Fix: Reduce to weekly schedule unless load-bearing.
+```
+
+**History Secrets Scan** — full git history audit for leaked credentials:
+
+```bash
+npx create-qa-architect@latest --history-scan --max-count 500
+```
+
+```
+🔐 Historical Secrets Scan
+────────────────────────────────────────────────────────────
+Scope: full git history (--all)
+Commits scanned: 474
+Findings: 2
+────────────────────────────────────────────────────────────
+🔴 generic-api-key  (oldest: 2023-11-14, commit a3f82bc)
+   File: config/deploy.env
+   Recommendation: Rotate this key. It is permanently in history.
+
+🔴 github-pat       (oldest: 2024-02-01, commit 9d1c044)
+   File: scripts/bootstrap.sh
+   Recommendation: Revoke on GitHub → Settings → Developer settings.
+
+Next step: run `git filter-repo` or BFG to scrub history, then force-push.
+```
+
 ### Quality Tools
 
 - **Lighthouse CI** - Performance, accessibility, SEO audits (Free: basic, Pro: thresholds)
