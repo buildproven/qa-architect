@@ -81,7 +81,7 @@
     "security-audit"
   ],
   "author": "BuildProven",
-  "license": "SEE LICENSE IN LICENSE",
+  "license": "Apache-2.0",
   "files": [
     "setup.js",
     "config/",

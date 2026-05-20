@@ -1,7 +1,7 @@
 {
   "name": "qa-architect-webhook-handler",
-  "version": "1.0.0",
-  "description": "Stripe webhook handler for QA Architect license management",
+  "version": "2.0.0",
+  "description": "Polar.sh webhook handler for QA Architect license management",
   "private": true,
   "main": "webhook-handler.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "dependencies": {
     "express": "^4.18.2",
     "helmet": "^7.1.0",
-    "stripe": "^14.10.0"
+    "standardwebhooks": "^1.0.0"
   },
   "engines": {
     "node": ">=20"

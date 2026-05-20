@@ -448,13 +448,13 @@ Purchase at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
 
 ### Server-Side Setup (Maintainers Only)
 
-The billing system uses Stripe webhooks to manage licenses. If you're deploying your own instance:
+The billing system uses Polar.sh webhooks to manage licenses. If you're deploying your own instance:
 
 1. Set up webhook handler (see `webhook-handler.js`)
-2. Configure Stripe live mode keys
-3. Deploy to production server
+2. Configure Polar.sh products and webhook secret
+3. Deploy to production server (Vercel)
 
-See [docs/STRIPE-LIVE-MODE-DEPLOYMENT.md](docs/STRIPE-LIVE-MODE-DEPLOYMENT.md) for complete setup guide.
+See [docs/POLAR-DEPLOYMENT.md](docs/POLAR-DEPLOYMENT.md) for complete setup guide.
 
 ## Support
 
@@ -463,7 +463,7 @@ See [docs/STRIPE-LIVE-MODE-DEPLOYMENT.md](docs/STRIPE-LIVE-MODE-DEPLOYMENT.md) f
 
 ## License
 
-Commercial freemium license — the base CLI is free to use; Pro features require a paid subscription. See [LICENSE](LICENSE) for details.
+Source code is licensed under **Apache-2.0** (see [LICENSE](LICENSE)). Use of paid **Pro features** at runtime is additionally governed by the commercial terms in [COMMERCIAL.md](COMMERCIAL.md). The base CLI is free to use; Pro features require a paid subscription.
 
 ## Legal
 

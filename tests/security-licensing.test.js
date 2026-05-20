@@ -54,7 +54,6 @@ function setupSecurityTest() {
 
   // Reset environment
   process.env = { ...originalEnv }
-  delete process.env.STRIPE_SECRET_KEY
   delete process.env.QAA_LICENSE_PUBLIC_KEY
   delete process.env.QAA_DEVELOPER // Must disable dev mode for security tests
   setTestPublicKeyEnv(publicKey)
@@ -132,17 +131,14 @@ async function testLicenseValidationBypass() {
 }
 
 /**
- * Security Test 2: Stripe initialization failure security
- * Verifies that missing Stripe configuration blocks license activation
+ * Security Test 2: Activation fails without a valid signed registry.
+ * Verifies that a well-formatted-but-unissued key is rejected.
  */
-async function testStripeInitializationSecurity() {
+async function testActivationFailsWithoutValidRegistry() {
   setupSecurityTest()
-  console.log('Security Test 2: Stripe initialization failure security')
+  console.log('Security Test 2: Activation fails without valid signed registry')
 
-  // Ensure no Stripe key is set
-  delete process.env.STRIPE_SECRET_KEY
-
-  // Attempt to activate with valid-format key but no Stripe config
+  // Attempt to activate with a valid-format key that was never issued
   const testKey = 'QAA-1234-ABCD-5678-EF12'
 
   try {
@@ -150,10 +146,7 @@ async function testStripeInitializationSecurity() {
 
     if (result.success) {
       console.error(
-        '  ❌ SECURITY VIOLATION: License activation succeeded without Stripe configuration'
-      )
-      console.error(
-        '  This indicates the Stripe initialization bypass vulnerability still exists'
+        '  ❌ SECURITY VIOLATION: License activation succeeded for unissued key'
       )
       teardownSecurityTest()
       process.exit(1)
@@ -173,7 +166,7 @@ async function testStripeInitializationSecurity() {
 
     if (!result.error || !isValidRejection) {
       console.error(
-        '  ❌ SECURITY ISSUE: Wrong error message for missing Stripe config'
+        '  ❌ SECURITY ISSUE: Wrong error message for unissued key'
       )
       console.error(`  Expected valid rejection error, got: ${result.error}`)
       teardownSecurityTest()
@@ -181,7 +174,7 @@ async function testStripeInitializationSecurity() {
     }
 
     console.log(
-      '  ✅ License activation properly blocked without Stripe configuration'
+      '  ✅ Activation properly blocked for keys not in the signed registry'
     )
   } catch (error) {
     console.error('  ❌ Unexpected error:', error.message)
@@ -392,7 +385,7 @@ async function runSecurityTests() {
 
   try {
     await testLicenseValidationBypass()
-    await testStripeInitializationSecurity()
+    await testActivationFailsWithoutValidRegistry()
     testLicenseSignatureValidation()
     testLocalLicenseFileTamperingDetection()
     testEnvironmentVariableSecurity()
@@ -404,7 +397,7 @@ async function runSecurityTests() {
     )
     console.log('Security coverage:')
     console.log('  • License validation bypass prevention - ✅')
-    console.log('  • Stripe initialization requirement - ✅')
+    console.log('  • Activation requires signed registry entry - ✅')
     console.log('  • Signature validation security - ✅')
     console.log('  • Local file tampering detection - ✅')
     console.log('  • Environment variable security - ✅')
@@ -433,7 +426,7 @@ if (require.main === module) {
 module.exports = {
   runSecurityTests,
   testLicenseValidationBypass,
-  testStripeInitializationSecurity,
+  testActivationFailsWithoutValidRegistry,
   testLicenseSignatureValidation,
   testLocalLicenseFileTamperingDetection,
   testEnvironmentVariableSecurity,

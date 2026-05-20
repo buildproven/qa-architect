@@ -1,14 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Admin script for managing legitimate license database
+ * Admin script for manually issuing license keys.
  *
- * IMPORTANT: This tool should only be used by administrators.
+ * Manual-fallback only. The primary path is the Polar.sh webhook
+ * (webhook-handler.js), which auto-issues keys on subscription.created.
  *
- * This script:
- * 1. Adds legitimate licenses to the user-accessible database
- * 2. Enables users to activate without requiring Stripe secrets
- * 3. Use webhook-handler.js for automatic Stripe integration
+ * Use this tool when:
+ *   - Issuing a complimentary license outside the normal purchase flow
+ *   - Recovering from a webhook failure where the key wasn't auto-issued
+ *   - Granting founder/team/comp licenses for support cases
+ *
+ * For automatic license issuance on purchase, see docs/POLAR-DEPLOYMENT.md.
  */
 
 const { addLegitimateKey } = require('./lib/licensing')
@@ -28,12 +31,12 @@ async function main() {
     console.log('')
     console.log('Examples:')
     console.log(
-      '  node admin-license.js QAA-1234-ABCD-5678-EF90 cus_stripe_customer123 PRO'
+      '  node admin-license.js QAA-1234-ABCD-5678-EF90 <customer-id> PRO'
     )
     console.log('')
     console.log('Arguments:')
     console.log('  license-key   The QAA license key to add')
-    console.log('  customer-id   Stripe customer ID (or unique identifier)')
+    console.log('  customer-id   Polar customer ID (or any unique identifier)')
     console.log('  tier         PRO')
     console.log('  founder      true/false (optional, default false)')
     console.log('  email        Purchase email (optional, for verification)')
@@ -46,7 +49,7 @@ async function main() {
   }
 
   // Note: This tool adds licenses directly to the database
-  // For Stripe integration, use webhook-handler.js instead
+  // For automatic Polar.sh integration, use webhook-handler.js instead
 
   const [licenseKey, customerId, tier, founder, email] = args
   const isFounder = founder === 'true'
@@ -119,7 +122,7 @@ async function main() {
       )
       console.log('   3. Users enter license key and purchase email')
       console.log(
-        '   4. Validation happens against the database (no Stripe secrets needed)'
+        '   4. Validation happens against the signed registry (no payment provider secrets needed)'
       )
       console.log('')
     } else {
