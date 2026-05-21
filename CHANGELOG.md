@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Billing migrated from Stripe-direct to Polar.sh (Merchant-of-Record).** Polar handles global sales tax / VAT / GST collection and remittance, the customer portal (cancel/update card/invoices), and dunning. The Ed25519 signing layer, Vercel Blob registry, offline CLI verification, and `--activate-license` flow are unchanged — only the webhook event source changed. Effective ~1.3% fee premium over Stripe-direct (replaces ~$200-400/mo tax compliance tooling that Stripe-direct would require at scale). Re-evaluate at $50K MRR.
+- **Webhook handler** (`webhook-handler.js`) rewritten for Polar's standard-webhooks signature verification and `subscription.*` event model. Closes the prior "cancel-but-keep-Pro" gap: `subscription.canceled` marks `pending_cancel` (access preserved to period end), `subscription.revoked` actually removes from the public signed registry. See `docs/POLAR-DEPLOYMENT.md`.
+- **License changed to Apache-2.0** for the source code in this repository. Runtime use of paid Pro features remains governed by `COMMERCIAL.md`. Replaces the prior custom commercial-EULA `LICENSE` file with the standard Apache-2.0 text + a focused commercial-terms file gated by the license-key check. Matches industry practice for open-core CLIs (npm-distributed code + entitlement check at runtime).
+
+### Removed
+
+- **`docs/STRIPE-LIVE-MODE-DEPLOYMENT.md`** archived to `docs/_archive/`. Replaced by `docs/POLAR-DEPLOYMENT.md`.
+- **`lib/billing-dashboard.html`** archived to `lib/_archive/`. Polar's hosted customer portal replaces it.
+
 ## [5.13.6] - 2026-05-05
 
 ### Fixed

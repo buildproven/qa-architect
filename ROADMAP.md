@@ -27,7 +27,7 @@
 - [x] Dependency monitoring (Dependabot integration)
 - [x] Quality tools (v5.2.0) - Lighthouse CI, size-limit, axe-core, commitlint, coverage thresholds
 - [x] Pre-launch validation (v5.3.0) - SEO, links, a11y, docs, env vars audit
-- [x] Stripe payment flow for Pro tier purchases
+- [x] Pro tier purchase flow (Polar.sh — migrated from Stripe-direct 2026-05)
 - [x] Landing page at buildproven.ai/qa-architect
 
 ## In Progress (This Week)

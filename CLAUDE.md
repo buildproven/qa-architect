@@ -104,3 +104,19 @@ Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre
 ## Agent Workflow
 
 Session start: read `docs/dev_guide/CONVENTIONS.md`. Planning: `/bs:plan <name>` → `docs/plans/`. Handoff: `/bs:context --save` / `--resume`.
+
+## Shipping Policy
+
+This project is solo-owned. The shipping rule is **review/test thoroughly → then merge** — not "wait for the owner to approve every PR." Claude is expected to act as the reviewer/tester a collaborator would, not gate trivially on the owner.
+
+For Claude (or any agent) working in this repo:
+
+1. **Do the review yourself.** Read your own diff line by line before declaring done. Look for: incorrect logic, broken refs, missed cleanups, security issues, hardcoded paths/secrets, copy-paste errors, behavior changes outside the stated scope.
+2. **Run the gates.** `npm test`, `npm run lint`, smoke-test where feasible. Don't claim "tests pass" without running them on the branch.
+3. **Then push and merge** — open a PR or merge to main on your own. Don't ask "want me to push?" for routine work that's been reviewed and tested.
+4. **Still ask before:**
+   - Force-push, `reset --hard`, branch deletes
+   - Anything touching shared/external state (Stripe/Polar dashboards, prod deploys, npm publish — the existing `release.yml` handles that automatically anyway)
+   - Anything that costs real money
+   - Genuine judgment calls that can't be resolved from code/context after investigation
+5. **Hooks must run** unless they're physically broken (e.g., sandbox-wrapped git). If a hook fails, fix the issue rather than bypassing. If you must bypass, document why in the commit message.

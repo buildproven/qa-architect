@@ -802,7 +802,7 @@ VALIDATION OPTIONS:
 
 LICENSE, TELEMETRY & ERROR REPORTING:
   --license-status          Show current license tier and available features
-  --activate-license        Activate Pro license key from Stripe purchase
+  --activate-license        Activate Pro license key from purchase
   --telemetry-status        Show telemetry status and opt-in instructions
   --error-reporting-status  Show error reporting status and privacy information
 
@@ -829,7 +829,7 @@ EXAMPLES:
     → Show current license tier and upgrade options
 
   npx create-qa-architect@latest --activate-license
-    → Activate Pro license after Stripe purchase
+    → Activate Pro license after purchase
 
   npx create-qa-architect@latest --telemetry-status
     → Show telemetry status and privacy information

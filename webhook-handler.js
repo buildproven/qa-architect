@@ -2,26 +2,23 @@
 
 // @ts-nocheck
 /**
- * Stripe Webhook Handler for License Management
+ * Polar.sh Webhook Handler for License Management
  *
- * This is SERVER-SIDE code that processes Stripe webhooks
- * and populates the legitimate license database.
+ * SERVER-SIDE code that processes Polar.sh webhooks and populates the
+ * signed license registry consumed by the CLI.
  *
- * Deploy this on your server (not distributed with CLI package).
+ * Deploy on Vercel (or any Node host). Not bundled with the CLI package.
  *
- * Required dependencies (install separately):
- *   npm install express helmet stripe
+ * Required dependencies (install separately, see webhook-package.json):
+ *   npm install express helmet standardwebhooks
  *
- * Usage:
- *   1. Deploy this script to your server
- *   2. Set up Stripe webhook endpoint pointing to this handler
- *   3. Set required environment variables
- *   4. Webhook will automatically populate license database when payments succeed
+ * Setup: docs/POLAR-DEPLOYMENT.md
  */
 
 const crypto = require('crypto')
 const express = require('express')
 const helmet = require('helmet')
+const { Webhook } = require('standardwebhooks')
 const {
   LICENSE_KEY_PATTERN,
   buildLicensePayload,
@@ -32,9 +29,10 @@ const {
 } = require('./lib/license-signing')
 const { loadBlob, saveBlob, BLOB_PATHS } = require('./lib/blob-storage')
 
-// Environment variables required
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY
-const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET
+// ─── Env vars ────────────────────────────────────────────────────────────────
+
+const POLAR_WEBHOOK_SECRET = process.env.POLAR_WEBHOOK_SECRET
+const POLAR_PRO_PRODUCT_ID = process.env.POLAR_PRO_PRODUCT_ID
 const LICENSE_REGISTRY_KEY_ID = process.env.LICENSE_REGISTRY_KEY_ID || 'default'
 const LICENSE_REGISTRY_PRIVATE_KEY = loadKeyFromEnv(
   process.env.LICENSE_REGISTRY_PRIVATE_KEY,
@@ -42,65 +40,52 @@ const LICENSE_REGISTRY_PRIVATE_KEY = loadKeyFromEnv(
 )
 const PORT = process.env.PORT || 3000
 
-if (!STRIPE_SECRET_KEY || !STRIPE_WEBHOOK_SECRET) {
-  console.error('❌ Required environment variables missing:')
-  console.error(
-    '   STRIPE_SECRET_KEY - Your Stripe secret key (sk_live_... for production)'
-  )
-  console.error(
-    '   STRIPE_WEBHOOK_SECRET - Your Stripe webhook secret (whsec_...)'
-  )
+if (!POLAR_WEBHOOK_SECRET) {
+  console.error('❌ Required environment variable missing:')
+  console.error('   POLAR_WEBHOOK_SECRET - Polar webhook signing secret')
   console.error('')
-  console.error('📖 See docs/STRIPE-LIVE-MODE-DEPLOYMENT.md for setup guide')
+  console.error('📖 See docs/POLAR-DEPLOYMENT.md for setup guide')
   process.exit(1)
 }
 
-// Warn if using test mode keys in production
-if (STRIPE_SECRET_KEY.startsWith('sk_test_')) {
-  console.warn('⚠️  WARNING: Using Stripe TEST mode key')
-  console.warn('   This will NOT process real payments')
-  console.warn('   For production, use sk_live_... key')
-  console.warn('   See docs/STRIPE-LIVE-MODE-DEPLOYMENT.md')
-  console.warn('')
+if (!POLAR_PRO_PRODUCT_ID) {
+  console.error('❌ Required environment variable missing:')
+  console.error('   POLAR_PRO_PRODUCT_ID - Polar product ID for Pro tier')
+  console.error('   Find it at: https://polar.sh/dashboard/<org>/products')
+  process.exit(1)
 }
 
 if (!LICENSE_REGISTRY_PRIVATE_KEY) {
-  console.error('❌ Required environment variables missing:')
+  console.error('❌ Required environment variable missing:')
   console.error(
     '   LICENSE_REGISTRY_PRIVATE_KEY or LICENSE_REGISTRY_PRIVATE_KEY_PATH'
   )
   process.exit(1)
 }
 
-/**
- * DR19 fix: Simple in-memory rate limiter for public endpoints
- * Prevents abuse of health check and license database endpoints
- */
+const polarWebhook = new Webhook(POLAR_WEBHOOK_SECRET)
+
+// ─── Rate limiting (unchanged) ───────────────────────────────────────────────
+
 class RateLimiter {
   constructor(windowMs = 60000, maxRequests = 60) {
     this.windowMs = windowMs
     this.maxRequests = maxRequests
-    this.requests = new Map() // ip -> [timestamps]
+    this.requests = new Map()
   }
 
   middleware() {
     return (req, res, next) => {
       const ip = req.ip || req.connection.remoteAddress || 'unknown'
       const now = Date.now()
-
-      // Get existing requests for this IP
       let timestamps = this.requests.get(ip) || []
-
-      // Remove expired timestamps (outside the window)
       timestamps = timestamps.filter(ts => now - ts < this.windowMs)
 
-      // Check if limit exceeded
       if (timestamps.length >= this.maxRequests) {
         const oldestTimestamp = timestamps[0]
         const retryAfter = Math.ceil(
           (oldestTimestamp + this.windowMs - now) / 1000
         )
-
         res.status(429).json({
           error: 'Too many requests',
           message: `Rate limit exceeded. Try again in ${retryAfter} seconds.`,
@@ -109,11 +94,9 @@ class RateLimiter {
         return
       }
 
-      // Add current request
       timestamps.push(now)
       this.requests.set(ip, timestamps)
 
-      // Cleanup old entries periodically (every 100 requests)
       if (this.requests.size > 100) {
         for (const [key, value] of this.requests.entries()) {
           const filtered = value.filter(ts => now - ts < this.windowMs)
@@ -122,68 +105,49 @@ class RateLimiter {
           }
         }
       }
-
       next()
     }
   }
 }
 
-// Create rate limiters for different endpoints
-const healthRateLimiter = new RateLimiter(60000, 60) // 60 requests per minute
-const dbRateLimiter = new RateLimiter(60000, 30) // 30 requests per minute
+const healthRateLimiter = new RateLimiter(60000, 60)
+const dbRateLimiter = new RateLimiter(60000, 30)
 
 const app = express()
 
-// DR28 fix: Use helmet.js for comprehensive security headers
 app.use(
   helmet({
-    // Prevent clickjacking
     frameguard: { action: 'deny' },
-    // Prevent MIME sniffing
     noSniff: true,
-    // XSS protection (legacy browsers)
     xssFilter: true,
-    // Strict Content Security Policy for API endpoints
     contentSecurityPolicy: {
-      directives: {
-        defaultSrc: ["'none'"],
-        frameAncestors: ["'none'"],
-      },
+      directives: { defaultSrc: ["'none'"], frameAncestors: ["'none'"] },
     },
-    // Referrer policy
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-    // HSTS - only in production
     hsts:
       process.env.NODE_ENV === 'production'
         ? { maxAge: 31536000, includeSubDomains: true }
         : false,
-    // Permissions policy via custom middleware (helmet doesn't support all features)
     permissionsPolicy: {
-      features: {
-        geolocation: [],
-        microphone: [],
-        camera: [],
-      },
+      features: { geolocation: [], microphone: [], camera: [] },
     },
   })
 )
 
-// Raw body parser for Stripe webhooks
+// Raw body parser for webhook signature verification — must come before json parser
 app.use('/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
-/**
- * Load legitimate license database from Vercel Blob
- */
+// ─── Storage layer ───────────────────────────────────────────────────────────
+
 async function loadLicenseDatabase() {
   const database = await loadBlob(BLOB_PATHS.private)
   if (database) return database
-
   return {
     _metadata: {
       version: '1.0',
       created: new Date().toISOString(),
-      description: 'Legitimate license database - populated by Stripe webhooks',
+      description: 'License database — populated by Polar webhooks',
     },
   }
 }
@@ -192,18 +156,12 @@ let writeQueue = Promise.resolve()
 
 function queueDatabaseWrite(task) {
   const next = writeQueue.then(task)
-  // Keep queue chain alive regardless of failure so subsequent writes work
   writeQueue = next.catch(() => {})
-  // Return the actual result/error to the caller
   return next
 }
 
-/**
- * Save legitimate license database to Vercel Blob
- */
 async function saveLicenseDatabase(database) {
-  // Compute integrity hash over licenses (excluding metadata)
-  // eslint-disable-next-line no-unused-vars -- destructuring to exclude _metadata from licenses
+  // eslint-disable-next-line no-unused-vars -- excluding _metadata from hash
   const { _metadata, ...licenses } = database
   const sha = crypto
     .createHash('sha256')
@@ -216,7 +174,6 @@ async function saveLicenseDatabase(database) {
     sha256: sha,
   }
 
-  // saveBlob throws on failure — let it propagate
   await saveBlob(BLOB_PATHS.private, database)
   const publicRegistry = buildPublicRegistry(database)
   await saveBlob(BLOB_PATHS.public, publicRegistry)
@@ -229,12 +186,13 @@ function buildPublicRegistry(database) {
 
   Object.entries(database).forEach(([licenseKey, entry]) => {
     if (licenseKey === '_metadata') return
-    // TD11 fix: Validate license key format to prevent object injection
-    // and silence ESLint security/detect-object-injection warning
     if (!LICENSE_KEY_PATTERN.test(licenseKey)) {
       console.warn(`Skipping invalid license key format: ${licenseKey}`)
       return
     }
+    // Skip revoked licenses — they're moved to the revocation list
+    if (entry.status === 'revoked') return
+
     const issued = entry.issued || entry.addedDate || issuedAt
     const emailHash = hashEmail(entry.email)
     const payload = buildLicensePayload({
@@ -245,7 +203,6 @@ function buildPublicRegistry(database) {
       issued,
     })
     const signature = signPayload(payload, LICENSE_REGISTRY_PRIVATE_KEY)
-    // TD11: Safe - licenseKey is validated against LICENSE_KEY_PATTERN above
     publicLicenses[licenseKey] = {
       tier: entry.tier,
       isFounder: entry.isFounder,
@@ -281,7 +238,6 @@ function buildPublicRegistry(database) {
 async function loadPublicRegistry() {
   const registry = await loadBlob(BLOB_PATHS.public)
   if (registry) return registry
-
   const privateDb = await loadLicenseDatabase()
   const built = buildPublicRegistry(privateDb)
   try {
@@ -292,109 +248,235 @@ async function loadPublicRegistry() {
   return built
 }
 
-/**
- * Generate deterministic license key from customer ID
- */
+// ─── License key generation (unchanged) ──────────────────────────────────────
+
 function generateLicenseKey(customerId, tier, isFounder = false) {
   const hash = crypto
     .createHash('sha256')
     .update(`${customerId}:${tier}:${isFounder}:cqa-license-v1`)
     .digest('hex')
-
-  // Format as license key: QAA-XXXX-XXXX-XXXX-XXXX
   const keyParts = hash.slice(0, 16).match(/.{4}/g)
   return `QAA-${keyParts.join('-').toUpperCase()}`
 }
 
-/**
- * Map Stripe price ID to tier and founder status
- */
-function mapPriceToTier(priceId) {
-  // Configure these based on your Stripe price IDs (founder pricing retired)
-  // Using Map to avoid object-injection warnings from eslint-plugin-security
-  const priceMapping = new Map([
-    ['price_1St9K2Gv7Su9XNJbdYoH3K32', { tier: 'PRO', isFounder: false }], // $49/mo
-    ['price_1St9KGGv7Su9XNJbrwKMsh1R', { tier: 'PRO', isFounder: false }], // $490/yr
-  ])
+// ─── Polar product → tier mapping ────────────────────────────────────────────
 
-  if (typeof priceId === 'string' && priceMapping.has(priceId)) {
-    return priceMapping.get(priceId)
+function mapProductToTier(productId) {
+  // Configured via env var. Single product covers both $49/mo and $490/yr prices.
+  const mapping = new Map([[POLAR_PRO_PRODUCT_ID, { tier: 'PRO', isFounder: false }]])
+  if (typeof productId === 'string' && mapping.has(productId)) {
+    return mapping.get(productId)
   }
   return null
 }
 
-/**
- * Add license to database
- */
+// ─── DB writes ───────────────────────────────────────────────────────────────
+
 function addLicenseToDatabase(licenseKey, customerInfo) {
   return queueDatabaseWrite(async () => {
-    try {
-      // Validate license key format to prevent object injection
-      if (
-        typeof licenseKey !== 'string' ||
-        !LICENSE_KEY_PATTERN.test(licenseKey)
-      ) {
-        console.error('Invalid license key format:', licenseKey)
-        throw new Error(`Invalid license key format: ${licenseKey}`)
-      }
-
-      const database = await loadLicenseDatabase()
-
-      database[licenseKey] = {
-        customerId: customerInfo.customerId,
-        tier: customerInfo.tier,
-        isFounder: customerInfo.isFounder,
-        email: customerInfo.email,
-        subscriptionId: customerInfo.subscriptionId,
-        addedDate: new Date().toISOString(),
-        issued: new Date().toISOString(),
-        addedBy: 'stripe_webhook',
-      }
-
-      // Update metadata
-      database._metadata.lastUpdate = new Date().toISOString()
-      database._metadata.totalLicenses = Object.keys(database).length - 1 // Exclude metadata
-
-      const saveResult = await saveLicenseDatabase(database)
-      if (!saveResult) {
-        console.error(`❌ CRITICAL: Payment processed but license save failed`)
-        console.error(`   License Key: ${licenseKey}`)
-        console.error(
-          `   Customer: ${customerInfo.email || customerInfo.customerId}`
-        )
-        console.error(`   Action: Manual license activation required`)
-        throw new Error(
-          'License database save failed - payment succeeded but license not activated'
-        )
-      }
-      return saveResult
-    } catch (error) {
-      console.error(`❌ Error adding license to database: ${error.message}`)
-      console.error(`   License Key: ${licenseKey}`)
-      console.error(
-        `   Customer: ${customerInfo.email || customerInfo.customerId}`
-      )
-      throw error
+    if (
+      typeof licenseKey !== 'string' ||
+      !LICENSE_KEY_PATTERN.test(licenseKey)
+    ) {
+      throw new Error(`Invalid license key format: ${licenseKey}`)
     }
+
+    const database = await loadLicenseDatabase()
+
+    // Idempotent — if license already exists, just update timestamps
+    const existing = database[licenseKey]
+    database[licenseKey] = {
+      customerId: customerInfo.customerId,
+      tier: customerInfo.tier,
+      isFounder: customerInfo.isFounder,
+      email: customerInfo.email,
+      subscriptionId: customerInfo.subscriptionId,
+      productId: customerInfo.productId,
+      addedDate: existing?.addedDate || new Date().toISOString(),
+      issued: existing?.issued || new Date().toISOString(),
+      addedBy: 'polar_webhook',
+      status: 'active',
+    }
+
+    database._metadata.lastUpdate = new Date().toISOString()
+    database._metadata.totalLicenses = Object.keys(database).length - 1
+
+    const ok = await saveLicenseDatabase(database)
+    if (!ok) {
+      console.error('❌ CRITICAL: Payment processed but license save failed')
+      console.error(`   License Key: ${licenseKey}`)
+      console.error(`   Customer: ${customerInfo.email}`)
+      throw new Error('License database save failed')
+    }
+    return ok
   })
 }
 
-/**
- * Handle Stripe webhook events
- */
+function markLicensePendingCancel(subscriptionId, cancelAt) {
+  return queueDatabaseWrite(async () => {
+    const database = await loadLicenseDatabase()
+    let found = false
+    Object.keys(database).forEach(key => {
+      if (key === '_metadata') return
+      if (database[key].subscriptionId === subscriptionId) {
+        database[key].status = 'pending_cancel'
+        database[key].cancelAt = cancelAt
+        database[key].canceledAt = new Date().toISOString()
+        found = true
+      }
+    })
+    if (!found) {
+      console.warn(`⚠️  No license for subscription ${subscriptionId} on cancel`)
+      return
+    }
+    await saveLicenseDatabase(database)
+  })
+}
+
+function revokeLicense(subscriptionId) {
+  return queueDatabaseWrite(async () => {
+    const database = await loadLicenseDatabase()
+    let revokedKey = null
+    Object.keys(database).forEach(key => {
+      if (key === '_metadata') return
+      if (database[key].subscriptionId === subscriptionId) {
+        database[key].status = 'revoked'
+        database[key].revokedAt = new Date().toISOString()
+        revokedKey = key
+      }
+    })
+    if (!revokedKey) {
+      console.warn(`⚠️  No license for subscription ${subscriptionId} on revoke`)
+      return
+    }
+    await saveLicenseDatabase(database)
+    console.log(`🚫 License revoked: ${revokedKey}`)
+  })
+}
+
+function updateLicenseTier(subscriptionId, customerInfo) {
+  return queueDatabaseWrite(async () => {
+    const database = await loadLicenseDatabase()
+    let updated = false
+    Object.keys(database).forEach(key => {
+      if (key === '_metadata') return
+      if (database[key].subscriptionId === subscriptionId) {
+        // Plan change — update tier + product, keep issued date stable
+        database[key].tier = customerInfo.tier
+        database[key].productId = customerInfo.productId
+        database[key].status = 'active'
+        updated = true
+      }
+    })
+    if (!updated) return
+    await saveLicenseDatabase(database)
+  })
+}
+
+// ─── Event handlers ──────────────────────────────────────────────────────────
+
+function extractSubscription(event) {
+  // Polar wraps the subscription object in event.data
+  const sub = event.data
+  if (!sub || typeof sub !== 'object') {
+    throw new Error('Invalid Polar webhook: missing data')
+  }
+  // Customer can be either nested object or just an id depending on event version
+  const customer = sub.customer || {}
+  const customerId = customer.id || sub.customer_id
+  const email = customer.email || sub.customer_email
+  // Product id can live at sub.product.id or sub.product_id
+  const productId = sub.product?.id || sub.product_id
+
+  if (!sub.id) throw new Error('Invalid Polar webhook: missing subscription.id')
+  if (!customerId)
+    throw new Error('Invalid Polar webhook: missing customer.id')
+  if (!email)
+    throw new Error('Invalid Polar webhook: missing customer.email')
+  if (!productId)
+    throw new Error('Invalid Polar webhook: missing product id')
+
+  return {
+    subscriptionId: sub.id,
+    customerId,
+    email,
+    productId,
+    status: sub.status,
+    currentPeriodEnd: sub.current_period_end || sub.ends_at,
+  }
+}
+
+async function handleSubscriptionActivated(event) {
+  const s = extractSubscription(event)
+  const tierInfo = mapProductToTier(s.productId)
+  if (!tierInfo) {
+    console.warn(`⚠️  Unknown Polar product ID: ${s.productId} — skipping`)
+    return
+  }
+  const licenseKey = generateLicenseKey(
+    s.customerId,
+    tierInfo.tier,
+    tierInfo.isFounder
+  )
+  await addLicenseToDatabase(licenseKey, {
+    customerId: s.customerId,
+    tier: tierInfo.tier,
+    isFounder: tierInfo.isFounder,
+    email: s.email,
+    subscriptionId: s.subscriptionId,
+    productId: s.productId,
+  })
+  console.log(`✅ License issued/refreshed: ${licenseKey}`)
+  console.log(`   Customer: ${s.email}`)
+  console.log(`   Tier: ${tierInfo.tier}`)
+}
+
+async function handleSubscriptionUpdated(event) {
+  // Treat updates as plan-change checks. If product changed → update tier.
+  // If still active → no-op (issued license is fine).
+  const s = extractSubscription(event)
+  if (s.status !== 'active') return
+  const tierInfo = mapProductToTier(s.productId)
+  if (!tierInfo) return
+  await updateLicenseTier(s.subscriptionId, {
+    tier: tierInfo.tier,
+    productId: s.productId,
+  })
+}
+
+async function handleSubscriptionCanceled(event) {
+  // Customer hit "cancel" — they keep Pro until current_period_end.
+  // We mark as pending_cancel; subscription.revoked fires when access actually ends.
+  const s = extractSubscription(event)
+  await markLicensePendingCancel(s.subscriptionId, s.currentPeriodEnd)
+  console.log(`⏳ Subscription canceled (active until period end): ${s.subscriptionId}`)
+}
+
+async function handleSubscriptionRevoked(event) {
+  // Subscription has actually ended (period end after cancel, or hard-fail dunning).
+  // Remove from public registry so CLI rejects on next pull.
+  const s = extractSubscription(event)
+  await revokeLicense(s.subscriptionId)
+}
+
+// ─── Webhook endpoint ────────────────────────────────────────────────────────
+
 app.post('/webhook', async (req, res) => {
-  const sig = req.headers['stripe-signature']
   let event
 
   try {
-    // Initialize Stripe
-    const stripe = require('stripe')(STRIPE_SECRET_KEY)
-
-    // Verify webhook signature
-    event = stripe.webhooks.constructEvent(req.body, sig, STRIPE_WEBHOOK_SECRET)
+    // standard-webhooks signature verification
+    const headers = {
+      'webhook-id': req.headers['webhook-id'],
+      'webhook-timestamp': req.headers['webhook-timestamp'],
+      'webhook-signature': req.headers['webhook-signature'],
+    }
+    const payload = req.body.toString('utf8')
+    event = polarWebhook.verify(payload, headers)
+    // verify returns the parsed payload if valid, throws otherwise
+    if (typeof event === 'string') event = JSON.parse(event)
   } catch (err) {
-    console.error('⚠️ Webhook signature verification failed:', err.message)
-    // DR18 fix: Don't expose error details in production
+    console.error('⚠️ Polar webhook signature verification failed:', err.message)
     const clientMessage =
       process.env.NODE_ENV === 'production'
         ? 'Webhook signature verification failed'
@@ -403,7 +485,6 @@ app.post('/webhook', async (req, res) => {
   }
 
   try {
-    // DR31 fix: Validate event structure before processing
     if (!event || typeof event !== 'object') {
       throw new Error('Invalid webhook event: event must be an object')
     }
@@ -413,24 +494,23 @@ app.post('/webhook', async (req, res) => {
     if (!event.data || typeof event.data !== 'object') {
       throw new Error('Invalid webhook event: missing or invalid event.data')
     }
-    if (!event.data.object || typeof event.data.object !== 'object') {
-      throw new Error(
-        'Invalid webhook event: missing or invalid event.data.object'
-      )
-    }
 
-    // Handle the event
     switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutCompleted(event.data.object)
+      case 'subscription.created':
+      case 'subscription.active':
+        await handleSubscriptionActivated(event)
         break
 
-      case 'invoice.payment_succeeded':
-        await handlePaymentSucceeded(event.data.object)
+      case 'subscription.updated':
+        await handleSubscriptionUpdated(event)
         break
 
-      case 'customer.subscription.deleted':
-        await handleSubscriptionCanceled(event.data.object)
+      case 'subscription.canceled':
+        await handleSubscriptionCanceled(event)
+        break
+
+      case 'subscription.revoked':
+        await handleSubscriptionRevoked(event)
         break
 
       default:
@@ -444,145 +524,8 @@ app.post('/webhook', async (req, res) => {
   }
 })
 
-/**
- * Handle successful checkout completion
- */
-async function handleCheckoutCompleted(session) {
-  try {
-    console.log('💰 Processing checkout completion:', session.id)
+// ─── Health + license-serving endpoints (unchanged) ──────────────────────────
 
-    // DR7 fix: Validate session structure
-    if (!session.customer || !session.subscription) {
-      throw new Error(
-        'Invalid checkout session: missing customer or subscription'
-      )
-    }
-
-    const stripe = require('stripe')(STRIPE_SECRET_KEY)
-
-    // Get customer details
-    const customer = await stripe.customers.retrieve(session.customer)
-
-    // Get subscription details
-    const subscription = await stripe.subscriptions.retrieve(
-      session.subscription
-    )
-
-    // DR7 fix: Validate subscription structure
-    if (
-      !subscription.items ||
-      !subscription.items.data ||
-      subscription.items.data.length === 0
-    ) {
-      throw new Error('Invalid subscription: missing items data')
-    }
-
-    const priceId = subscription.items.data[0].price?.id
-    if (!priceId) {
-      throw new Error('Invalid subscription: missing price ID')
-    }
-
-    // Map price to tier
-    const priceInfo = mapPriceToTier(priceId)
-    if (!priceInfo) {
-      throw new Error(`Unknown Stripe price ID: ${priceId}`)
-    }
-    const { tier, isFounder } = priceInfo
-
-    // Generate license key
-    const licenseKey = generateLicenseKey(customer.id, tier, isFounder)
-
-    // Add to database
-    const customerInfo = {
-      customerId: customer.id,
-      tier,
-      isFounder,
-      email: customer.email,
-      subscriptionId: subscription.id,
-    }
-
-    const success = await addLicenseToDatabase(licenseKey, customerInfo)
-
-    if (success) {
-      console.log(`✅ License created: ${licenseKey}`)
-      console.log(`   Customer: ${customer.email}`)
-      console.log(`   Tier: ${tier} ${isFounder ? '(Founder)' : ''}`)
-
-      // Here you could also send the license key to the customer via email
-      // await sendLicenseEmail(customer.email, licenseKey, tier)
-    } else {
-      throw new Error('Failed to save license to database')
-    }
-  } catch (error) {
-    console.error('❌ Checkout processing error:', error.message)
-    throw error
-  }
-}
-
-/**
- * Handle successful payment (recurring)
- */
-async function handlePaymentSucceeded(invoice) {
-  // DR31 fix: Validate invoice structure
-  if (!invoice || typeof invoice !== 'object') {
-    throw new Error('Invalid invoice: must be an object')
-  }
-  if (!invoice.id) {
-    throw new Error('Invalid invoice: missing id')
-  }
-
-  console.log(`💳 Payment succeeded: ${invoice.id}`)
-  // License should already exist from checkout.session.completed
-  // Could implement license renewal/extension logic here if needed
-}
-
-/**
- * Handle subscription cancellation
- */
-async function handleSubscriptionCanceled(subscription) {
-  // DR31 fix: Validate subscription structure
-  if (!subscription || typeof subscription !== 'object') {
-    throw new Error('Invalid subscription: must be an object')
-  }
-  if (!subscription.id) {
-    throw new Error('Invalid subscription: missing id')
-  }
-  if (!subscription.customer) {
-    throw new Error('Invalid subscription: missing customer')
-  }
-
-  console.log(`❌ Subscription canceled: ${subscription.id}`)
-  console.log(`   Customer: ${subscription.customer}`)
-
-  // Route through write queue to prevent race conditions with concurrent webhooks
-  await queueDatabaseWrite(async () => {
-    const database = await loadLicenseDatabase()
-    let licenseFound = false
-
-    Object.keys(database).forEach(key => {
-      if (key === '_metadata') return
-      if (database[key].subscriptionId === subscription.id) {
-        database[key].status = 'canceled'
-        database[key].canceledAt = new Date().toISOString()
-        licenseFound = true
-        console.log(`   Marking license ${key} as canceled`)
-      }
-    })
-
-    if (!licenseFound) {
-      console.warn(`⚠️  No license found for subscription ${subscription.id}`)
-      return
-    }
-
-    await saveLicenseDatabase(database)
-    console.log(`✅ License deactivated for subscription ${subscription.id}`)
-  })
-}
-
-/**
- * Health check endpoint
- * DR19 fix: Add rate limiting to prevent DoS
- */
 app.get('/health', healthRateLimiter.middleware(), async (req, res) => {
   const { head: blobHead } = require('@vercel/blob')
   try {
@@ -611,13 +554,6 @@ app.get('/health', healthRateLimiter.middleware(), async (req, res) => {
   }
 })
 
-/**
- * License database endpoint for CLI access
- *
- * This is the critical endpoint that allows the CLI to fetch
- * the latest legitimate licenses for validation
- * DR19 fix: Add rate limiting to prevent abuse
- */
 async function serveLicenseDatabase(req, res) {
   try {
     const database = await loadPublicRegistry()
@@ -640,13 +576,13 @@ app.get(
   dbRateLimiter.middleware(),
   serveLicenseDatabase
 )
+app.get(
+  '/api/licenses/qa-architect.json',
+  dbRateLimiter.middleware(),
+  serveLicenseDatabase
+)
 
-/**
- * License database status endpoint
- * DR15 fix: Requires authentication
- */
 app.get('/status', async (req, res) => {
-  // DR15 fix: Require Bearer token authentication
   const authHeader = req.headers.authorization
   const expectedToken = process.env.STATUS_API_TOKEN || 'disabled'
 
@@ -664,15 +600,12 @@ app.get('/status', async (req, res) => {
   }
 
   const token = authHeader.substring(7)
-  // Use constant-time comparison to prevent timing attacks
   const tokenBuffer = Buffer.from(token)
   const expectedBuffer = Buffer.from(expectedToken)
 
-  // Ensure buffers are same length to prevent length-based timing attacks
   if (tokenBuffer.length !== expectedBuffer.length) {
     return res.status(403).json({ error: 'Forbidden: Invalid token' })
   }
-
   if (!crypto.timingSafeEqual(tokenBuffer, expectedBuffer)) {
     return res.status(403).json({ error: 'Forbidden: Invalid token' })
   }
@@ -680,15 +613,12 @@ app.get('/status', async (req, res) => {
   try {
     const database = await loadLicenseDatabase()
     const licenses = Object.keys(database).filter(key => key !== '_metadata')
-
-    // TD9 fix: Don't expose actual license keys - show masked versions for debugging
     const maskedRecent = licenses.slice(-5).map(key => {
       const parts = key.split('-')
       return parts.length === 5
         ? `${parts[0]}-****-****-****-${parts[4]}`
         : '****'
     })
-
     res.json({
       status: 'ok',
       metadata: database._metadata,
@@ -701,17 +631,11 @@ app.get('/status', async (req, res) => {
   }
 })
 
-// Route alias: CLI fetches /api/licenses/qa-architect.json by default
-app.get(
-  '/api/licenses/qa-architect.json',
-  dbRateLimiter.middleware(),
-  serveLicenseDatabase
-)
+// ─── Start server ────────────────────────────────────────────────────────────
 
-// Start server (Vercel handles listening via module.exports)
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {
-    console.log('🚀 License webhook handler running')
+    console.log('🚀 Polar.sh webhook handler running')
     console.log(`📡 Port: ${PORT}`)
     console.log(`💡 Webhook endpoint: /webhook`)
     console.log('')
