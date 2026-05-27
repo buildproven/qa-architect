@@ -263,7 +263,9 @@ function generateLicenseKey(customerId, tier, isFounder = false) {
 
 function mapProductToTier(productId) {
   // Configured via env var. Single product covers both $49/mo and $490/yr prices.
-  const mapping = new Map([[POLAR_PRO_PRODUCT_ID, { tier: 'PRO', isFounder: false }]])
+  const mapping = new Map([
+    [POLAR_PRO_PRODUCT_ID, { tier: 'PRO', isFounder: false }],
+  ])
   if (typeof productId === 'string' && mapping.has(productId)) {
     return mapping.get(productId)
   }
@@ -326,7 +328,9 @@ function markLicensePendingCancel(subscriptionId, cancelAt) {
       }
     })
     if (!found) {
-      console.warn(`⚠️  No license for subscription ${subscriptionId} on cancel`)
+      console.warn(
+        `⚠️  No license for subscription ${subscriptionId} on cancel`
+      )
       return
     }
     await saveLicenseDatabase(database)
@@ -346,7 +350,9 @@ function revokeLicense(subscriptionId) {
       }
     })
     if (!revokedKey) {
-      console.warn(`⚠️  No license for subscription ${subscriptionId} on revoke`)
+      console.warn(
+        `⚠️  No license for subscription ${subscriptionId} on revoke`
+      )
       return
     }
     await saveLicenseDatabase(database)
@@ -389,12 +395,9 @@ function extractSubscription(event) {
   const productId = sub.product?.id || sub.product_id
 
   if (!sub.id) throw new Error('Invalid Polar webhook: missing subscription.id')
-  if (!customerId)
-    throw new Error('Invalid Polar webhook: missing customer.id')
-  if (!email)
-    throw new Error('Invalid Polar webhook: missing customer.email')
-  if (!productId)
-    throw new Error('Invalid Polar webhook: missing product id')
+  if (!customerId) throw new Error('Invalid Polar webhook: missing customer.id')
+  if (!email) throw new Error('Invalid Polar webhook: missing customer.email')
+  if (!productId) throw new Error('Invalid Polar webhook: missing product id')
 
   return {
     subscriptionId: sub.id,
@@ -449,7 +452,9 @@ async function handleSubscriptionCanceled(event) {
   // We mark as pending_cancel; subscription.revoked fires when access actually ends.
   const s = extractSubscription(event)
   await markLicensePendingCancel(s.subscriptionId, s.currentPeriodEnd)
-  console.log(`⏳ Subscription canceled (active until period end): ${s.subscriptionId}`)
+  console.log(
+    `⏳ Subscription canceled (active until period end): ${s.subscriptionId}`
+  )
 }
 
 async function handleSubscriptionRevoked(event) {
@@ -476,7 +481,10 @@ app.post('/webhook', async (req, res) => {
     // verify returns the parsed payload if valid, throws otherwise
     if (typeof event === 'string') event = JSON.parse(event)
   } catch (err) {
-    console.error('⚠️ Polar webhook signature verification failed:', err.message)
+    console.error(
+      '⚠️ Polar webhook signature verification failed:',
+      err.message
+    )
     const clientMessage =
       process.env.NODE_ENV === 'production'
         ? 'Webhook signature verification failed'
