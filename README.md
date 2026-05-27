@@ -1,8 +1,36 @@
 # QA Architect
 
-Quality automation CLI for JavaScript/TypeScript, Python, and shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. **Pro adds release-confidence gates for AI-assisted teams: Ship Check, PR Risk Check, CI Doctor, and full-history secret scanning.**
+**Security audit and quality automation for AI-generated codebases. One command finds the vulnerabilities your vibe-coded app ships with.**
 
-**This repo = the free CLI.** For the Pro dashboard with repo analytics, CI integration, and automation workflows, see [QA Architect Pro](https://buildproven.ai/qa-architect) (included in BuildProven Starter Kit).
+```bash
+# Scan your project for security issues (free)
+npx create-qa-architect@latest --audit
+```
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  QA Architect — Vibe-Code Security Audit
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🚨 NOT SAFE TO SHIP
+
+  Total findings: 7
+  🚨 Critical: 2
+  ❌ High:     3
+  ⚠️  Medium:   2
+
+  🚨 CRITICAL (2)
+  ─────────────────────────────────────────────────────
+  pages/api/users.js:44
+  Prisma query by ID from request params with no user ownership filter.
+  → Fix: findUnique({ where: { id: params.id, userId: session.user.id } })
+
+  lib/auth.js:12
+  JWT signed without an expiry option — stolen token = permanent access.
+  → Fix: jwt.sign(payload, secret, { expiresIn: '24h' })
+```
+
+> 45% of AI-generated code contains OWASP Top-10 vulnerabilities (Veracode, 100+ LLMs). QA Architect catches them before someone else does.
 
 ---
 
@@ -12,49 +40,54 @@ Quality automation CLI for JavaScript/TypeScript, Python, and shell script proje
 
 ---
 
-## Features
+## What It Does
 
-- **Prettier Code Formatting** - Consistent code style across your project
-- **Husky Git Hooks** - Pre-commit (lint + format) and pre-push (type check + tests)
-- **lint-staged Processing** - Only process staged files for speed
-- **Delta Testing** - Pre-push runs tests on changed files only (fast feedback)
-- **GitHub Actions** - Automated quality checks in CI/CD
-- **TypeScript Smart** - Auto-detects and configures TypeScript projects
-- **Python Support** - Complete Python toolchain with Black, Ruff, isort, mypy, pytest
-- **Shell Script Support** - ShellCheck linting, syntax validation, permissions checks, best practices
-- **Security Automation** - npm audit (Free), Gitleaks + ESLint security (Pro)
-- **Progressive Quality** - Adaptive checks based on project maturity
-- **Smart Test Strategy** - Risk-based pre-push validation (Pro feature)
+**Free tier — `--audit`:**
 
-### Release Confidence (Pro)
+Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase and produces a prioritized security report. Covers 5 of the 7 most common vibe-coding vulnerability categories:
 
-- **Ship Check** (`--ship-check`) - Unified SHIP/REVIEW/BLOCK verdict across lint, tests, security, coverage, bundle, Lighthouse, env vars, and CI cost. Markdown/JSON output for PR comments.
-- **PR Risk Check** (`--pr-check --base main`) - Diff-aware risk classifier. Flags HIGH/MEDIUM/LOW per file, surfaces source changes missing tests, blocks high-risk PRs without coverage.
-- **CI Doctor** (`--analyze-ci --doctor`) - Detects duplicated jobs, missing path filters, oversized matrices, and flaky workflows.
-- **History Secrets Scan** (`--history-scan`) - Full git-history audit via gitleaks `--all`. Reports oldest exposures and secret-type counts.
+| Category                                                                      | Coverage            |
+| ----------------------------------------------------------------------------- | ------------------- |
+| Secrets exposure (hardcoded keys, JWT without expiry)                         | ✅ Free             |
+| Auth & authorization gaps (missing checks, IDOR, client-side auth)            | ✅ Free             |
+| Injection vectors (SQL injection, command injection, prototype pollution)     | ✅ Free             |
+| Production misconfigs (CORS-all, verbose errors, debug mode, missing headers) | ✅ Free             |
+| XSS patterns (unsafe HTML, dynamic hrefs)                                     | ✅ Free             |
+| Dependency CVEs                                                               | ✅ Free (npm audit) |
+| Hallucinated packages (slopsquatting)                                         | 🔒 Pro              |
 
-### Quality Tools
+**Pro tier — `--audit --fix`:**
 
-- **Lighthouse CI** - Performance, accessibility, SEO audits (Free: basic, Pro: thresholds)
-- **Bundle Size Limits** - Enforce bundle budgets with size-limit (Pro)
-- **axe-core Accessibility** - WCAG compliance testing scaffolding (Free)
-- **Conventional Commits** - commitlint with commit-msg hook (Free)
-- **Coverage Thresholds** - Enforce code coverage minimums (Pro)
+Generates a ready-to-paste Claude Code prompt for each Critical/High finding. Copy it into Claude Code and it fixes the issue for you. Also adds hallucinated package detection (verifies every package in `package.json` exists on npm).
 
-### Pre-Launch Validation
+**Also included:**
 
-- **SEO Validation** - Sitemap, robots.txt, meta tags validation (Free)
-- **Link Validation** - Broken link detection with linkinator (Free)
-- **Accessibility Audit** - WCAG 2.1 AA compliance with pa11y-ci (Free)
-- **Documentation Check** - README completeness, required sections (Free)
-- **Env Vars Audit** - Validate .env.example against code usage (Pro)
+- **Shipping gates** (`--ship-check`) — SHIP/REVIEW/BLOCK verdict across lint, tests, coverage, bundle, env vars, and CI cost
+- **PR risk classifier** (`--pr-check`) — flags high-risk changes before merge
+- **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
+- **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
+
+## Quick Start
+
+```bash
+# 1. Install semgrep (required for --audit)
+pip install semgrep          # or: brew install semgrep
+
+# 2. Run security audit (free)
+npx create-qa-architect@latest --audit
+
+# 3. Write report to file (for docs or PR comments)
+npx create-qa-architect@latest --audit --out audit-report.md
+
+# 4. Get Claude Code fix prompts for Critical/High findings (Pro)
+npx create-qa-architect@latest --audit --fix
+```
 
 ## Target Users
 
-- **Developers** who want quality automation without manual setup
-- **Teams** standardizing code quality across multiple projects
-- **Open source maintainers** enforcing contribution standards
-- **Agencies** shipping consistent quality across client projects
+- **Vibe coders** about to charge real users — get confidence your app won't get hacked on launch day
+- **AI-assisted builders** using Claude Code / Cursor daily — catch regressions before they ship
+- **Inheritors** of AI-generated codebases — understand what's fragile before you touch it
 
 ## Demo / Live Links
 
@@ -65,29 +98,31 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                 |
-| -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Free** | $0                | CLI tool, basic linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                           |
-| **Pro**  | $49/mo or $490/yr | **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| Tier     | Price             | What You Get                                                                                                                                                                                        |
+| -------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                | Security audit (`--audit`), linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                                                      |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + `--audit --fix` (Claude Code prompts), hallucination check, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
+### Security Audit by Tier
+
+| Feature                                           | Free | Pro |
+| ------------------------------------------------- | ---- | --- |
+| SAST (semgrep — auth, injection, XSS, misconfigs) | ✅   | ✅  |
+| npm CVE audit                                     | ✅   | ✅  |
+| Gitleaks secrets scanning                         | ❌   | ✅  |
+| Hallucinated package detection                    | ❌   | ✅  |
+| `--fix` Claude Code prompts per finding           | ❌   | ✅  |
+
 ### Release Confidence by Tier
 
-| Feature                              | Free | Pro+ |
-| ------------------------------------ | ---- | ---- |
-| Ship Check (release-readiness)       | ❌   | ✅   |
-| PR Risk Check (diff classifier)      | ❌   | ✅   |
-| CI Doctor (workflow waste detection) | ❌   | ✅   |
-| Full-history secrets scan            | ❌   | ✅   |
-
-### Security Features by Tier
-
-| Feature                     | Free | Pro+ |
-| --------------------------- | ---- | ---- |
-| npm audit (basic)           | ✅   | ✅   |
-| Gitleaks (secrets scanning) | ❌   | ✅   |
-| ESLint security rules       | ❌   | ✅   |
+| Feature                              | Free | Pro |
+| ------------------------------------ | ---- | --- |
+| Ship Check (release-readiness)       | ❌   | ✅  |
+| PR Risk Check (diff classifier)      | ❌   | ✅  |
+| CI Doctor (workflow waste detection) | ❌   | ✅  |
+| Full-history secrets scan            | ❌   | ✅  |
 
 ### Quality Tools by Tier
 

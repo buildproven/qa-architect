@@ -165,9 +165,7 @@ async function testActivationFailsWithoutValidRegistry() {
     )
 
     if (!result.error || !isValidRejection) {
-      console.error(
-        '  ❌ SECURITY ISSUE: Wrong error message for unissued key'
-      )
+      console.error('  ❌ SECURITY ISSUE: Wrong error message for unissued key')
       console.error(`  Expected valid rejection error, got: ${result.error}`)
       teardownSecurityTest()
       process.exit(1)
