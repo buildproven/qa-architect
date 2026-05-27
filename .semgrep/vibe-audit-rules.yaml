@@ -1,0 +1,332 @@
+rules:
+  # =============================================================================
+  # Vibe-Code Audit Rules
+  # =============================================================================
+  # Security patterns specifically common in AI-generated / vibe-coded apps.
+  # Complements defensive-patterns.yaml (which covers prototype pollution,
+  # SQL injection, command injection, path traversal, hardcoded secrets).
+  #
+  # Categories covered:
+  #   1. Auth & authorization gaps
+  #   2. Production misconfigs (debug mode, verbose errors, CORS)
+  #   3. Input validation gaps
+  #   4. XSS patterns
+  #   5. Insecure direct object reference (IDOR)
+  #   6. Sensitive data exposure
+  # =============================================================================
+
+  # ---------------------------------------------------------------------------
+  # AUTH & AUTHORIZATION
+  # ---------------------------------------------------------------------------
+
+  - id: client-side-auth-check
+    message: |
+      Authorization check found in client-side code. Checks that run only in
+      the browser can be bypassed. Move auth enforcement to the server/API layer.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: |
+          if ($USER.role === $ROLE) {
+            ...
+          }
+      - pattern: |
+          if ($USER.isAdmin) {
+            ...
+          }
+    paths:
+      include:
+        - '*.tsx'
+        - '*.jsx'
+        - 'components/**'
+        - 'pages/**'
+        - 'app/**'
+    metadata:
+      category: security
+      cwe: 'CWE-602'
+      owasp: 'A01:2021'
+
+  - id: missing-auth-api-route
+    message: |
+      API route handler with no visible auth check. Vibe-coded routes often
+      skip auth middleware. Verify this route requires authentication.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: |
+          export default async function handler($REQ, $RES) {
+            ...
+            $RES.json(...)
+          }
+      - pattern: |
+          export async function GET($REQ) {
+            ...
+            return Response.json(...)
+          }
+      - pattern: |
+          router.get($PATH, async ($REQ, $RES) => {
+            ...
+            $RES.json(...)
+          })
+    paths:
+      include:
+        - 'pages/api/**'
+        - 'app/api/**'
+        - 'routes/**'
+        - 'src/pages/api/**'
+        - 'src/app/api/**'
+    metadata:
+      category: security
+      cwe: 'CWE-306'
+      owasp: 'A01:2021'
+      note: 'Confirm this route has auth middleware or session validation'
+
+  - id: hardcoded-admin-identity
+    message: |
+      Admin check against a hardcoded email or username string. This is fragile
+      and likely to break. Use role-based access control or a proper admin flag.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: $EMAIL === "..."
+      - pattern: $USERNAME === "..."
+    paths:
+      include:
+        - 'pages/api/**'
+        - 'app/api/**'
+        - 'lib/**'
+        - 'server/**'
+    metadata:
+      category: security
+      cwe: 'CWE-798'
+
+  - id: jwt-no-expiry
+    message: |
+      JWT signed without an expiry option. Tokens that never expire are a
+      security risk — a stolen token grants permanent access. Set expiresIn.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: jwt.sign($PAYLOAD, $SECRET)
+      - pattern: sign($PAYLOAD, $SECRET)
+    metadata:
+      category: security
+      cwe: 'CWE-613'
+      fix: "jwt.sign(payload, secret, { expiresIn: '24h' })"
+
+  - id: cookie-no-httponly
+    message: |
+      Cookie set without httpOnly flag. Cookies without httpOnly are readable
+      by JavaScript and vulnerable to theft via script injection.
+      Add httpOnly: true to the cookie options.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: |
+      res.cookie($NAME, $VALUE, { ... })
+    metadata:
+      category: security
+      cwe: 'CWE-1004'
+      fix: "res.cookie(name, value, { httpOnly: true, secure: true, sameSite: 'strict' })"
+
+  # ---------------------------------------------------------------------------
+  # PRODUCTION MISCONFIGS
+  # ---------------------------------------------------------------------------
+
+  - id: debug-flag-hardcoded
+    message: |
+      Debug or development flag hardcoded to true. If this reaches production
+      it may expose stack traces, verbose logs, or disable security checks.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: 'debug: true'
+      - pattern: 'DEBUG: true'
+    metadata:
+      category: security
+      cwe: 'CWE-489'
+
+  - id: verbose-error-to-client
+    message: |
+      Full error message or stack trace sent back to the client. This exposes
+      internal implementation details. Return a generic message to the client
+      and log the full error server-side.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: 'res.status(500).json({ error: $ERR.message })'
+      - pattern: 'res.status(500).json({ error: $ERR })'
+      - pattern: 'res.status(500).json({ stack: $ERR.stack })'
+      - pattern: 'return Response.json({ error: $ERR.message }, { status: 500 })'
+    metadata:
+      category: security
+      cwe: 'CWE-209'
+      owasp: 'A05:2021'
+      fix: 'return res.status(500).json({ error: "Internal server error" })'
+
+  - id: console-log-credential
+    message: |
+      Logging a field that may be a credential (password, token, secret, key).
+      Console logs in production can appear in log aggregation services and
+      expose secrets. Remove this log or redact the sensitive field.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: console.log(..., $X.password, ...)
+      - pattern: console.log(..., $X.token, ...)
+      - pattern: console.log(..., $X.secret, ...)
+      - pattern: console.log(..., $X.apiKey, ...)
+      - pattern: console.log(..., $X.privateKey, ...)
+    metadata:
+      category: security
+      cwe: 'CWE-532'
+
+  - id: express-no-helmet
+    message: |
+      Express app created without helmet middleware. Helmet sets secure HTTP
+      response headers (X-Frame-Options, HSTS, CSP, etc.) automatically.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: |
+      const $APP = express()
+      ...
+      $APP.use(...)
+    metadata:
+      category: security
+      cwe: 'CWE-693'
+      fix: "const helmet = require('helmet'); app.use(helmet())"
+
+  # ---------------------------------------------------------------------------
+  # XSS PATTERNS
+  # ---------------------------------------------------------------------------
+
+  - id: dynamic-html-assignment
+    message: |
+      Assigning dynamic content to an HTML property that interprets markup.
+      If the value contains user input this is a script injection vector.
+      Use textContent for plain text, or sanitize HTML before assignment.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: $EL.innerHTML = $DATA
+      - pattern: document.getElementById($ID).innerHTML = $DATA
+    metadata:
+      category: security
+      cwe: 'CWE-79'
+      owasp: 'A03:2021'
+      fix: 'Use textContent for plain text or DOMPurify.sanitize() for HTML'
+
+  - id: dynamic-href-user-input
+    message: |
+      Anchor href set from a dynamic expression. If the value comes from user
+      input this can lead to open redirect or script injection via javascript:
+      URLs. Validate that the URL starts with https:// before use.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: <a href={$DYNAMIC}>...</a>
+    metadata:
+      category: security
+      cwe: 'CWE-79'
+
+  # ---------------------------------------------------------------------------
+  # INPUT VALIDATION GAPS
+  # ---------------------------------------------------------------------------
+
+  - id: unvalidated-redirect
+    message: |
+      Redirect target taken directly from user input or query params.
+      Open redirects enable phishing. Validate the target against an allowlist
+      of permitted domains before redirecting.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: res.redirect($REQ.query.$PARAM)
+      - pattern: res.redirect($REQ.body.$FIELD)
+    metadata:
+      category: security
+      cwe: 'CWE-601'
+      owasp: 'A01:2021'
+
+  - id: file-upload-unchecked
+    message: |
+      File upload handling found with no MIME type or extension check visible.
+      Accepting arbitrary files can lead to code execution or storage abuse.
+      Validate file type using an allowlist before processing.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: formData.get("file")
+    metadata:
+      category: security
+      cwe: 'CWE-434'
+      note: 'Verify file type is validated with a MIME type + extension allowlist'
+
+  # ---------------------------------------------------------------------------
+  # INSECURE DIRECT OBJECT REFERENCE (IDOR)
+  # ---------------------------------------------------------------------------
+
+  - id: idor-prisma-no-owner-filter
+    message: |
+      Prisma query by ID from request params with no user ownership filter.
+      Without filtering by the authenticated user's ID, any authenticated user
+      can read or modify other users' records. Add userId: session.user.id to
+      the where clause.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: |
+          $DB.findUnique({ where: { id: $REQ.params.id } })
+      - pattern: |
+          $DB.findUnique({ where: { id: $REQ.query.id } })
+    metadata:
+      category: security
+      cwe: 'CWE-639'
+      owasp: 'A01:2021'
+      fix: 'findUnique({ where: { id: params.id, userId: session.user.id } })'
+
+  # ---------------------------------------------------------------------------
+  # SENSITIVE DATA EXPOSURE
+  # ---------------------------------------------------------------------------
+
+  - id: env-var-in-client-component
+    message: |
+      process.env access in a file that appears to be a client component.
+      Server-only env vars are not available in the browser. Expose only
+      NEXT_PUBLIC_ prefixed vars client-side, and never expose secrets.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern: process.env.$VAR
+    paths:
+      include:
+        - 'components/**'
+        - 'app/**/*.tsx'
+        - 'app/**/*.jsx'
+        - 'pages/**/*.tsx'
+        - 'pages/**/*.jsx'
+    metadata:
+      category: security
+      cwe: 'CWE-526'
+
+  - id: dynamic-require-variable
+    message: |
+      Dynamic require() with a variable path. If the path is influenced by
+      user input this can be exploited to load unexpected modules.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern: require($VAR)
+    metadata:
+      category: security
+      cwe: 'CWE-706'
+
+  - id: bracket-notation-user-key
+    message: |
+      Object property accessed with user-controlled bracket notation.
+      If the key is "__proto__" or "constructor" this corrupts object prototypes.
+      Validate the key against an allowlist before use.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: $OBJ[$REQ.body.$FIELD]
+      - pattern: $OBJ[$REQ.query.$PARAM]
+      - pattern: $OBJ[$REQ.params.$PARAM]
+    metadata:
+      category: security
+      cwe: 'CWE-1321'

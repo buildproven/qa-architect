@@ -463,6 +463,7 @@ function detectProCommand(sanitizedArgs) {
   if (sanitizedArgs.includes('--ship-check')) return 'ship-check'
   if (sanitizedArgs.includes('--pr-check')) return 'pr-check'
   if (sanitizedArgs.includes('--history-scan')) return 'history-scan'
+  if (sanitizedArgs.includes('--audit')) return 'audit'
   return null
 }
 
@@ -479,6 +480,9 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
     } else if (command === 'pr-check') {
       const { handlePrCheck } = require('./lib/commands/pr-check')
       await handlePrCheck(cmdOptions)
+    } else if (command === 'audit') {
+      const { handleAudit } = require('./lib/commands/audit')
+      await handleAudit(cmdOptions)
     } else {
       const { handleHistoryScan } = require('./lib/commands/history-scan')
       await handleHistoryScan(cmdOptions)
@@ -514,9 +518,11 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
     json: sanitizedArgs.includes('--json'),
     skipTests: sanitizedArgs.includes('--skip-tests'),
     noFail: sanitizedArgs.includes('--no-fail'),
+    fix: sanitizedArgs.includes('--fix'),
     base: baseValue,
     depth: depthValue,
     outPath: outValue ? path.resolve(outValue) : null,
+    projectPath: process.cwd(),
   }
 }
 
@@ -778,6 +784,21 @@ WORKFLOW TIERS (GitHub Actions optimization):
   --analyze-ci             Analyze GitHub Actions usage and get optimization tips (Pro)
   --analyze-ci --doctor    Add CI Doctor: flaky tests, duplicated jobs, waste detection (Pro)
 
+VIBE-CODE SECURITY AUDIT (Free):
+  --audit                  Scan codebase for security vulnerabilities in AI-generated code
+                           Runs semgrep SAST (injection, auth, XSS, misconfigs) + npm CVE audit
+                           Output: Critical/High/Medium/Low findings with file:line + fix guidance
+  --audit --json           Emit JSON output (for CI integration)
+  --audit --out <path>     Write markdown report to file (PR-comment-ready)
+  --audit --no-fail        Always exit 0 (report-only, don't block CI)
+
+AUDIT PRO (Pro):
+  --audit --fix            Generate Claude Code prompts for each Critical/High finding
+                           (paste directly into Claude Code to fix issues one by one)
+
+  Requires: semgrep (pip install semgrep / brew install semgrep)
+  Pro also adds: hallucinated package detection (npm registry check)
+
 RELEASE CONFIDENCE (Pro):
   --ship-check             Unified release-readiness report (lint, tests, security,
                            coverage, bundle, env, CI cost, docs) with SHIP/REVIEW/BLOCK verdict
@@ -866,6 +887,19 @@ EXAMPLES:
 
   npx create-qa-architect@latest --update --workflow-minimal
     → Convert existing comprehensive workflow to minimal (reduce CI costs)
+
+  npx create-qa-architect@latest --audit
+    → Scan for security vulnerabilities in AI-generated code (free)
+    → Requires: semgrep (pip install semgrep)
+
+  npx create-qa-architect@latest --audit --out audit-report.md
+    → Run audit and write markdown report to file (for PR comments or docs)
+
+  npx create-qa-architect@latest --audit --json
+    → Emit JSON output for CI integration or tooling
+
+  npx create-qa-architect@latest --audit --fix
+    → Run audit + generate Claude Code prompts for each finding (Pro)
 
   npx create-qa-architect@latest --analyze-ci
     → Analyze your GitHub Actions usage and get cost optimization recommendations (Pro)
