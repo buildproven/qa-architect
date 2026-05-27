@@ -53,8 +53,20 @@ function getPackedFiles() {
     )
   }
 
-  // npm pack --json emits an array with one entry per tarball.
-  const parsed = JSON.parse(result.stdout)
+  // npm pack --json emits an array with one entry per tarball. In CI the
+  // `prepare` script runs as part of `npm pack` and prints "Skipping Husky
+  // in CI" to stdout BEFORE the JSON, so we can't just JSON.parse the raw
+  // stdout. Slice from the first '[' or '{' to end. (Lifecycle scripts
+  // cannot be disabled here — `--ignore-scripts` still runs `prepare`
+  // because npm treats it as a pack-time hook, not an install script.)
+  const stdout = result.stdout
+  const jsonStart = stdout.search(/[[{]/)
+  if (jsonStart === -1) {
+    throw new Error(
+      `npm pack --json produced no JSON output. stdout: ${stdout}`
+    )
+  }
+  const parsed = JSON.parse(stdout.slice(jsonStart))
   const entry = Array.isArray(parsed) ? parsed[0] : parsed
   return (entry.files || []).map(f => f.path)
 }
