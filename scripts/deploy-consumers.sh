@@ -227,6 +227,47 @@ deploy_to_repo() {
     return 2  # Return code 2 = skipped
   fi
 
+  # Resolve the default branch up front (used by the push preflight and the
+  # explicit push target below). origin/HEAD points at the remote default.
+  local default_branch
+  default_branch="$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
+  [ -z "$default_branch" ] && default_branch="main"
+
+  # PUSH PREFLIGHT (must run BEFORE any mutation). Regenerating the workflow and
+  # uninstalling the stale devDep both write into the consumer's working tree, so
+  # we have to refuse mid-work repos here — refusing *after* mutating would leave
+  # the consumer dirty on the wrong branch, which is exactly what we're guarding
+  # against. Return code 3 = refused push (distinct from 2=skipped/no-op) so the
+  # canary gate never treats a refused deploy as a validated one.
+  if [ "$PUSH" = true ]; then
+    local current_branch dirty_other upstream
+    current_branch="$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+    # Files dirty in the working tree other than the ones we intentionally regenerate.
+    dirty_other="$(git -C "$repo_dir" status --porcelain 2>/dev/null \
+      | grep -vE '(\.github/workflows/quality\.yml|(^| )package(-lock)?\.json)$' || true)"
+
+    if [ "$current_branch" != "$default_branch" ]; then
+      echo "  REFUSE PUSH: on '$current_branch', not default branch '$default_branch' (won't deploy onto a feature branch)"
+      echo ""
+      return 3
+    fi
+    if [ -n "$dirty_other" ]; then
+      echo "  REFUSE PUSH: working tree has unrelated uncommitted changes — won't risk sweeping them into the workflow commit"
+      echo ""
+      return 3
+    fi
+    # Constrain the push destination: the checked-out branch must track
+    # origin/<default_branch>. A bare `git push` honors the branch upstream,
+    # which is not guaranteed to be origin/<default_branch>; refuse rather than
+    # push the generated commit to an unexpected destination.
+    upstream="$(git -C "$repo_dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo "")"
+    if [ -n "$upstream" ] && [ "$upstream" != "origin/$default_branch" ]; then
+      echo "  REFUSE PUSH: branch upstream is '$upstream', expected 'origin/$default_branch' (won't push to an unexpected destination)"
+      echo ""
+      return 3
+    fi
+  fi
+
   # Detect the existing tier from the workflow
   local existing_tier="$TIER"
   if grep -q "WORKFLOW_MODE: standard" "$repo_dir/.github/workflows/quality.yml" 2>/dev/null; then
@@ -279,45 +320,42 @@ deploy_to_repo() {
 
   echo "  PASS: Validated"
 
-  # Commit and push if --push
+  # Commit and push if --push. The push preflight above already guaranteed we
+  # are on the default branch with a clean (apart from generated files) tree and
+  # a verified upstream, so it is safe to commit and push here.
   if [ "$PUSH" = true ]; then
-    # Safety: never commit/push into a repo that is mid-work. If the working tree
-    # is dirty (beyond the workflow/package files we regenerate) or the repo is
-    # not on its default branch, skip it — committing here would sweep unrelated
-    # in-progress changes into the workflow commit and push the wrong branch.
-    local default_branch current_branch dirty_other
-    default_branch="$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
-    [ -z "$default_branch" ] && default_branch="main"
-    current_branch="$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
-    # Files changed in the working tree other than the ones we intentionally regenerate.
-    dirty_other="$(git -C "$repo_dir" status --porcelain 2>/dev/null \
-      | grep -vE '(\.github/workflows/quality\.yml|(^| )package(-lock)?\.json)$' || true)"
-
-    if [ "$current_branch" != "$default_branch" ]; then
-      echo "  SKIP PUSH: on '$current_branch', not default branch '$default_branch' (avoiding commit onto a feature branch)"
-      echo ""
-      return 0
-    fi
-    if [ -n "$dirty_other" ]; then
-      echo "  SKIP PUSH: working tree has unrelated uncommitted changes — refusing to sweep them into the workflow commit"
+    if git -C "$repo_dir" diff --quiet .github/workflows/quality.yml package.json 2>/dev/null; then
+      echo "  No changes to commit"
       echo ""
       return 0
     fi
 
     (
       cd "$repo_dir"
-      if git diff --quiet .github/workflows/quality.yml package.json 2>/dev/null; then
-        echo "  No changes to commit"
-      else
-        git add .github/workflows/quality.yml package.json package-lock.json 2>/dev/null || true
-        git commit -m "chore: regenerate qa-architect workflow (${existing_tier} tier)
+      git add .github/workflows/quality.yml package.json package-lock.json 2>/dev/null || true
+      if ! git commit -m "chore: regenerate qa-architect workflow (${existing_tier} tier)
 
 Staged rollout: $([ "$is_canary" = true ] && echo "canary deployment" || echo "validated via canary")
 Fixes node_modules/create-qa-architect fallback paths.
-Consumers use npx create-qa-architect@latest instead of devDep." 2>/dev/null || true
-        git push 2>/dev/null && echo "  Pushed" || echo "  Push failed (check remote)"
+Consumers use npx create-qa-architect@latest instead of devDep."; then
+        echo "  FAIL: commit failed"
+        exit 1
+      fi
+      # Explicit push target — never rely on bare `git push` resolving the
+      # branch upstream. We verified upstream == origin/$default_branch above.
+      if git push origin "HEAD:refs/heads/$default_branch"; then
+        echo "  Pushed to origin/$default_branch"
+      else
+        echo "  FAIL: push to origin/$default_branch failed (check remote)"
+        exit 1
       fi
     )
+    # Propagate the subshell's commit/push status — a failed push must surface
+    # to the stage counters and abort the canary gate, not be masked as success.
+    local push_status=$?
+    if [ "$push_status" -ne 0 ]; then
+      return 1
+    fi
   fi
 
   echo ""
@@ -328,6 +366,7 @@ Consumers use npx create-qa-architect@latest instead of devDep." 2>/dev/null || 
 PASS=0
 FAIL=0
 SKIPPED=0
+REFUSED=0
 
 # STAGE 1: Deploy to canary (unless --skip-canary)
 if [ "$SKIP_CANARY" = false ]; then
@@ -349,7 +388,20 @@ if [ "$SKIP_CANARY" = false ]; then
   else
     ret=$?
     if [ $ret -eq 2 ]; then
+      # Canary lacks package.json — cannot validate, so cannot safely roll out.
       SKIPPED=$((SKIPPED + 1))
+      echo ""
+      echo "❌ ROLLOUT ABORTED: Canary was skipped (no package.json) — cannot validate before rollout"
+      exit 1
+    elif [ $ret -eq 3 ]; then
+      # Canary push refused (off default branch / dirty / wrong upstream). No new
+      # commit was pushed, so wait_for_ci would observe a stale run — never treat
+      # this as a validated canary. Abort rollout.
+      REFUSED=$((REFUSED + 1))
+      echo ""
+      echo "❌ ROLLOUT ABORTED: Canary deployment refused — $CANARY_REPO is not in a deployable state"
+      echo "   Put $CANARY_REPO on its default branch with a clean tree, then retry"
+      exit 1
     else
       FAIL=$((FAIL + 1))
       echo ""
@@ -368,6 +420,7 @@ if [ "$CANARY_ONLY" = true ]; then
   echo "=== Summary (Canary-Only) ==="
   echo "  Pass: $PASS"
   echo "  Fail: $FAIL"
+  echo "  Refused: $REFUSED"
   echo "  Skipped: $SKIPPED"
   echo ""
   echo "✅ Canary deployment complete. Review CI results before full rollout."
@@ -386,6 +439,11 @@ if [ ${#CONSUMERS[@]} -gt 0 ]; then
       ret=$?
       if [ $ret -eq 2 ]; then
         SKIPPED=$((SKIPPED + 1))
+      elif [ $ret -eq 3 ]; then
+        # Refused (off default branch / dirty / wrong upstream). Not a hard
+        # failure — the repo simply wasn't in a deployable state — but it is
+        # surfaced separately so a refused deploy is never silently "passed".
+        REFUSED=$((REFUSED + 1))
       else
         FAIL=$((FAIL + 1))
       fi
@@ -396,8 +454,15 @@ fi
 echo "=== Summary ==="
 echo "  Pass: $PASS"
 echo "  Fail: $FAIL"
+echo "  Refused: $REFUSED"
 echo "  Skipped: $SKIPPED"
 echo "  Total: $((${#CONSUMERS[@]} + 1))"  # +1 for canary
+
+if [ "$REFUSED" -gt 0 ]; then
+  echo ""
+  echo "⚠️  $REFUSED repo(s) refused deployment (not on default branch, dirty tree, or unexpected upstream)."
+  echo "   These were NOT deployed — put them in a clean state on their default branch and re-run."
+fi
 
 if [ "$FAIL" -gt 0 ]; then
   echo ""
