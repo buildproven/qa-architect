@@ -5,10 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.14.0] - 2026-05-28
+
+### Added
+
+- **`--audit` vibe-code security auditor (free tier).** Runs semgrep SAST (`defensive-patterns.yaml` + new `.semgrep/vibe-audit-rules.yaml`, 17 rules covering auth gaps, IDOR, production misconfigs, XSS, input validation, OWASP A01–A07) plus `npm audit` for CVEs. Emits a Critical/High/Medium/Low report with `file:line` references, fix guidance, and CWE/OWASP labels. Flags: `--json`, `--out <path>`, `--no-fail`. Pro `--audit --fix` generates Claude Code remediation prompts for each Critical/High finding and adds hallucinated-package detection (npm registry check).
+- **Release-confidence commands (Pro).** Four commands for AI-assisted small teams: `--ship-check` (unified SHIP/REVIEW/BLOCK release-readiness report bundling lint, tests, security, coverage, bundle size, lighthouse, env vars, CI cost, and docs checks, with markdown/JSON output); `--pr-check` (diff-aware risk classifier flagging HIGH/MEDIUM/LOW changes per file and missing tests); `--analyze-ci --doctor` (CI Doctor: detects duplicated jobs, missing path filters, oversized matrices, unnecessary scheduled runs, flaky workflows); `--history-scan` (full git-history secrets audit via gitleaks `--log-opts=--all`, `--depth`-bounded for shallow repos).
+- **`harness-config.json` + `scripts/risk-policy-gate.js`** for tier-aware quality reviews.
 
 ### Changed
 
+- **Pro pricing repriced to $29/mo.**
 - **Billing migrated from Stripe-direct to Polar.sh (Merchant-of-Record).** Polar handles global sales tax / VAT / GST collection and remittance, the customer portal (cancel/update card/invoices), and dunning. The Ed25519 signing layer, Vercel Blob registry, offline CLI verification, and `--activate-license` flow are unchanged — only the webhook event source changed. Effective ~1.3% fee premium over Stripe-direct (replaces ~$200-400/mo tax compliance tooling that Stripe-direct would require at scale). Re-evaluate at $50K MRR.
 - **Webhook handler** (`webhook-handler.js`) rewritten for Polar's standard-webhooks signature verification and `subscription.*` event model. Closes the prior "cancel-but-keep-Pro" gap: `subscription.canceled` marks `pending_cancel` (access preserved to period end), `subscription.revoked` actually removes from the public signed registry. See `docs/POLAR-DEPLOYMENT.md`.
 - **License changed to Apache-2.0** for the source code in this repository. Runtime use of paid Pro features remains governed by `COMMERCIAL.md`. Replaces the prior custom commercial-EULA `LICENSE` file with the standard Apache-2.0 text + a focused commercial-terms file gated by the license-key check. Matches industry practice for open-core CLIs (npm-distributed code + entitlement check at runtime).
