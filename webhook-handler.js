@@ -262,7 +262,7 @@ function generateLicenseKey(customerId, tier, isFounder = false) {
 // ─── Polar product → tier mapping ────────────────────────────────────────────
 
 function mapProductToTier(productId) {
-  // Configured via env var. Single product covers both $49/mo and $490/yr prices.
+  // Configured via env var. Single product covers both $29/mo and $290/yr prices.
   const mapping = new Map([
     [POLAR_PRO_PRODUCT_ID, { tier: 'PRO', isFounder: false }],
   ])
