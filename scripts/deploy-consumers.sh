@@ -240,29 +240,34 @@ deploy_to_repo() {
   # against. Return code 3 = refused push (distinct from 2=skipped/no-op) so the
   # canary gate never treats a refused deploy as a validated one.
   if [ "$PUSH" = true ]; then
-    local current_branch dirty_other upstream
+    local current_branch worktree_dirty upstream
     current_branch="$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
-    # Files dirty in the working tree other than the ones we intentionally regenerate.
-    dirty_other="$(git -C "$repo_dir" status --porcelain 2>/dev/null \
-      | grep -vE '(\.github/workflows/quality\.yml|(^| )package(-lock)?\.json)$' || true)"
 
     if [ "$current_branch" != "$default_branch" ]; then
       echo "  REFUSE PUSH: on '$current_branch', not default branch '$default_branch' (won't deploy onto a feature branch)"
       echo ""
       return 3
     fi
-    if [ -n "$dirty_other" ]; then
-      echo "  REFUSE PUSH: working tree has unrelated uncommitted changes — won't risk sweeping them into the workflow commit"
+    # Require a fully clean worktree + index BEFORE we mutate anything. We must
+    # not exclude the files we regenerate (quality.yml, package*.json) from this
+    # check: a consumer with pre-existing uncommitted edits to *those* files
+    # would otherwise pass the guard, and the regeneration + `git add` would
+    # sweep or clobber the user's local work. The only safe precondition is a
+    # pristine tree — the regeneration itself produces the sole intended diff.
+    worktree_dirty="$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)"
+    if [ -n "$worktree_dirty" ]; then
+      echo "  REFUSE PUSH: working tree is not clean — won't risk sweeping or clobbering uncommitted changes"
       echo ""
       return 3
     fi
-    # Constrain the push destination: the checked-out branch must track
+    # Constrain the push destination: the checked-out branch must track exactly
     # origin/<default_branch>. A bare `git push` honors the branch upstream,
-    # which is not guaranteed to be origin/<default_branch>; refuse rather than
-    # push the generated commit to an unexpected destination.
+    # which is not guaranteed to be origin/<default_branch>. A *missing* upstream
+    # is also unsafe — pushing an untracked branch could publish local-only
+    # commits — so an empty upstream is refused too.
     upstream="$(git -C "$repo_dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo "")"
-    if [ -n "$upstream" ] && [ "$upstream" != "origin/$default_branch" ]; then
-      echo "  REFUSE PUSH: branch upstream is '$upstream', expected 'origin/$default_branch' (won't push to an unexpected destination)"
+    if [ "$upstream" != "origin/$default_branch" ]; then
+      echo "  REFUSE PUSH: branch upstream is '${upstream:-<none>}', expected 'origin/$default_branch' (won't push to an unverified destination)"
       echo ""
       return 3
     fi
@@ -321,8 +326,9 @@ deploy_to_repo() {
   echo "  PASS: Validated"
 
   # Commit and push if --push. The push preflight above already guaranteed we
-  # are on the default branch with a clean (apart from generated files) tree and
-  # a verified upstream, so it is safe to commit and push here.
+  # are on the default branch with a fully clean tree and a verified
+  # origin/<default_branch> upstream, so the regenerated files are the only diff
+  # and it is safe to commit and push here.
   if [ "$PUSH" = true ]; then
     if git -C "$repo_dir" diff --quiet .github/workflows/quality.yml package.json 2>/dev/null; then
       echo "  No changes to commit"
