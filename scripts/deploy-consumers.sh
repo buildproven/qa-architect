@@ -228,10 +228,24 @@ deploy_to_repo() {
   fi
 
   # Resolve the default branch up front (used by the push preflight and the
-  # explicit push target below). origin/HEAD points at the remote default.
+  # explicit push target below). In --push mode we resolve from the REMOTE at
+  # deploy time (git ls-remote --symref) rather than trusting the possibly-stale
+  # local refs/remotes/origin/HEAD — pushing to a cached-but-wrong default branch
+  # is a wrong-destination data hazard. In dry-run mode the remote lookup is
+  # unnecessary, so we fall back to the local cache / main for display only.
   local default_branch
-  default_branch="$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
-  [ -z "$default_branch" ] && default_branch="main"
+  if [ "$PUSH" = true ]; then
+    default_branch="$(git -C "$repo_dir" ls-remote --symref origin HEAD 2>/dev/null \
+      | sed -n 's|^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$|\1|p')"
+    if [ -z "$default_branch" ]; then
+      echo "  REFUSE PUSH: could not resolve origin's default branch via ls-remote (offline or no HEAD symref)"
+      echo ""
+      return 3
+    fi
+  else
+    default_branch="$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
+    [ -z "$default_branch" ] && default_branch="main"
+  fi
 
   # PUSH PREFLIGHT (must run BEFORE any mutation). Regenerating the workflow and
   # uninstalling the stale devDep both write into the consumer's working tree, so
@@ -326,11 +340,29 @@ deploy_to_repo() {
   echo "  PASS: Validated"
 
   # Commit and push if --push. The push preflight above already guaranteed we
-  # are on the default branch with a fully clean tree and a verified
-  # origin/<default_branch> upstream, so the regenerated files are the only diff
-  # and it is safe to commit and push here.
+  # started from a fully clean tree on the verified default branch, so anything
+  # dirty NOW is a product of our own regeneration / npm uninstall.
   if [ "$PUSH" = true ]; then
-    if git -C "$repo_dir" diff --quiet .github/workflows/quality.yml package.json 2>/dev/null; then
+    # Post-generation allowlist guard: setup.js --update and npm uninstall may
+    # write files beyond the three we intend to commit (e.g. .nvmrc/.npmrc).
+    # Committing only quality.yml/package*.json while leaving those behind would
+    # pollute the consumer worktree and could push a partial change. Refuse if
+    # anything outside the allowlist changed, so a human can reconcile it.
+    local changed_outside
+    changed_outside="$(git -C "$repo_dir" status --porcelain 2>/dev/null \
+      | sed -E 's|^...||' \
+      | grep -vE '^(\.github/workflows/quality\.yml|package\.json|package-lock\.json)$' || true)"
+    if [ -n "$changed_outside" ]; then
+      echo "  REFUSE PUSH: regeneration touched files outside the allowlist — won't commit a partial change:"
+      printf '%s\n' "$changed_outside" | while IFS= read -r line; do
+        [ -n "$line" ] && echo "      $line"
+      done
+      echo ""
+      return 3
+    fi
+
+    # No-op check across the full intended allowlist (including package-lock.json).
+    if git -C "$repo_dir" diff --quiet .github/workflows/quality.yml package.json package-lock.json 2>/dev/null; then
       echo "  No changes to commit"
       echo ""
       return 0
