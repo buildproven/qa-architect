@@ -151,6 +151,7 @@ const {
   showUpgradeMessage,
   checkUsageCaps,
   incrementUsage,
+  ensureLicenseFresh,
 } = require('./lib/licensing')
 
 // Smart Test Strategy Generator (Pro/Team/Enterprise feature)
@@ -1254,6 +1255,12 @@ HELP:
         console.log('Run "git init" first, then try again.')
         process.exit(1)
       }
+
+      // Re-check the signed registry before any Pro feature lookup (quality
+      // tooling, Smart Test Strategy, etc.) so a revoked/cancelled subscription
+      // stops unlocking Pro here too — not only on the standalone Pro commands.
+      // Fails open offline; only a fresh, signature-verified fetch downgrades.
+      await ensureLicenseFresh()
 
       // Enforce FREE tier repo limit (1 private repo)
       // Must happen before any file modifications
