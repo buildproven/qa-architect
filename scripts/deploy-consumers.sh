@@ -216,7 +216,8 @@ wait_for_ci() {
 deploy_to_repo() {
   local repo_dir="$1"
   local is_canary="${2:-false}"
-  local repo_name="$(basename "$repo_dir")"
+  local repo_name
+  repo_name="$(basename "$repo_dir")"
 
   echo "--- $repo_name $([ "$is_canary" = true ] && echo "(CANARY)" || echo "") ---"
 
