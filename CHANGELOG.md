@@ -13,10 +13,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release-confidence commands (Pro).** Four commands for AI-assisted small teams: `--ship-check` (unified SHIP/REVIEW/BLOCK release-readiness report bundling lint, tests, security, coverage, bundle size, lighthouse, env vars, CI cost, and docs checks, with markdown/JSON output); `--pr-check` (diff-aware risk classifier flagging HIGH/MEDIUM/LOW changes per file and missing tests); `--analyze-ci --doctor` (CI Doctor: detects duplicated jobs, missing path filters, oversized matrices, unnecessary scheduled runs, flaky workflows); `--history-scan` (full git-history secrets audit via gitleaks `--log-opts=--all`, `--depth`-bounded for shallow repos).
 - **`harness-config.json` + `scripts/risk-policy-gate.js`** for tier-aware quality reviews.
 
+### Security
+
+- **Pro licenses now re-validate against the signed registry on a cadence** (default 7 days, `QAA_LICENSE_REVALIDATE_DAYS` to override). Previously an activated client trusted its local signed license file indefinitely and never re-checked the registry, so a cancelled or charged-back subscription kept Pro unlocked forever offline. The re-check, run at every Pro command entry point, downgrades to FREE and clears the local file when the key is missing or `status: "revoked"`. It **fails open offline** — a paying user is never locked out without a network connection; only a successful, signature-verified fetch can downgrade. A fully tamper-proof signed expiry (in `@buildproven/license-core`) is tracked as a follow-up.
+- **Latest-version nudge for Pro users.** The signed registry `_metadata.minRecommendedVersion` (server-controlled) triggers a loud but non-fatal "update available" warning when the installed CLI is older. Never blocks execution.
+
+### Fixed
+
+- **Dependabot:** bumped the emitted Python dev-deps template (`config/requirements-dev.txt`) to `black~=26.3.1` (fixes high-severity arbitrary-file-write via cache filename) and `pytest~=9.0.3`; resolved the transitive `qs` advisory via `npm audit fix`. Remaining advisories are dev-only test tooling (vitest/lighthouse), not shipped in the published package — tracked for a follow-up major bump.
+- **Pricing docs drift:** `docs/POLAR-DEPLOYMENT.md`, `README.md`, and a `webhook-handler.js` comment still said `$49/$490`; corrected to `$29/$290` to match the code.
+
 ### Changed
 
 - **Pro pricing repriced to $29/mo.**
-- **Billing migrated from Stripe-direct to Polar.sh (Merchant-of-Record).** Polar handles global sales tax / VAT / GST collection and remittance, the customer portal (cancel/update card/invoices), and dunning. The Ed25519 signing layer, Vercel Blob registry, offline CLI verification, and `--activate-license` flow are unchanged — only the webhook event source changed. Effective ~1.3% fee premium over Stripe-direct (replaces ~$200-400/mo tax compliance tooling that Stripe-direct would require at scale). Re-evaluate at $50K MRR.
+- **Billing migrated from Stripe-direct to Polar.sh (Merchant-of-Record).** Polar handles global sales tax / VAT / GST collection and remittance, the customer portal (cancel/update card/invoices), and dunning. The Ed25519 signing layer, Vercel Blob registry, and `--activate-license` flow are unchanged — only the webhook event source changed (plus the periodic re-validation added under Security below). Effective ~1.3% fee premium over Stripe-direct (replaces ~$200-400/mo tax compliance tooling that Stripe-direct would require at scale). Re-evaluate at $50K MRR.
 - **Webhook handler** (`webhook-handler.js`) rewritten for Polar's standard-webhooks signature verification and `subscription.*` event model. Closes the prior "cancel-but-keep-Pro" gap: `subscription.canceled` marks `pending_cancel` (access preserved to period end), `subscription.revoked` actually removes from the public signed registry. See `docs/POLAR-DEPLOYMENT.md`.
 - **License changed to Apache-2.0** for the source code in this repository. Runtime use of paid Pro features remains governed by `COMMERCIAL.md`. Replaces the prior custom commercial-EULA `LICENSE` file with the standard Apache-2.0 text + a focused commercial-terms file gated by the license-key check. Matches industry practice for open-core CLIs (npm-distributed code + entitlement check at runtime).
 

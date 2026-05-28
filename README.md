@@ -471,7 +471,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ### Purchasing Pro
 
-Pro tier ($49/mo or $490/yr) includes:
+Pro tier ($29/mo or $290/yr) includes:
 
 - **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
