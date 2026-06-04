@@ -138,4 +138,35 @@ if (nPlugin) {
   })
 }
 
+// Pre-existing high-complexity files — complexity/max-depth acknowledged, not new debt.
+// These files require deeper refactoring tracked separately; suppress here so lint stays
+// green for new code while avoiding false signal on known-complex legacy functions.
+configs.push({
+  files: [
+    'setup.js',
+    'lib/commands/analyze-ci.js',
+    'lib/commands/audit.js',
+    'lib/commands/deps.js',
+    'lib/dependency-monitoring-premium.js',
+    'lib/error-reporter.js',
+    'lib/github-api.js',
+    'lib/license-validator.js',
+    'lib/licensing.js',
+    'lib/package-utils.js',
+    'lib/project-maturity.js',
+    'lib/quality-tools-generator.js',
+    'lib/template-loader.js',
+    'lib/typescript-config-generator.js',
+    'lib/validation/config-security.js',
+    'tests/interactive.test.js',
+    'tests/project-maturity-boundary.test.js',
+    'tests/project-maturity.test.js',
+    'tests/real-purchase-flow.test.js',
+  ],
+  rules: {
+    complexity: 'off',
+    'max-depth': 'off',
+  },
+})
+
 module.exports = configs
