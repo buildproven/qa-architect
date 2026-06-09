@@ -743,7 +743,9 @@ app.get('/status', async (req, res) => {
 
 // ─── Start server ────────────────────────────────────────────────────────────
 
-if (!process.env.VERCEL) {
+// Don't bind a port under Vercel (serverless) or when imported by tests —
+// requiring this module for unit testing must not start a live server.
+if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
     console.log('🚀 Polar.sh webhook handler running')
     console.log(`📡 Port: ${PORT}`)
@@ -753,3 +755,16 @@ if (!process.env.VERCEL) {
 }
 
 module.exports = app
+
+// Internal functions exposed for unit testing only. The Express `app` above
+// remains the deployment contract; these are pure/near-pure helpers whose
+// regressions (e.g. the Polar secret derivation, product→tier mapping) would
+// otherwise only be caught by the slower E2E webhook script.
+module.exports.__testExports = {
+  polarWebhook,
+  mapProductToTier,
+  generateLicenseKey,
+  extractSubscription,
+  buildPublicRegistry,
+  LICENSE_KEY_PATTERN,
+}
