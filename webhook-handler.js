@@ -63,7 +63,12 @@ if (!LICENSE_REGISTRY_PRIVATE_KEY) {
   process.exit(1)
 }
 
-const polarWebhook = new Webhook(POLAR_WEBHOOK_SECRET)
+// standardwebhooks expects the secret base64-decoded or prefixed with "whsec_".
+// Polar uses "polar_whs_" prefix — strip it and re-encode as whsec_ for the library.
+const _polarSecret = POLAR_WEBHOOK_SECRET.startsWith('polar_whs_')
+  ? 'whsec_' + Buffer.from(POLAR_WEBHOOK_SECRET.slice('polar_whs_'.length)).toString('base64')
+  : POLAR_WEBHOOK_SECRET
+const polarWebhook = new Webhook(_polarSecret)
 
 // ─── Rate limiting (unchanged) ───────────────────────────────────────────────
 
