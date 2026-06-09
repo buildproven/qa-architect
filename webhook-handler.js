@@ -27,7 +27,12 @@ const {
   stableStringify,
   loadKeyFromEnv,
 } = require('./lib/license-signing')
-const { loadBlob, saveBlob, BLOB_PATHS } = require('./lib/blob-storage')
+const {
+  loadBlob,
+  loadBlobWithEtag,
+  saveBlob,
+  BLOB_PATHS,
+} = require('./lib/blob-storage')
 
 // ─── Env vars ────────────────────────────────────────────────────────────────
 
@@ -150,9 +155,7 @@ app.use(express.json())
 
 // ─── Storage layer ───────────────────────────────────────────────────────────
 
-async function loadLicenseDatabase() {
-  const database = await loadBlob(BLOB_PATHS.private)
-  if (database) return database
+function emptyLicenseDatabase() {
   return {
     _metadata: {
       version: '1.0',
@@ -162,15 +165,77 @@ async function loadLicenseDatabase() {
   }
 }
 
-let writeQueue = Promise.resolve()
-
-function queueDatabaseWrite(task) {
-  const next = writeQueue.then(task)
-  writeQueue = next.catch(() => {})
-  return next
+async function loadLicenseDatabase() {
+  const database = await loadBlob(BLOB_PATHS.private)
+  return database || emptyLicenseDatabase()
 }
 
-async function saveLicenseDatabase(database) {
+/**
+ * Load the private DB together with its ETag so the matching save can be
+ * guarded against concurrent overwrites. Returns { database, etag } where
+ * etag is undefined on first-run (blob does not exist yet).
+ */
+async function loadLicenseDatabaseForUpdate() {
+  const result = await loadBlobWithEtag(BLOB_PATHS.private)
+  if (!result) return { database: emptyLicenseDatabase(), etag: undefined }
+  return { database: result.data, etag: result.etag }
+}
+
+const MAX_WRITE_RETRIES = 5
+
+/**
+ * Run a load → mutate → conditional-save cycle that is safe across
+ * horizontally-scaled function instances. The previous in-process write
+ * queue only serialized writes within a single Node process; on Vercel,
+ * concurrent webhooks land on separate instances and would clobber each
+ * other (last-writer-wins → lost licenses). This guards the write with the
+ * blob's ETag (`ifMatch`) and, on a precondition failure, reloads the fresh
+ * DB and replays the mutation.
+ *
+ * @param {(database: object) => boolean | void} mutator Mutates the DB in
+ *   place. Return `false` to signal "no change" and skip the write.
+ * @returns {Promise<boolean>} true if a write was committed, false if the
+ *   mutator reported no change.
+ */
+async function mutateLicenseDatabase(mutator) {
+  for (let attempt = 0; attempt < MAX_WRITE_RETRIES; attempt++) {
+    const { database, etag } = await loadLicenseDatabaseForUpdate()
+    const changed = mutator(database)
+    if (changed === false) return false
+
+    try {
+      await saveLicenseDatabase(database, etag)
+      return true
+    } catch (error) {
+      if (isPreconditionFailure(error) && attempt < MAX_WRITE_RETRIES - 1) {
+        console.warn(
+          `⚠️  License DB write conflict (attempt ${attempt + 1}); reloading and retrying`
+        )
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error(
+    `License database write failed after ${MAX_WRITE_RETRIES} attempts (persistent write conflict)`
+  )
+}
+
+function isPreconditionFailure(error) {
+  return (
+    error?.name === 'BlobPreconditionFailedError' ||
+    error?.constructor?.name === 'BlobPreconditionFailedError' ||
+    error?.message?.includes('precondition') ||
+    error?.message?.includes('does not match')
+  )
+}
+
+/**
+ * Persist the private DB and rebuild the public signed registry.
+ * When `etag` is provided, the private write is conditional (ifMatch) so a
+ * concurrent overwrite is rejected rather than silently lost.
+ */
+async function saveLicenseDatabase(database, etag) {
   // eslint-disable-next-line no-unused-vars -- excluding _metadata from hash
   const { _metadata, ...licenses } = database
   const sha = crypto
@@ -184,10 +249,46 @@ async function saveLicenseDatabase(database) {
     sha256: sha,
   }
 
-  await saveBlob(BLOB_PATHS.private, database)
-  const publicRegistry = buildPublicRegistry(database)
-  await saveBlob(BLOB_PATHS.public, publicRegistry)
+  // Conditional write on the private DB — this is the serialization point.
+  // If it succeeds, we hold a logically-exclusive view of the private DB.
+  await saveBlob(BLOB_PATHS.private, database, etag ? { ifMatch: etag } : {})
+
+  // The public registry is fully derived from the private DB. A different
+  // instance that committed a *later* private snapshot must not have its
+  // public write overwritten by our (now-stale) rebuild. Guard the public
+  // write with its own ETag and, on conflict, rebuild from the freshest
+  // private DB and retry — so the public registry always converges to the
+  // newest private state rather than whichever write happened to land last.
+  await savePublicRegistryConverging(database)
   return true
+}
+
+async function savePublicRegistryConverging(latestKnownDatabase) {
+  let database = latestKnownDatabase
+  for (let attempt = 0; attempt < MAX_WRITE_RETRIES; attempt++) {
+    const existing = await loadBlobWithEtag(BLOB_PATHS.public)
+    const publicRegistry = buildPublicRegistry(database)
+    try {
+      await saveBlob(
+        BLOB_PATHS.public,
+        publicRegistry,
+        existing?.etag ? { ifMatch: existing.etag } : {}
+      )
+      return
+    } catch (error) {
+      if (isPreconditionFailure(error) && attempt < MAX_WRITE_RETRIES - 1) {
+        // Someone else updated the public registry between our read and
+        // write. Rebuild from the freshest private DB so we never regress
+        // the registry to an older snapshot, then retry the guarded write.
+        database = await loadLicenseDatabase()
+        continue
+      }
+      throw error
+    }
+  }
+  throw new Error(
+    `Public registry write failed after ${MAX_WRITE_RETRIES} attempts (persistent write conflict)`
+  )
 }
 
 function buildPublicRegistry(database) {
@@ -284,49 +385,42 @@ function mapProductToTier(productId) {
 
 // ─── DB writes ───────────────────────────────────────────────────────────────
 
-function addLicenseToDatabase(licenseKey, customerInfo) {
-  return queueDatabaseWrite(async () => {
-    if (
-      typeof licenseKey !== 'string' ||
-      !LICENSE_KEY_PATTERN.test(licenseKey)
-    ) {
-      throw new Error(`Invalid license key format: ${licenseKey}`)
-    }
+async function addLicenseToDatabase(licenseKey, customerInfo) {
+  if (typeof licenseKey !== 'string' || !LICENSE_KEY_PATTERN.test(licenseKey)) {
+    throw new Error(`Invalid license key format: ${licenseKey}`)
+  }
 
-    const database = await loadLicenseDatabase()
+  try {
+    await mutateLicenseDatabase(database => {
+      // Idempotent — if license already exists, just update timestamps
+      const existing = database[licenseKey]
+      database[licenseKey] = {
+        customerId: customerInfo.customerId,
+        tier: customerInfo.tier,
+        isFounder: customerInfo.isFounder,
+        email: customerInfo.email,
+        subscriptionId: customerInfo.subscriptionId,
+        productId: customerInfo.productId,
+        addedDate: existing?.addedDate || new Date().toISOString(),
+        issued: existing?.issued || new Date().toISOString(),
+        addedBy: 'polar_webhook',
+        status: 'active',
+      }
 
-    // Idempotent — if license already exists, just update timestamps
-    const existing = database[licenseKey]
-    database[licenseKey] = {
-      customerId: customerInfo.customerId,
-      tier: customerInfo.tier,
-      isFounder: customerInfo.isFounder,
-      email: customerInfo.email,
-      subscriptionId: customerInfo.subscriptionId,
-      productId: customerInfo.productId,
-      addedDate: existing?.addedDate || new Date().toISOString(),
-      issued: existing?.issued || new Date().toISOString(),
-      addedBy: 'polar_webhook',
-      status: 'active',
-    }
-
-    database._metadata.lastUpdate = new Date().toISOString()
-    database._metadata.totalLicenses = Object.keys(database).length - 1
-
-    const ok = await saveLicenseDatabase(database)
-    if (!ok) {
-      console.error('❌ CRITICAL: Payment processed but license save failed')
-      console.error(`   License Key: ${licenseKey}`)
-      console.error(`   Customer: ${customerInfo.email}`)
-      throw new Error('License database save failed')
-    }
-    return ok
-  })
+      database._metadata.lastUpdate = new Date().toISOString()
+      database._metadata.totalLicenses = Object.keys(database).length - 1
+    })
+  } catch (error) {
+    console.error('❌ CRITICAL: Payment processed but license save failed')
+    console.error(`   License Key: ${licenseKey}`)
+    console.error(`   Customer: ${customerInfo.email}`)
+    throw error
+  }
+  return true
 }
 
 function markLicensePendingCancel(subscriptionId, cancelAt) {
-  return queueDatabaseWrite(async () => {
-    const database = await loadLicenseDatabase()
+  return mutateLicenseDatabase(database => {
     let found = false
     Object.keys(database).forEach(key => {
       if (key === '_metadata') return
@@ -341,16 +435,15 @@ function markLicensePendingCancel(subscriptionId, cancelAt) {
       console.warn(
         `⚠️  No license for subscription ${subscriptionId} on cancel`
       )
-      return
+      return false
     }
-    await saveLicenseDatabase(database)
   })
 }
 
 function revokeLicense(subscriptionId) {
-  return queueDatabaseWrite(async () => {
-    const database = await loadLicenseDatabase()
-    let revokedKey = null
+  let revokedKey = null
+  return mutateLicenseDatabase(database => {
+    revokedKey = null
     Object.keys(database).forEach(key => {
       if (key === '_metadata') return
       if (database[key].subscriptionId === subscriptionId) {
@@ -363,16 +456,16 @@ function revokeLicense(subscriptionId) {
       console.warn(
         `⚠️  No license for subscription ${subscriptionId} on revoke`
       )
-      return
+      return false
     }
-    await saveLicenseDatabase(database)
-    console.log(`🚫 License revoked: ${revokedKey}`)
+  }).then(committed => {
+    if (committed) console.log(`🚫 License revoked: ${revokedKey}`)
+    return committed
   })
 }
 
 function updateLicenseTier(subscriptionId, customerInfo) {
-  return queueDatabaseWrite(async () => {
-    const database = await loadLicenseDatabase()
+  return mutateLicenseDatabase(database => {
     let updated = false
     Object.keys(database).forEach(key => {
       if (key === '_metadata') return
@@ -384,8 +477,7 @@ function updateLicenseTier(subscriptionId, customerInfo) {
         updated = true
       }
     })
-    if (!updated) return
-    await saveLicenseDatabase(database)
+    if (!updated) return false
   })
 }
 
