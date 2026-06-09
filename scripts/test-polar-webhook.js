@@ -45,7 +45,8 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     if (argv[i].startsWith('--')) {
       const key = argv[i].slice(2)
-      result[key] = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true
+      result[key] =
+        argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : true
     }
   }
   return result
@@ -70,27 +71,26 @@ function buildPayload(eventType) {
       product: {
         id: PRODUCT_ID,
       },
-      current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      current_period_end: new Date(
+        Date.now() + 30 * 24 * 60 * 60 * 1000
+      ).toISOString(),
     },
   }
 }
 
 // standardwebhooks signing: HMAC-SHA256 over "msgId.timestamp.payload"
-// Polar uses "polar_whs_" prefix — strip it, use the raw bytes as the key.
-// "whsec_" prefix means base64-encoded key; "polar_whs_" means raw string key.
+// Sign exactly the way Polar does, so this e2e test exercises the real
+// production verification path rather than a self-consistent mock.
+// Polar's SDK base64-encodes the ENTIRE secret string and feeds it to the
+// standardwebhooks Webhook, which decodes it back to the raw secret bytes —
+// so the HMAC key is the full secret string bytes (prefix included).
+// Ref: github.com/polarsource/polar-js src/webhooks.ts
 function sign(secret, msgId, timestamp, body) {
-  let key
-  if (secret.startsWith('whsec_')) {
-    key = Buffer.from(secret.slice('whsec_'.length), 'base64')
-  } else if (secret.startsWith('polar_whs_')) {
-    // Handler wraps it as: whsec_ + base64(raw_suffix)
-    // So key = raw_suffix bytes
-    key = Buffer.from(secret.slice('polar_whs_'.length))
-  } else {
-    key = Buffer.from(secret, 'base64')
-  }
+  const key = Buffer.from(secret, 'utf-8')
   const toSign = `${msgId}.${timestamp}.${body}`
-  return 'v1,' + crypto.createHmac('sha256', key).update(toSign).digest('base64')
+  return (
+    'v1,' + crypto.createHmac('sha256', key).update(toSign).digest('base64')
+  )
 }
 
 function fetch(urlStr, opts = {}) {
@@ -105,9 +105,9 @@ function fetch(urlStr, opts = {}) {
         method: opts.method || 'GET',
         headers: opts.headers || {},
       },
-      (res) => {
+      res => {
         let body = ''
-        res.on('data', (d) => (body += d))
+        res.on('data', d => (body += d))
         res.on('end', () => resolve({ status: res.statusCode, body }))
       }
     )
@@ -118,7 +118,14 @@ function fetch(urlStr, opts = {}) {
 }
 
 function log(msg, level = 'info') {
-  const prefix = level === 'error' ? '❌' : level === 'warn' ? '⚠️ ' : level === 'ok' ? '✅' : '  '
+  const prefix =
+    level === 'error'
+      ? '❌'
+      : level === 'warn'
+        ? '⚠️ '
+        : level === 'ok'
+          ? '✅'
+          : '  '
   console.log(`${prefix} ${msg}`)
 }
 
@@ -128,8 +135,15 @@ async function checkStatus() {
   log(`Checking ${BASE_URL}/health ...`)
   const h = await fetch(`${BASE_URL}/health`)
   let health
-  try { health = JSON.parse(h.body) } catch { health = { status: 'unknown' } }
-  log(`Health: ${JSON.stringify(health)}`, health.status === 'ok' ? 'ok' : 'warn')
+  try {
+    health = JSON.parse(h.body)
+  } catch {
+    health = { status: 'unknown' }
+  }
+  log(
+    `Health: ${JSON.stringify(health)}`,
+    health.status === 'ok' ? 'ok' : 'warn'
+  )
 
   // Fetch public registry directly from blob CDN (bypasses Vercel function cache)
   // Falls back to the API endpoint for local testing
@@ -140,7 +154,7 @@ async function checkStatus() {
   const l = await fetch(`${registryUrl}?nocache=${Date.now()}`)
   if (l.status === 200) {
     const registry = JSON.parse(l.body)
-    const count = Object.keys(registry).filter((k) => k !== '_metadata').length
+    const count = Object.keys(registry).filter(k => k !== '_metadata').length
     log(`License registry: ${count} license(s)`, 'ok')
     return registry
   } else {
@@ -149,9 +163,40 @@ async function checkStatus() {
   }
 }
 
+// Hosts that point at live production state. Sending a signed webhook here
+// mutates the real license registry, so we require an explicit opt-in.
+const PRODUCTION_HOSTS = ['qa-architect.vercel.app']
+
+function isProductionUrl(urlStr) {
+  try {
+    return PRODUCTION_HOSTS.includes(new url.URL(urlStr).hostname)
+  } catch {
+    return false
+  }
+}
+
 async function sendWebhook(eventType) {
   if (!SECRET) {
     log('QA_ARCHITECT_SECRET or POLAR_WEBHOOK_SECRET env var required', 'error')
+    process.exit(1)
+  }
+
+  // Guard: refuse to mutate production unless explicitly opted in. Without this,
+  // the documented default command injects a random test license into the live
+  // registry.
+  if (isProductionUrl(BASE_URL) && !args['allow-production']) {
+    log(
+      `Refusing to send a mutating webhook to production host (${BASE_URL}).`,
+      'error'
+    )
+    log(
+      'Re-run against a local URL (--url http://localhost:PORT), use --check for',
+      'error'
+    )
+    log(
+      'a read-only status check, or pass --allow-production to override.',
+      'error'
+    )
     process.exit(1)
   }
 
@@ -196,7 +241,9 @@ async function main() {
   // Before
   log('--- Before ---')
   const before = await checkStatus()
-  const beforeKeys = before ? Object.keys(before).filter((k) => k !== '_metadata') : []
+  const beforeKeys = before
+    ? Object.keys(before).filter(k => k !== '_metadata')
+    : []
 
   console.log()
 
@@ -204,23 +251,32 @@ async function main() {
   await sendWebhook(EVENT_TYPE)
 
   // Wait for handler to write to blob and CDN to propagate
-  await new Promise((r) => setTimeout(r, 5000))
+  await new Promise(r => setTimeout(r, 5000))
 
   console.log()
 
   // After
   log('--- After ---')
   const after = await checkStatus()
-  const afterKeys = after ? Object.keys(after).filter((k) => k !== '_metadata') : []
+  const afterKeys = after
+    ? Object.keys(after).filter(k => k !== '_metadata')
+    : []
 
   console.log()
 
   // Result
-  if (EVENT_TYPE === 'subscription.created' || EVENT_TYPE === 'subscription.active') {
-    const added = afterKeys.filter((k) => !beforeKeys.includes(k))
+  if (
+    EVENT_TYPE === 'subscription.created' ||
+    EVENT_TYPE === 'subscription.active'
+  ) {
+    const added = afterKeys.filter(k => !beforeKeys.includes(k))
     // Also check if an existing license was refreshed (dedup by customer/sub)
     const refreshed = after
-      ? afterKeys.find((k) => after[k]?.subscriptionId === SUB_ID || after[k]?.customerId === CUSTOMER_ID)
+      ? afterKeys.find(
+          k =>
+            after[k]?.subscriptionId === SUB_ID ||
+            after[k]?.customerId === CUSTOMER_ID
+        )
       : null
     if (added.length > 0) {
       log(`License issued: ${added[0]}`, 'ok')
@@ -229,12 +285,15 @@ async function main() {
       log(`License refreshed (dedup): ${refreshed}`, 'ok')
       log(`E2E test PASSED ✓`, 'ok')
     } else {
-      log(`No new or refreshed license found in registry after webhook`, 'error')
+      log(
+        `No new or refreshed license found in registry after webhook`,
+        'error'
+      )
       log(`E2E test FAILED`, 'error')
       process.exit(1)
     }
   } else if (EVENT_TYPE === 'subscription.revoked') {
-    const removed = beforeKeys.filter((k) => !afterKeys.includes(k))
+    const removed = beforeKeys.filter(k => !afterKeys.includes(k))
     if (removed.length > 0) {
       log(`License revoked: ${removed[0]}`, 'ok')
       log(`E2E test PASSED ✓`, 'ok')
@@ -249,7 +308,7 @@ async function main() {
   console.log()
 }
 
-main().catch((err) => {
+main().catch(err => {
   log(err.message, 'error')
   process.exit(1)
 })

@@ -78,6 +78,49 @@ async function testLoadBlobReturnsNullOnNotFound() {
   console.log('  ✅ loadBlob returns null on BlobNotFoundError')
 }
 
+async function testLoadBlobReturnsNullOnNotFoundVariants() {
+  console.log(
+    '  Testing loadBlob treats all "not found" error shapes as null...'
+  )
+  // Vercel's SDK has surfaced "not found" under several shapes across versions.
+  // loadBlob must map every one of them to null (first-run), not throw.
+  const variants = [
+    {
+      label: 'error.name',
+      makeError: () => {
+        const e = new Error('generic')
+        e.name = 'BlobNotFoundError'
+        return e
+      },
+    },
+    {
+      label: 'error.constructor.name',
+      makeError: () => {
+        class BlobNotFoundError extends Error {}
+        return new BlobNotFoundError('boom')
+      },
+    },
+    {
+      label: 'error.message includes "does not exist"',
+      makeError: () => new Error('The requested blob does not exist'),
+    },
+  ]
+
+  for (const variant of variants) {
+    headOverride = async () => {
+      throw variant.makeError()
+    }
+    const result = await loadBlob('missing/variant.json')
+    assert.strictEqual(
+      result,
+      null,
+      `Should return null for not-found variant: ${variant.label}`
+    )
+  }
+  headOverride = null
+  console.log('  ✅ loadBlob returns null for all not-found error shapes')
+}
+
 async function testSaveBlobCallsPutCorrectly() {
   console.log('  Testing saveBlob calls put with correct options...')
   mockStore.clear()
@@ -201,6 +244,7 @@ async function runTests() {
 
   try {
     await testLoadBlobReturnsNullOnNotFound()
+    await testLoadBlobReturnsNullOnNotFoundVariants()
     await testSaveBlobCallsPutCorrectly()
     await testRoundTrip()
     await testBlobPathsExist()

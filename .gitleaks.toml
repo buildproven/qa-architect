@@ -16,7 +16,11 @@ tags = ["key", "JWT"]
 [[rules]]
 description = "Environment variable secrets"
 id = "env-secret"
-regex = '''(?i)(api_key|secret|password|token)\s*=\s*['""][^'"\s]{10,}['""]'''
+# Match literal secret values only. The leading [^$'"] guard prevents matching
+# shell variable references like FOO="$BAR" or FOO="$(cmd)", which are
+# indirections (the real value lives in a gitignored file), not committed
+# secrets. A literal credential never begins with '$'.
+regex = '''(?i)(api_key|secret|password|token)\s*=\s*['""][^$'"\s][^'"\s]{9,}['""]'''
 tags = ["env", "secret"]
 
 # Allowlist for test/example files (broad exclusion)

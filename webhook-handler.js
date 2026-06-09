@@ -63,11 +63,16 @@ if (!LICENSE_REGISTRY_PRIVATE_KEY) {
   process.exit(1)
 }
 
-// standardwebhooks expects the secret base64-decoded or prefixed with "whsec_".
-// Polar uses "polar_whs_" prefix — strip it and re-encode as whsec_ for the library.
-const _polarSecret = POLAR_WEBHOOK_SECRET.startsWith('polar_whs_')
-  ? 'whsec_' + Buffer.from(POLAR_WEBHOOK_SECRET.slice('polar_whs_'.length)).toString('base64')
-  : POLAR_WEBHOOK_SECRET
+// Polar signs webhooks per the Standard Webhooks spec. Its official SDK
+// (validateEvent) base64-encodes the ENTIRE secret string — including the
+// "polar_whs_" prefix — and hands that to the standardwebhooks Webhook class,
+// which decodes it back to the raw secret bytes for the HMAC key. We must
+// derive the key identically or every legitimate Polar webhook fails
+// verification. Do NOT strip the "polar_whs_" prefix.
+// Ref: github.com/polarsource/polar-js src/webhooks.ts
+const _polarSecret = Buffer.from(POLAR_WEBHOOK_SECRET, 'utf-8').toString(
+  'base64'
+)
 const polarWebhook = new Webhook(_polarSecret)
 
 // ─── Rate limiting (unchanged) ───────────────────────────────────────────────
