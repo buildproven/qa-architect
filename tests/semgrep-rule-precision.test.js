@@ -127,6 +127,26 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('auth-bypass-or-condition'))
   })
 
+  test('auth-bypass-or-condition fires on a legitimate authz .includes() predicate', () => {
+    // `roles.includes('admin')` is a real authz membership check — a permissive
+    // OR with it IS a bypass and must fire (not suppressed as "string search").
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "if (isAuthenticated || roles.includes('admin')) { grantAccess() }\n",
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
+  test('path-traversal-join fires on a NON-req request object with 3+ segments', () => {
+    // Vararg patterns use $REQ, not a literal `req`, so a request object named
+    // `request` in a multi-segment join is still caught.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "function h(request){ return path.join(baseDir, 'uploads', request.params.filename) }\n",
+    })
+    assert.ok(fired.has('path-traversal-join'))
+  })
+
   test('path-traversal-join fires on ALIASED request data (assignment)', () => {
     const fired = rulesFiredOn({
       'lib/a.js':
@@ -193,12 +213,38 @@ if (!semgrepAvailable()) {
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })
 
-  test('error-classification OR (auth substring) does NOT fire auth-bypass-or-condition', () => {
+  test('error-classification OR (error-property substring) does NOT fire auth-bypass-or-condition', () => {
     const fired = rulesFiredOn({
       'lib/a.js':
         "function f(e){ if (e.message.includes('401') || e.message.includes('authentication')) { return true } }\n",
     })
     assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
+  test('nested OR chain with error-property search does NOT fire auth-bypass-or-condition', () => {
+    // `a || b || err.message.includes('permission')` — the auth-named operand
+    // is an error-PROPERTY substring search; excluded as error classification.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "function f(code, err){ if (code === 'EACCES' || code === 'EPERM' || err.message.includes('permission')) { return 'perm' } }\n",
+    })
+    assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
+  test('KNOWN LIMITATION: bare-variable .includes() of an auth word still warns', () => {
+    // `message.includes('permission')` (bare receiver, no member access) is
+    // structurally indistinguishable from a collection membership test like
+    // `roles.includes('admin')` — which IS a real authz predicate we MUST
+    // keep firing on. So this WARNING-level rule cannot suppress one without
+    // losing the other. The single real instance in this codebase
+    // (lib/error-reporter.js:categorizeError) carries an inline `nosemgrep`.
+    // This test pins the limitation so a future "fix" that breaks authz
+    // detection is caught.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "function f(message){ if (a || message.includes('permission')) { return 'perm' } }\n",
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
   })
 
   test('error-name string compare does NOT fire hardcoded-admin-identity', () => {

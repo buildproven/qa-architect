@@ -116,8 +116,19 @@ rules:
     # SAFE shapes that the auth-name regex would otherwise catch:
     #   - negated fail-closed guards: `if (!authHeader || ...) return 401`
     #     (a guard that denies, the opposite of a permissive bypass)
-    #   - error-classification / string-search ORs:
-    #     `if (msg.includes('401') || msg.includes('authentication'))`
+    #   - compound nested-OR operands from `a || b || c` chains, e.g.
+    #     `if (code === 'EACCES' || code === 'EPERM' || msg.includes('permission'))`
+    #     — semgrep binds the matched operand to the right-associated
+    #     `b || c` subtree, which is error classification, not an auth check.
+    #     Excluding a `$AUTH` that is itself an `||` keeps the rule on single
+    #     leaf predicates.
+    # A legitimate authz predicate in the OTHER operand still fires:
+    # `if (isAuthenticated || roles.includes('admin'))` and
+    # `if (allowedUsers.includes(id) || isAuthenticated)` are real bypasses and
+    # are NOT suppressed. `.includes()` is intentionally NOT a blanket
+    # exclusion: a role/allowlist `.includes()` is exactly an authz check, and
+    # at WARNING severity a rare error-string `.includes()` warning is a far
+    # cheaper failure than a missed authz bypass.
     # On qa-architect's own code this yields zero auth-bypass false positives
     # while still firing on a genuine commuted bypass.
     pattern-either:
@@ -131,8 +142,19 @@ rules:
               metavariable: $AUTH
               regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
           - pattern-not: if (!$NEG || $OTHER) { ... }
-          - pattern-not: if ($S.includes(...) || $T) { ... }
-          - pattern-not: if ($U || $V.includes(...)) { ... }
+          # The auth operand must be a single leaf predicate, not a nested OR
+          # subtree pulled in from an `a || b || c` chain, and must not be an
+          # error-property substring search (error classification, not authz).
+          # Note: a collection membership test like `roles.includes('admin')`
+          # is deliberately NOT excluded — that is a real authz predicate.
+          - metavariable-pattern:
+              metavariable: $AUTH
+              patterns:
+                - pattern-not: $L || $R
+                - pattern-not: $E.message.includes(...)
+                - pattern-not: $E.code.includes(...)
+                - pattern-not: $E.name.includes(...)
+                - pattern-not: $E.stack.includes(...)
       # Positive auth assertion as the RIGHT operand (commuted bypass).
       - patterns:
           - pattern-either:
@@ -143,8 +165,14 @@ rules:
               metavariable: $AUTH
               regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
           - pattern-not: if ($OTHER2 || !$NEG) { ... }
-          - pattern-not: if ($S.includes(...) || $T) { ... }
-          - pattern-not: if ($U || $V.includes(...)) { ... }
+          - metavariable-pattern:
+              metavariable: $AUTH
+              patterns:
+                - pattern-not: $L || $R
+                - pattern-not: $E.message.includes(...)
+                - pattern-not: $E.code.includes(...)
+                - pattern-not: $E.name.includes(...)
+                - pattern-not: $E.stack.includes(...)
     metadata:
       category: security
       cwe: 'CWE-287'
@@ -256,13 +284,16 @@ rules:
     # in the surrounding scope. Dropping the aliased form would silently miss
     # the most common real-world traversal pattern.
     pattern-either:
-      # Inline member-expression arguments.
+      # Inline member-expression arguments. The vararg forms use $REQ (not a
+      # literal `req`) so a request object named `request`/`ctx`/etc. and joins
+      # with 3+ segments (path.join(base, 'uploads', request.params.file)) are
+      # still caught — detection must not hinge on the local variable name.
       - pattern: path.join($BASE, $REQ.params.$PARAM)
       - pattern: path.join($BASE, $REQ.query.$PARAM)
       - pattern: path.join($BASE, $REQ.body.$PARAM)
-      - pattern: path.join(..., req.params.$PARAM, ...)
-      - pattern: path.join(..., req.query.$PARAM, ...)
-      - pattern: path.join(..., req.body.$PARAM, ...)
+      - pattern: path.join(..., $REQ.params.$PARAM, ...)
+      - pattern: path.join(..., $REQ.query.$PARAM, ...)
+      - pattern: path.join(..., $REQ.body.$PARAM, ...)
       # Aliased via direct assignment: const f = req.params.x; path.join(base, f)
       - patterns:
           - pattern: path.join(..., $ALIAS, ...)
