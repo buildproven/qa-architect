@@ -44,12 +44,14 @@ npx create-qa-architect@latest --audit
 
 **Free tier — `--audit`:**
 
-Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase and produces a prioritized security report. Covers 5 of the 7 most common vibe-coding vulnerability categories:
+Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase and produces a prioritized security report. Covers the most common vibe-coding vulnerability categories — including AI-native classes generic SAST misses, like secrets shipped in the client bundle and unscoped data access (IDOR) across Prisma, Drizzle, and Supabase:
 
 | Category                                                                      | Coverage            |
 | ----------------------------------------------------------------------------- | ------------------- |
 | Secrets exposure (hardcoded keys, JWT without expiry)                         | ✅ Free             |
-| Auth & authorization gaps (missing checks, IDOR, client-side auth)            | ✅ Free             |
+| Secrets in the client bundle (NEXT*PUBLIC*/VITE\_ secrets, service keys)      | ✅ Free             |
+| Unscoped data access / IDOR (Prisma, Drizzle, Supabase query by request id)   | ✅ Free             |
+| Auth & authorization gaps (missing checks, client-side auth)                  | ✅ Free             |
 | Injection vectors (SQL injection, command injection, prototype pollution)     | ✅ Free             |
 | Production misconfigs (CORS-all, verbose errors, debug mode, missing headers) | ✅ Free             |
 | XSS patterns (unsafe HTML, dynamic hrefs)                                     | ✅ Free             |

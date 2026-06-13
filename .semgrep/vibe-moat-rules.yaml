@@ -1,0 +1,153 @@
+# ---------------------------------------------------------------------------
+# Vibe-Moat Rules — AI-native vulnerability classes that generic SAST misses.
+#
+# Industry SAST (Snyk, Semgrep CE, Socket) wasn't designed to catch the
+# failure modes specific to AI-generated apps: secrets shipped in client
+# bundles and data access that trusts a client-supplied id with no ownership
+# scope. These rules target exactly those, with precision guards from the
+# start (we do NOT match bare syntax — see the 699-false-positive lesson in
+# tests/semgrep-rule-precision.test.js).
+# ---------------------------------------------------------------------------
+rules:
+  # =========================================================================
+  # CLIENT-BUNDLE SECRET LEAKAGE
+  # A "secret" exposed to the browser is game over — anyone can read the JS
+  # bundle. Framework-specific env prefixes (NEXT_PUBLIC_, VITE_, REACT_APP_,
+  # PUBLIC_, EXPO_PUBLIC_) inline the value into client code at build time.
+  # =========================================================================
+
+  - id: public-env-holds-secret
+    message: |
+      A client-exposed env var (NEXT_PUBLIC_/VITE_/REACT_APP_/PUBLIC_/EXPO_PUBLIC_)
+      whose name looks like a secret. These prefixes inline the value into the
+      browser bundle at build time — anyone can read it. Move the secret to a
+      server-only env var and access it from an API route / server action.
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: process.env.$VAR
+          - pattern: import.meta.env.$VAR
+      - metavariable-regex:
+          metavariable: $VAR
+          # client-exposed prefix AND a secret-ish suffix
+          regex: '^(NEXT_PUBLIC_|VITE_|REACT_APP_|PUBLIC_|EXPO_PUBLIC_).*(SECRET|PRIVATE|SERVICE_ROLE|SERVICE_KEY|API_KEY|APIKEY|TOKEN|PASSWORD|PASSWD|CREDENTIAL|ACCESS_KEY|CLIENT_SECRET|WEBHOOK_SECRET|STRIPE_SK|SK_LIVE|SK_TEST|PRIVATE_KEY)'
+    metadata:
+      category: security
+      cwe: 'CWE-200'
+      owasp: 'A02:2021'
+      fix: 'Rename to a server-only var (drop the NEXT_PUBLIC_/VITE_ prefix) and read it server-side.'
+
+  - id: hardcoded-live-secret-literal
+    message: |
+      A live secret key literal is hardcoded in source. Provider-prefixed keys
+      (Stripe sk_live_, GitHub ghp_, AWS AKIA, OpenAI sk-, Slack xox) committed
+      to the repo are exposed to anyone with read access and will leak in the
+      client bundle if this file is client-side. Move it to an env var.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: '"=~/(sk_live_|sk_test_|ghp_|github_pat_|AKIA[0-9A-Z]{16}|xox[baprs]-|AIza[0-9A-Za-z_-]{20})/"'
+    metadata:
+      category: security
+      cwe: 'CWE-798'
+      owasp: 'A02:2021'
+
+  - id: service-key-in-client-component
+    message: |
+      A privileged client constructor (Supabase service-role key, Firebase
+      Admin SDK, AWS SDK with explicit credentials) used in a file marked
+      'use client'. Server credentials in a client component ship to the
+      browser. Move this to a server route, server action, or server component.
+    severity: ERROR
+    languages: [javascript, typescript]
+    paths:
+      include:
+        - '**/*.tsx'
+        - '**/*.jsx'
+        - 'app/**'
+        - 'components/**'
+    patterns:
+      - pattern-inside: |
+          "use client"
+          ...
+      - pattern-either:
+          - pattern: createClient($URL, $KEY, ...)
+          - pattern: createClient($URL, process.env.$SVC)
+      - metavariable-regex:
+          metavariable: $SVC
+          regex: '.*(SERVICE_ROLE|SERVICE_KEY|SECRET|ADMIN).*'
+    metadata:
+      category: security
+      cwe: 'CWE-200'
+      owasp: 'A01:2021'
+
+  # =========================================================================
+  # UNSCOPED DATA ACCESS  (the database-agnostic IDOR / missing-RLS class)
+  # The bug: a query trusts a client-supplied id with no ownership/tenant
+  # filter, so user A reads user B's row. RLS is just Postgres's defense for
+  # this; the app-layer pattern is the same across every ORM. We flag the
+  # query-by-request-id shape and let a human confirm the ownership scope.
+  # =========================================================================
+
+  - id: prisma-find-by-request-id-unscoped
+    message: |
+      Prisma lookup keyed directly on a request-supplied id with no ownership
+      filter (no userId/ownerId/tenantId in the where clause). This is IDOR —
+      user A can read user B's record. Add the owner to the where clause:
+      where: { id, userId: session.user.id }.
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: '$P.$MODEL.findUnique({ where: { $IDFIELD: $REQ.params.$X } })'
+          - pattern: '$P.$MODEL.findUnique({ where: { $IDFIELD: $REQ.query.$X } })'
+          - pattern: '$P.$MODEL.findFirst({ where: { $IDFIELD: $REQ.params.$X } })'
+          - pattern: '$P.$MODEL.findFirst({ where: { $IDFIELD: $REQ.query.$X } })'
+          - pattern: '$P.$MODEL.delete({ where: { $IDFIELD: $REQ.params.$X } })'
+          - pattern: '$P.$MODEL.update({ where: { $IDFIELD: $REQ.params.$X }, ... })'
+      # Not a finding if the where clause ALSO carries an ownership/tenant key —
+      # that is the correct, scoped form we want people to write.
+      - pattern-not: '$P.$MODEL.$M({ where: { ..., userId: $O, ... }, ... })'
+      - pattern-not: '$P.$MODEL.$M({ where: { ..., ownerId: $O, ... }, ... })'
+      - pattern-not: '$P.$MODEL.$M({ where: { ..., tenantId: $O, ... }, ... })'
+      - pattern-not: '$P.$MODEL.$M({ where: { ..., organizationId: $O, ... }, ... })'
+      - pattern-not: '$P.$MODEL.$M({ where: { ..., accountId: $O, ... }, ... })'
+    metadata:
+      category: security
+      cwe: 'CWE-639'
+      owasp: 'A01:2021'
+
+  - id: drizzle-where-eq-id-unscoped
+    message: |
+      Drizzle query filtered only by an id equality with request input and no
+      tenant/owner predicate. Combine the ownership check with and():
+      where: and(eq(t.id, id), eq(t.userId, session.user.id)).
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $DB.select(...).from($T).where(eq($T.id, $REQ.params.$X))
+          - pattern: $DB.select(...).from($T).where(eq($T.id, $REQ.query.$X))
+          - pattern: $DB.delete($T).where(eq($T.id, $REQ.params.$X))
+    metadata:
+      category: security
+      cwe: 'CWE-639'
+      owasp: 'A01:2021'
+
+  - id: supabase-select-on-user-table
+    message: |
+      Supabase .from(...).select() reached with a request-supplied id filter.
+      If Row-Level Security is not enabled on this table, the anon key returns
+      any row regardless of owner. Enable RLS with an owner policy, or filter
+      by the authenticated user id.
+    severity: WARNING
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $SB.from($TABLE).select(...).eq($COL, $REQ.params.$X)
+          - pattern: $SB.from($TABLE).select(...).eq($COL, $REQ.query.$X)
+    metadata:
+      category: security
+      cwe: 'CWE-639'
+      owasp: 'A01:2021'
