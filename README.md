@@ -83,6 +83,16 @@ npx create-qa-architect@latest --audit --out audit-report.md
 npx create-qa-architect@latest --audit --fix
 ```
 
+**Suppressing a false positive:** if a finding is a confirmed false positive (or
+a true positive you've reviewed and accepted), add an inline `// nosemgrep`
+comment on the offending line — the audit honors it and won't re-flag it:
+
+```js
+const mod = require(modulePath) // nosemgrep — path is hardcoded, not user input
+```
+
+This suppresses one line surgically instead of disabling the whole rule.
+
 ## Target Users
 
 - **Vibe coders** about to charge real users — get confidence your app won't get hacked on launch day
