@@ -87,15 +87,26 @@ rules:
       and likely to break. Use role-based access control or a proper admin flag.
     severity: ERROR
     languages: [javascript, typescript]
-    pattern-either:
-      - pattern: $EMAIL === "..."
-      - pattern: $USERNAME === "..."
+    # Only flag when the LHS variable actually names an identity/role concept,
+    # so not every string comparison matches (e.g. error.name ===
+    # 'BlobNotFoundError' must NOT match). Scoped to API/auth dirs as well.
+    patterns:
+      - pattern-either:
+          - pattern: $EMAIL === "..."
+          - pattern: $EMAIL == "..."
+      # The LHS must name an identity/role concept. This is what distinguishes
+      # `userEmail === "admin@x.com"` (flag) from `error.name === "NotFound"`
+      # (ignore) — semgrep can't regex the RHS string literal, so the LHS name
+      # carries the precision.
+      - metavariable-regex:
+          metavariable: $EMAIL
+          regex: '(?i).*(email|username|userid|admin|role|owner|account|currentuser|loggeduser).*'
     paths:
       include:
         - 'pages/api/**'
         - 'app/api/**'
-        - 'lib/**'
         - 'server/**'
+        - 'middleware.*'
     metadata:
       category: security
       cwe: 'CWE-798'
@@ -311,7 +322,12 @@ rules:
       user input this can be exploited to load unexpected modules.
     severity: ERROR
     languages: [javascript, typescript]
-    pattern: require($VAR)
+    # Only flag requires whose argument is NOT a plain string literal —
+    # require('crypto') is static and safe; require(userPath) is the risk.
+    patterns:
+      - pattern: require($VAR)
+      - pattern-not: require("...")
+      - pattern-not: require('...')
     metadata:
       category: security
       cwe: 'CWE-706'
