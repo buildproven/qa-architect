@@ -137,6 +137,37 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('auth-bypass-or-condition'))
   })
 
+  test('auth-bypass-or-condition fires on an RBAC equality predicate ORed with a bypass', () => {
+    // `role === requiredRole || debugMode` is a real RBAC check — the equality
+    // exclusion is scoped to ERROR properties, so genuine role/token equality
+    // auth predicates still fire.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function h(req){ if (req.user.role === requiredRole || debugMode) { grantAccess() } }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
+  test('auth-bypass-or-condition fires on a token equality predicate ORed with a bypass', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function h(){ if (token === expectedToken || bypass) { allow() } }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
+  test('auth-bypass-or-condition fires on a NEGATED auth operand whose body GRANTS access', () => {
+    // `if (!isAuthenticated || debugMode) grantAccess()` grants access to
+    // unauthenticated users — a real bypass. Negated operands are NOT
+    // blanket-suppressed; genuine fail-closed denial guards in this repo carry
+    // an inline nosemgrep instead (we cannot prove body-denies in semgrep OSS).
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function h(){ if (!isAuthenticated || debugMode) { grantAccess() } }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
   test('path-traversal-join fires on a NON-req request object with 3+ segments', () => {
     // Vararg patterns use $REQ, not a literal `req`, so a request object named
     // `request` in a multi-segment join is still caught.
@@ -189,26 +220,6 @@ if (!semgrepAvailable()) {
     const fired = rulesFiredOn({
       'lib/a.js':
         "if (stepName.includes('test') || stepName.includes('e2e')) {}\n",
-    })
-    assert.ok(!fired.has('auth-bypass-or-condition'))
-  })
-
-  test('negated auth guard (fail-closed early return) does NOT fire auth-bypass-or-condition', () => {
-    // `if (!isAuthenticated || !token) return` is the SAFE guard shape — it
-    // DENIES on missing auth, the opposite of a permissive bypass. The
-    // both-operand rule excludes negated operands so this stays silent even
-    // though `isAuthenticated`/`token` match the auth-name regex.
-    const fired = rulesFiredOn({
-      'lib/a.js':
-        'function f(){ if (!isAuthenticated || !token) { return [] } }\n',
-    })
-    assert.ok(!fired.has('auth-bypass-or-condition'))
-  })
-
-  test('negated auth guard with auth on the RIGHT does NOT fire auth-bypass-or-condition', () => {
-    const fired = rulesFiredOn({
-      'lib/a.js':
-        'function f(){ if (!ghCliAvailable() || !ghAuthenticated()) { return [] } }\n',
     })
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })

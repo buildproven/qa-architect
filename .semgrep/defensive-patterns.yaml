@@ -112,25 +112,34 @@ rules:
     # A bypass is the same vulnerability regardless of operand order:
     # `if (isAuthenticated || debugMode) grant()` and
     # `if (debugMode || isAuthenticated) grant()` are equivalent, so BOTH
-    # positions are flagged. Precision is preserved by excluding the dominant
-    # SAFE shapes that the auth-name regex would otherwise catch:
-    #   - negated fail-closed guards: `if (!authHeader || ...) return 401`
-    #     (a guard that denies, the opposite of a permissive bypass)
-    #   - compound nested-OR operands from `a || b || c` chains, e.g.
-    #     `if (code === 'EACCES' || code === 'EPERM' || msg.includes('permission'))`
-    #     — semgrep binds the matched operand to the right-associated
-    #     `b || c` subtree, which is error classification, not an auth check.
-    #     Excluding a `$AUTH` that is itself an `||` keeps the rule on single
-    #     leaf predicates.
-    # A legitimate authz predicate in the OTHER operand still fires:
-    # `if (isAuthenticated || roles.includes('admin'))` and
-    # `if (allowedUsers.includes(id) || isAuthenticated)` are real bypasses and
-    # are NOT suppressed. `.includes()` is intentionally NOT a blanket
-    # exclusion: a role/allowlist `.includes()` is exactly an authz check, and
-    # at WARNING severity a rare error-string `.includes()` warning is a far
-    # cheaper failure than a missed authz bypass.
-    # On qa-architect's own code this yields zero auth-bypass false positives
-    # while still firing on a genuine commuted bypass.
+    # positions are flagged.
+    #
+    # This is a WARNING-level HEURISTIC, not a precise detector — semgrep OSS
+    # patterns cannot do the dataflow needed to prove whether the body grants
+    # or denies access. The bias is therefore toward RECALL: a real OR-bypass
+    # must not be silently dropped, even at the cost of occasional noise.
+    # Concretely, these all still FIRE (they are real or plausible bypasses):
+    #   - `if (isAuthenticated || debugMode) grant()`     (positive predicate)
+    #   - `if (debugMode || isAuthenticated) grant()`     (commuted)
+    #   - `if (req.user.role === requiredRole || debugMode) grant()` (RBAC)
+    #   - `if (token === expectedToken || bypass) allow()`
+    #   - `if (!isAuthenticated || debugMode) grantAccess()` (negated-grant —
+    #     a body that grants on missing auth IS a bypass; we do NOT blanket-
+    #     suppress negated operands, since we cannot verify the body denies)
+    #   - `if (x || roles.includes('admin')) grant()`     (authz membership)
+    #
+    # The ONLY thing excluded is the narrow, unambiguous ERROR-CLASSIFICATION
+    # shape, where the auth-name regex matches a string LITERAL inside an
+    # error-property comparison/search rather than an access predicate:
+    #   - `$ERR.message|code|name === "..."`   (error equality classification)
+    #   - `$ERR.message|code|name|stack.includes(...)` (error substring search)
+    #   - a nested `a || b || c` subtree bound as the operand
+    # Narrowing the exclusion to error properties (not all equality/negation)
+    # is deliberate: a blanket equality exclusion would drop RBAC checks like
+    # `role === requiredRole`, and a blanket negated-operand exclusion would
+    # drop `!isAuthenticated || debug { grant }`. The single bare-variable
+    # `message.includes('permission')` classifier in lib/error-reporter.js that
+    # this heuristic cannot distinguish carries an inline `nosemgrep`.
     pattern-either:
       # Positive auth assertion as the LEFT operand.
       - patterns:
@@ -141,28 +150,13 @@ rules:
           - metavariable-regex:
               metavariable: $AUTH
               regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
-          - pattern-not: if (!$NEG || $OTHER) { ... }
-          # The auth operand must be a boolean AUTH predicate (an identifier,
-          # member access, or boolean-returning call like roles.includes('x')),
-          # NOT a value/error CLASSIFICATION expression. The auth-name regex
-          # matches the whole stringified operand, so it also matches string
-          # LITERALS and method args inside equality/substring checks — i.e.
-          # error classification such as `err.message === 'authentication failed'`
-          # or `err.code.includes('TOKEN')`. Those grant no access, so the auth
-          # operand is excluded when it is:
-          #   - a nested OR subtree (from an `a || b || c` chain)
-          #   - an equality / inequality comparison (value classification)
-          #   - an error-property substring search
-          # A collection membership test (`roles.includes('admin')`) is NOT
-          # excluded — it is a genuine authz predicate.
           - metavariable-pattern:
               metavariable: $AUTH
               patterns:
                 - pattern-not: $L || $R
-                - pattern-not: $A === $B
-                - pattern-not: $A == $B
-                - pattern-not: $A !== $B
-                - pattern-not: $A != $B
+                - pattern-not: $E.message === "..."
+                - pattern-not: $E.code === "..."
+                - pattern-not: $E.name === "..."
                 - pattern-not: $E.message.includes(...)
                 - pattern-not: $E.code.includes(...)
                 - pattern-not: $E.name.includes(...)
@@ -176,15 +170,13 @@ rules:
           - metavariable-regex:
               metavariable: $AUTH
               regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
-          - pattern-not: if ($OTHER2 || !$NEG) { ... }
           - metavariable-pattern:
               metavariable: $AUTH
               patterns:
                 - pattern-not: $L || $R
-                - pattern-not: $A === $B
-                - pattern-not: $A == $B
-                - pattern-not: $A !== $B
-                - pattern-not: $A != $B
+                - pattern-not: $E.message === "..."
+                - pattern-not: $E.code === "..."
+                - pattern-not: $E.name === "..."
                 - pattern-not: $E.message.includes(...)
                 - pattern-not: $E.code.includes(...)
                 - pattern-not: $E.name.includes(...)

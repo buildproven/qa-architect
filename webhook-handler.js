@@ -703,6 +703,10 @@ app.get('/status', async (req, res) => {
     })
   }
 
+  // Fail-closed auth guard: denies with HTTP 401 when the Bearer token is
+  // missing/malformed. This is the correct guard shape, not a permissive
+  // bypass.
+  // nosemgrep: semgrep.auth-bypass-or-condition
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res
       .status(401)
