@@ -152,7 +152,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: detect-maturity
-    if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && needs.detect-maturity.outputs.has-deps == 'true'
+    # Security MUST run at PR time, not only monthly — "CI green" has to mean
+    # "secret-scanned + SAST-clean". Runs on PRs, direct pushes, the monthly
+    # scheduled deep scan, and manual dispatch.
+    if: >-
+      (github.event_name == 'pull_request' || github.event_name == 'push' ||
+       github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      needs.detect-maturity.outputs.has-deps == 'true'
 
     steps:
       - name: Checkout code
@@ -277,6 +283,31 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
+
+      # QA Architect's own vibe-code audit — the AI-native rules (secrets in
+      # client bundles, unscoped data access, injection) that generic SAST
+      # misses. Report-only for now: posts findings as a PR comment so teams
+      # see them on every PR without breaking builds on pre-existing issues.
+      - name: Install semgrep CLI for vibe-audit
+        run: pipx install semgrep==1.85.0 || pip install semgrep==1.85.0
+
+      - name: QA Architect vibe-code audit
+        run: |
+          echo "🔍 Running QA Architect vibe-code security audit..."
+          if [ -f setup.js ]; then
+            node setup.js --audit --out qa-audit-report.md --no-fail
+          else
+            npx create-qa-architect@latest --audit --out qa-audit-report.md --no-fail
+          fi
+
+      - name: Post audit report as PR comment
+        # always() so the report still posts even if an earlier security step
+        # (gitleaks/semgrep) failed — the audit findings are useful regardless.
+        if: always() && github.event_name == 'pull_request' && hashFiles('qa-audit-report.md') != ''
+        uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
+        with:
+          header: qa-architect-audit
+          path: qa-audit-report.md
 
   # Step 3: Tests - run if test files exist (development+)
   # Smart skip: Draft PRs skip tests (saves CI costs during WIP)
