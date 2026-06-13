@@ -221,6 +221,17 @@ if (!semgrepAvailable()) {
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })
 
+  test('error-property EQUALITY comparison does NOT fire auth-bypass-or-condition', () => {
+    // `err.message === 'authentication failed' || err.code === 'TOKEN_EXPIRED'`
+    // — the auth word lives in the string LITERAL being compared, not in an
+    // access-granting predicate. Equality/inequality operands are excluded.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "function f(err){ if (err.message === 'authentication failed' || err.code === 'TOKEN_EXPIRED') { return 'auth' } }\n",
+    })
+    assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
   test('nested OR chain with error-property search does NOT fire auth-bypass-or-condition', () => {
     // `a || b || err.message.includes('permission')` — the auth-named operand
     // is an error-PROPERTY substring search; excluded as error classification.

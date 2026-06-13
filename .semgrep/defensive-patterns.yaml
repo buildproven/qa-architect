@@ -142,15 +142,27 @@ rules:
               metavariable: $AUTH
               regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
           - pattern-not: if (!$NEG || $OTHER) { ... }
-          # The auth operand must be a single leaf predicate, not a nested OR
-          # subtree pulled in from an `a || b || c` chain, and must not be an
-          # error-property substring search (error classification, not authz).
-          # Note: a collection membership test like `roles.includes('admin')`
-          # is deliberately NOT excluded — that is a real authz predicate.
+          # The auth operand must be a boolean AUTH predicate (an identifier,
+          # member access, or boolean-returning call like roles.includes('x')),
+          # NOT a value/error CLASSIFICATION expression. The auth-name regex
+          # matches the whole stringified operand, so it also matches string
+          # LITERALS and method args inside equality/substring checks — i.e.
+          # error classification such as `err.message === 'authentication failed'`
+          # or `err.code.includes('TOKEN')`. Those grant no access, so the auth
+          # operand is excluded when it is:
+          #   - a nested OR subtree (from an `a || b || c` chain)
+          #   - an equality / inequality comparison (value classification)
+          #   - an error-property substring search
+          # A collection membership test (`roles.includes('admin')`) is NOT
+          # excluded — it is a genuine authz predicate.
           - metavariable-pattern:
               metavariable: $AUTH
               patterns:
                 - pattern-not: $L || $R
+                - pattern-not: $A === $B
+                - pattern-not: $A == $B
+                - pattern-not: $A !== $B
+                - pattern-not: $A != $B
                 - pattern-not: $E.message.includes(...)
                 - pattern-not: $E.code.includes(...)
                 - pattern-not: $E.name.includes(...)
@@ -169,6 +181,10 @@ rules:
               metavariable: $AUTH
               patterns:
                 - pattern-not: $L || $R
+                - pattern-not: $A === $B
+                - pattern-not: $A == $B
+                - pattern-not: $A !== $B
+                - pattern-not: $A != $B
                 - pattern-not: $E.message.includes(...)
                 - pattern-not: $E.code.includes(...)
                 - pattern-not: $E.name.includes(...)
