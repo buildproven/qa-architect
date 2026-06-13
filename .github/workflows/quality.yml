@@ -152,6 +152,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: detect-maturity
+    # Least privilege: this job only needs to read the code and post a PR
+    # comment. Scoping the token here means a compromised scan dependency
+    # cannot push commits, alter releases, or touch other repo resources.
+    permissions:
+      contents: read
+      pull-requests: write
     # Security MUST run at PR time, not only monthly — "CI green" has to mean
     # "secret-scanned + SAST-clean". Runs on PRs, direct pushes, the monthly
     # scheduled deep scan, and manual dispatch.
@@ -297,7 +303,7 @@ jobs:
           if [ -f setup.js ]; then
             node setup.js --audit --out qa-audit-report.md --no-fail
           else
-            npx create-qa-architect@latest --audit --out qa-audit-report.md --no-fail
+            npx --yes create-qa-architect@latest --audit --out qa-audit-report.md --no-fail
           fi
 
       - name: Post audit report as PR comment
