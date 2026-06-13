@@ -133,13 +133,19 @@ rules:
     # error-property comparison/search rather than an access predicate:
     #   - `$ERR.message|code|name === "..."`   (error equality classification)
     #   - `$ERR.message|code|name|stack.includes(...)` (error substring search)
-    #   - a nested `a || b || c` subtree bound as the operand
-    # Narrowing the exclusion to error properties (not all equality/negation)
-    # is deliberate: a blanket equality exclusion would drop RBAC checks like
-    # `role === requiredRole`, and a blanket negated-operand exclusion would
-    # drop `!isAuthenticated || debug { grant }`. The single bare-variable
-    # `message.includes('permission')` classifier in lib/error-reporter.js that
-    # this heuristic cannot distinguish carries an inline `nosemgrep`.
+    # Narrowing the exclusion to error properties (not all equality/negation,
+    # and NOT all nested-OR subtrees) is deliberate:
+    #   - a blanket equality exclusion would drop RBAC checks like
+    #     `role === requiredRole`;
+    #   - a blanket negated-operand exclusion would drop
+    #     `!isAuthenticated || debug { grant }`;
+    #   - a blanket nested-OR (`$L || $R`) exclusion would drop an auth operand
+    #     sitting in the middle of a 3+ chain — `x || isAuthenticated || y`
+    #     binds the left arm to the `(x || isAuthenticated)` subtree, so
+    #     excluding subtrees silently misses it.
+    # The one bare-variable `message.includes('permission')` classifier in
+    # lib/error-reporter.js that this heuristic cannot distinguish from a real
+    # predicate carries an inline `nosemgrep`.
     pattern-either:
       # Positive auth assertion as the LEFT operand.
       - patterns:
@@ -153,7 +159,6 @@ rules:
           - metavariable-pattern:
               metavariable: $AUTH
               patterns:
-                - pattern-not: $L || $R
                 - pattern-not: $E.message === "..."
                 - pattern-not: $E.code === "..."
                 - pattern-not: $E.name === "..."
@@ -173,7 +178,6 @@ rules:
           - metavariable-pattern:
               metavariable: $AUTH
               patterns:
-                - pattern-not: $L || $R
                 - pattern-not: $E.message === "..."
                 - pattern-not: $E.code === "..."
                 - pattern-not: $E.name === "..."

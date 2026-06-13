@@ -156,6 +156,24 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('auth-bypass-or-condition'))
   })
 
+  test('auth-bypass-or-condition fires on a 3+ operand chain with auth in the MIDDLE', () => {
+    // `x || isAuthenticated || y` parses as `(x || isAuthenticated) || y`. The
+    // auth predicate sits in a nested subtree, so the rule must NOT blanket-
+    // exclude OR subtrees or it silently misses this bypass.
+    const fired = rulesFiredOn({
+      'lib/a.js': 'if (x || isAuthenticated || y) { grantAccess() }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
+  test('auth-bypass-or-condition fires on a 3+ operand chain ending in auth', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'if (isAuthenticated || debugMode || featureFlag) { grantAccess() }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
   test('auth-bypass-or-condition fires on a NEGATED auth operand whose body GRANTS access', () => {
     // `if (!isAuthenticated || debugMode) grantAccess()` grants access to
     // unauthenticated users — a real bypass. Negated operands are NOT
@@ -243,30 +261,38 @@ if (!semgrepAvailable()) {
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })
 
-  test('nested OR chain with error-property search does NOT fire auth-bypass-or-condition', () => {
-    // `a || b || err.message.includes('permission')` — the auth-named operand
-    // is an error-PROPERTY substring search; excluded as error classification.
+  test('two-operand error-property search does NOT fire auth-bypass-or-condition', () => {
+    // `a || err.message.includes('permission')` — the auth-named operand is an
+    // error-PROPERTY substring search; excluded as error classification.
     const fired = rulesFiredOn({
       'lib/a.js':
-        "function f(code, err){ if (code === 'EACCES' || code === 'EPERM' || err.message.includes('permission')) { return 'perm' } }\n",
+        "function f(a, err){ if (a || err.message.includes('permission')) { return 'perm' } }\n",
     })
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })
 
-  test('KNOWN LIMITATION: bare-variable .includes() of an auth word still warns', () => {
-    // `message.includes('permission')` (bare receiver, no member access) is
-    // structurally indistinguishable from a collection membership test like
-    // `roles.includes('admin')` — which IS a real authz predicate we MUST
-    // keep firing on. So this WARNING-level rule cannot suppress one without
-    // losing the other. The single real instance in this codebase
-    // (lib/error-reporter.js:categorizeError) carries an inline `nosemgrep`.
-    // This test pins the limitation so a future "fix" that breaks authz
-    // detection is caught.
-    const fired = rulesFiredOn({
+  test('KNOWN LIMITATION: recall-bias means some error-classification still warns', () => {
+    // Two cases this WARNING-level heuristic cannot distinguish from real
+    // predicates, by design (recall over precision for a security rule):
+    //   1. bare-receiver `message.includes('permission')` — structurally
+    //      identical to a real authz `roles.includes('admin')`.
+    //   2. a 3+ operand error chain `code==='EACCES' || code==='EPERM' ||
+    //      err.message.includes('permission')` — the matched subtree is
+    //      indistinguishable from a real 3-operand auth-OR bypass, which we
+    //      MUST keep firing on (see the middle-of-chain TP above).
+    // Real instances (e.g. lib/error-reporter.js:categorizeError) carry a
+    // per-site inline `nosemgrep`. This test pins the limitation so a future
+    // "fix" that re-suppresses real chained bypasses is caught.
+    const bareIncludes = rulesFiredOn({
       'lib/a.js':
         "function f(message){ if (a || message.includes('permission')) { return 'perm' } }\n",
     })
-    assert.ok(fired.has('auth-bypass-or-condition'))
+    const errorChain = rulesFiredOn({
+      'lib/a.js':
+        "function f(code, err){ if (code === 'EACCES' || code === 'EPERM' || err.message.includes('permission')) { return 'perm' } }\n",
+    })
+    assert.ok(bareIncludes.has('auth-bypass-or-condition'))
+    assert.ok(errorChain.has('auth-bypass-or-condition'))
   })
 
   test('error-name string compare does NOT fire hardcoded-admin-identity', () => {
