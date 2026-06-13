@@ -118,6 +118,15 @@ if (!semgrepAvailable()) {
   // genuine vulnerabilities via operand order, request-data aliasing, or
   // dir-scope narrowing. These three previously fired and must keep firing.
 
+  test('auth-bypass-or-condition fires when auth operand is on the RIGHT (commuted bypass)', () => {
+    // `if (debugMode || isAuthenticated) grant()` is the same bypass as the
+    // left-operand form — operand order must not decide detection.
+    const fired = rulesFiredOn({
+      'lib/a.js': 'if (debugMode || isAuthenticated) { grantAccess() }\n',
+    })
+    assert.ok(fired.has('auth-bypass-or-condition'))
+  })
+
   test('path-traversal-join fires on ALIASED request data (assignment)', () => {
     const fired = rulesFiredOn({
       'lib/a.js':
@@ -165,12 +174,21 @@ if (!semgrepAvailable()) {
   })
 
   test('negated auth guard (fail-closed early return) does NOT fire auth-bypass-or-condition', () => {
-    // `if (!ghAuthenticated() || !x) return` is the SAFE guard shape — the
-    // opposite of a permissive bypass. Widening the rule to flag this was
-    // evaluated and rejected (added FPs, zero TPs); this pins that decision.
+    // `if (!isAuthenticated || !token) return` is the SAFE guard shape — it
+    // DENIES on missing auth, the opposite of a permissive bypass. The
+    // both-operand rule excludes negated operands so this stays silent even
+    // though `isAuthenticated`/`token` match the auth-name regex.
     const fired = rulesFiredOn({
       'lib/a.js':
         'function f(){ if (!isAuthenticated || !token) { return [] } }\n',
+    })
+    assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
+  test('negated auth guard with auth on the RIGHT does NOT fire auth-bypass-or-condition', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function f(){ if (!ghCliAvailable() || !ghAuthenticated()) { return [] } }\n',
     })
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })

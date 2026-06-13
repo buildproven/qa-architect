@@ -109,27 +109,42 @@ rules:
     # The unguarded form matched every `if (a || b)` in the codebase — e.g.
     # `if (stepName.includes('test') || stepName.includes('e2e'))`.
     #
-    # Deliberately scoped to a POSITIVE auth assertion as the LEFT operand
-    # (`if (isAuthenticated || debugMode) grant()`), and NOT mirrored to the
-    # right operand. Mirroring to the right was evaluated and rejected: it
-    # added zero true positives on real code while reintroducing a cluster of
-    # false positives on the dominant safe shapes — negated early-return guards
-    # (`if (!ghAuthenticated() || !x) return`) and error-classification ORs
-    # (`if (msg.includes('401') || msg.includes('authentication'))`). Those
-    # guards are the SAFE pattern, so widening here regresses the very
-    # false-positive rate this rule set exists to fix. Left-operand-positive is
-    # the precision/recall sweet spot; revisit only with taint/dataflow.
-    patterns:
-      - pattern-either:
-          - pattern: if ($AUTH || $OTHER) { ... }
-          - pattern: |
-              $AUTH || $OTHER ? $TRUE : $FALSE
-      - metavariable-regex:
-          metavariable: $AUTH
-          regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
-      # Exclude negated left operands — `if (!authok || ...)` is a guard that
-      # fails closed, the opposite of a permissive bypass.
-      - pattern-not: if (!$NEG || $OTHER) { ... }
+    # A bypass is the same vulnerability regardless of operand order:
+    # `if (isAuthenticated || debugMode) grant()` and
+    # `if (debugMode || isAuthenticated) grant()` are equivalent, so BOTH
+    # positions are flagged. Precision is preserved by excluding the dominant
+    # SAFE shapes that the auth-name regex would otherwise catch:
+    #   - negated fail-closed guards: `if (!authHeader || ...) return 401`
+    #     (a guard that denies, the opposite of a permissive bypass)
+    #   - error-classification / string-search ORs:
+    #     `if (msg.includes('401') || msg.includes('authentication'))`
+    # On qa-architect's own code this yields zero auth-bypass false positives
+    # while still firing on a genuine commuted bypass.
+    pattern-either:
+      # Positive auth assertion as the LEFT operand.
+      - patterns:
+          - pattern-either:
+              - pattern: if ($AUTH || $OTHER) { ... }
+              - pattern: |
+                  $AUTH || $OTHER ? $TRUE : $FALSE
+          - metavariable-regex:
+              metavariable: $AUTH
+              regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
+          - pattern-not: if (!$NEG || $OTHER) { ... }
+          - pattern-not: if ($S.includes(...) || $T) { ... }
+          - pattern-not: if ($U || $V.includes(...)) { ... }
+      # Positive auth assertion as the RIGHT operand (commuted bypass).
+      - patterns:
+          - pattern-either:
+              - pattern: if ($OTHER || $AUTH) { ... }
+              - pattern: |
+                  $OTHER || $AUTH ? $TRUE : $FALSE
+          - metavariable-regex:
+              metavariable: $AUTH
+              regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
+          - pattern-not: if ($OTHER2 || !$NEG) { ... }
+          - pattern-not: if ($S.includes(...) || $T) { ... }
+          - pattern-not: if ($U || $V.includes(...)) { ... }
     metadata:
       category: security
       cwe: 'CWE-287'
