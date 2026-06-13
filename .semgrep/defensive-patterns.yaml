@@ -105,10 +105,17 @@ rules:
     languages:
       - javascript
       - typescript
-    pattern-either:
-      - pattern: if ($AUTH || $OTHER) { ... }
-      - pattern: |
-          $AUTH || $OTHER ? $TRUE : $FALSE
+    # Only flag OR conditions where an operand actually names an auth concept.
+    # The unguarded form matched every `if (a || b)` in the codebase — e.g.
+    # `if (stepName.includes('test') || stepName.includes('e2e'))`.
+    patterns:
+      - pattern-either:
+          - pattern: if ($AUTH || $OTHER) { ... }
+          - pattern: |
+              $AUTH || $OTHER ? $TRUE : $FALSE
+      - metavariable-regex:
+          metavariable: $AUTH
+          regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
     metadata:
       category: security
       cwe: 'CWE-287'
@@ -209,10 +216,15 @@ rules:
     languages:
       - javascript
       - typescript
+    # Only flag joins fed by request data. The bare path.join($BASE, $X)
+    # form matched every internal join (path.join(dir, 'package.json')) and
+    # produced almost all of this rule's false positives — removed.
     pattern-either:
       - pattern: path.join($BASE, $REQ.params.$PARAM)
       - pattern: path.join($BASE, $REQ.query.$PARAM)
-      - pattern: path.join($BASE, $USER_INPUT)
+      - pattern: path.join($BASE, $REQ.body.$PARAM)
+      - pattern: path.join(..., req.params.$PARAM, ...)
+      - pattern: path.join(..., req.query.$PARAM, ...)
     metadata:
       category: security
       cwe: 'CWE-22'
