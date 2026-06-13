@@ -114,6 +114,34 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('hardcoded-admin-identity'))
   })
 
+  // Regression guards (PR review): the precision pass must not silently drop
+  // genuine vulnerabilities via operand order, request-data aliasing, or
+  // dir-scope narrowing. These three previously fired and must keep firing.
+
+  test('path-traversal-join fires on ALIASED request data (assignment)', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function h(req){ const filename = req.params.filename; return path.join(baseDir, filename) }\n',
+    })
+    assert.ok(fired.has('path-traversal-join'))
+  })
+
+  test('path-traversal-join fires on DESTRUCTURED request data', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function h(req){ const { filename } = req.query; return path.join(baseDir, filename) }\n',
+    })
+    assert.ok(fired.has('path-traversal-join'))
+  })
+
+  test('hardcoded-admin-identity fires in a server-side lib auth helper', () => {
+    const fired = rulesFiredOn({
+      'lib/auth.js':
+        'function isAdmin(userEmail){ return userEmail === "admin@example.com" }\n',
+    })
+    assert.ok(fired.has('hardcoded-admin-identity'))
+  })
+
   console.log('\nsemgrep rule precision — false positives stay silent')
 
   test('static require("crypto") does NOT fire dynamic-require-variable', () => {
@@ -132,6 +160,25 @@ if (!semgrepAvailable()) {
     const fired = rulesFiredOn({
       'lib/a.js':
         "if (stepName.includes('test') || stepName.includes('e2e')) {}\n",
+    })
+    assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
+  test('negated auth guard (fail-closed early return) does NOT fire auth-bypass-or-condition', () => {
+    // `if (!ghAuthenticated() || !x) return` is the SAFE guard shape — the
+    // opposite of a permissive bypass. Widening the rule to flag this was
+    // evaluated and rejected (added FPs, zero TPs); this pins that decision.
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'function f(){ if (!isAuthenticated || !token) { return [] } }\n',
+    })
+    assert.ok(!fired.has('auth-bypass-or-condition'))
+  })
+
+  test('error-classification OR (auth substring) does NOT fire auth-bypass-or-condition', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        "function f(e){ if (e.message.includes('401') || e.message.includes('authentication')) { return true } }\n",
     })
     assert.ok(!fired.has('auth-bypass-or-condition'))
   })

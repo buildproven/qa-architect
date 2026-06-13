@@ -108,6 +108,17 @@ rules:
     # Only flag OR conditions where an operand actually names an auth concept.
     # The unguarded form matched every `if (a || b)` in the codebase — e.g.
     # `if (stepName.includes('test') || stepName.includes('e2e'))`.
+    #
+    # Deliberately scoped to a POSITIVE auth assertion as the LEFT operand
+    # (`if (isAuthenticated || debugMode) grant()`), and NOT mirrored to the
+    # right operand. Mirroring to the right was evaluated and rejected: it
+    # added zero true positives on real code while reintroducing a cluster of
+    # false positives on the dominant safe shapes — negated early-return guards
+    # (`if (!ghAuthenticated() || !x) return`) and error-classification ORs
+    # (`if (msg.includes('401') || msg.includes('authentication'))`). Those
+    # guards are the SAFE pattern, so widening here regresses the very
+    # false-positive rate this rule set exists to fix. Left-operand-positive is
+    # the precision/recall sweet spot; revisit only with taint/dataflow.
     patterns:
       - pattern-either:
           - pattern: if ($AUTH || $OTHER) { ... }
@@ -116,6 +127,9 @@ rules:
       - metavariable-regex:
           metavariable: $AUTH
           regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
+      # Exclude negated left operands — `if (!authok || ...)` is a guard that
+      # fails closed, the opposite of a permissive bypass.
+      - pattern-not: if (!$NEG || $OTHER) { ... }
     metadata:
       category: security
       cwe: 'CWE-287'
@@ -219,12 +233,76 @@ rules:
     # Only flag joins fed by request data. The bare path.join($BASE, $X)
     # form matched every internal join (path.join(dir, 'package.json')) and
     # produced almost all of this rule's false positives — removed.
+    #
+    # Both INLINE (`path.join(base, req.params.x)`) and ALIASED
+    # (`const f = req.params.x; path.join(base, f)`, including destructuring)
+    # request-data shapes are covered: the aliased arms use `pattern-inside`
+    # to require the joined metavariable to originate from req.params/query/body
+    # in the surrounding scope. Dropping the aliased form would silently miss
+    # the most common real-world traversal pattern.
     pattern-either:
+      # Inline member-expression arguments.
       - pattern: path.join($BASE, $REQ.params.$PARAM)
       - pattern: path.join($BASE, $REQ.query.$PARAM)
       - pattern: path.join($BASE, $REQ.body.$PARAM)
       - pattern: path.join(..., req.params.$PARAM, ...)
       - pattern: path.join(..., req.query.$PARAM, ...)
+      - pattern: path.join(..., req.body.$PARAM, ...)
+      # Aliased via direct assignment: const f = req.params.x; path.join(base, f)
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.params.$PARAM;
+              ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.query.$PARAM;
+              ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.body.$PARAM;
+              ...
+      # Aliased via destructuring: const { x } = req.params; path.join(base, x)
+      # semgrep binds the destructuring keyword literally, so const/let/var are
+      # enumerated (an ellipsis does not generalize the declaration keyword).
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.body;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.body;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.body;
+                  ...
     metadata:
       category: security
       cwe: 'CWE-22'

@@ -89,7 +89,7 @@ rules:
     languages: [javascript, typescript]
     # Only flag when the LHS variable actually names an identity/role concept,
     # so not every string comparison matches (e.g. error.name ===
-    # 'BlobNotFoundError' must NOT match). Scoped to API/auth dirs as well.
+    # 'BlobNotFoundError' must NOT match).
     patterns:
       - pattern-either:
           - pattern: $EMAIL === "..."
@@ -101,11 +101,16 @@ rules:
       - metavariable-regex:
           metavariable: $EMAIL
           regex: '(?i).*(email|username|userid|admin|role|owner|account|currentuser|loggeduser).*'
+    # The LHS-name regex (above) — not the directory — is what suppresses
+    # benign comparisons, so `lib/**` is kept: server-side auth/permission
+    # helpers (lib/auth.js, lib/permissions.js) are a primary place hardcoded
+    # admin identities live. Dropping lib/** silently blinds the rule to them.
     paths:
       include:
         - 'pages/api/**'
         - 'app/api/**'
         - 'server/**'
+        - 'lib/**'
         - 'middleware.*'
     metadata:
       category: security
