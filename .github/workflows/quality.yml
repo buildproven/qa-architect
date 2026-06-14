@@ -322,6 +322,18 @@ jobs:
             exit 1
           }
 
+      # {{QA_ARCHITECT_ONLY_BEGIN}}
+      # Install the semgrep CLI so tests/semgrep-rule-precision.test.js actually
+      # runs (it spawns `semgrep` and SKIPS when the binary is absent — a
+      # skipped precision test gives false confidence that the audit rules
+      # still distinguish real vulns from benign code). Linux-only; on other
+      # runners the test skips by design.
+      - name: Install semgrep CLI (for rule-precision tests)
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m pip install --quiet --user semgrep
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # {{QA_ARCHITECT_ONLY_END}}
       - name: Run tests
         run: |
           echo "🧪 Running ${{ needs.detect-maturity.outputs.test-count }} test files on Node.js ${{ matrix.node-version }}..."

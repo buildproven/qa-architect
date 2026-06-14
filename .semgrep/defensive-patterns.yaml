@@ -105,10 +105,86 @@ rules:
     languages:
       - javascript
       - typescript
+    # Only flag OR conditions where an operand actually names an auth concept.
+    # The unguarded form matched every `if (a || b)` in the codebase — e.g.
+    # `if (stepName.includes('test') || stepName.includes('e2e'))`.
+    #
+    # A bypass is the same vulnerability regardless of operand order:
+    # `if (isAuthenticated || debugMode) grant()` and
+    # `if (debugMode || isAuthenticated) grant()` are equivalent, so BOTH
+    # positions are flagged.
+    #
+    # This is a WARNING-level HEURISTIC, not a precise detector — semgrep OSS
+    # patterns cannot do the dataflow needed to prove whether the body grants
+    # or denies access. The bias is therefore toward RECALL: a real OR-bypass
+    # must not be silently dropped, even at the cost of occasional noise.
+    # Concretely, these all still FIRE (they are real or plausible bypasses):
+    #   - `if (isAuthenticated || debugMode) grant()`     (positive predicate)
+    #   - `if (debugMode || isAuthenticated) grant()`     (commuted)
+    #   - `if (req.user.role === requiredRole || debugMode) grant()` (RBAC)
+    #   - `if (token === expectedToken || bypass) allow()`
+    #   - `if (!isAuthenticated || debugMode) grantAccess()` (negated-grant —
+    #     a body that grants on missing auth IS a bypass; we do NOT blanket-
+    #     suppress negated operands, since we cannot verify the body denies)
+    #   - `if (x || roles.includes('admin')) grant()`     (authz membership)
+    #
+    # The ONLY thing excluded is the narrow, unambiguous ERROR-CLASSIFICATION
+    # shape, where the auth-name regex matches a string LITERAL inside an
+    # error-property comparison/search rather than an access predicate:
+    #   - `$ERR.message|code|name === "..."`   (error equality classification)
+    #   - `$ERR.message|code|name|stack.includes(...)` (error substring search)
+    # Narrowing the exclusion to error properties (not all equality/negation,
+    # and NOT all nested-OR subtrees) is deliberate:
+    #   - a blanket equality exclusion would drop RBAC checks like
+    #     `role === requiredRole`;
+    #   - a blanket negated-operand exclusion would drop
+    #     `!isAuthenticated || debug { grant }`;
+    #   - a blanket nested-OR (`$L || $R`) exclusion would drop an auth operand
+    #     sitting in the middle of a 3+ chain — `x || isAuthenticated || y`
+    #     binds the left arm to the `(x || isAuthenticated)` subtree, so
+    #     excluding subtrees silently misses it.
+    # The one bare-variable `message.includes('permission')` classifier in
+    # lib/error-reporter.js that this heuristic cannot distinguish from a real
+    # predicate carries an inline `nosemgrep`.
     pattern-either:
-      - pattern: if ($AUTH || $OTHER) { ... }
-      - pattern: |
-          $AUTH || $OTHER ? $TRUE : $FALSE
+      # Positive auth assertion as the LEFT operand.
+      - patterns:
+          - pattern-either:
+              - pattern: if ($AUTH || $OTHER) { ... }
+              - pattern: |
+                  $AUTH || $OTHER ? $TRUE : $FALSE
+          - metavariable-regex:
+              metavariable: $AUTH
+              regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
+          - metavariable-pattern:
+              metavariable: $AUTH
+              patterns:
+                - pattern-not: $E.message === "..."
+                - pattern-not: $E.code === "..."
+                - pattern-not: $E.name === "..."
+                - pattern-not: $E.message.includes(...)
+                - pattern-not: $E.code.includes(...)
+                - pattern-not: $E.name.includes(...)
+                - pattern-not: $E.stack.includes(...)
+      # Positive auth assertion as the RIGHT operand (commuted bypass).
+      - patterns:
+          - pattern-either:
+              - pattern: if ($OTHER || $AUTH) { ... }
+              - pattern: |
+                  $OTHER || $AUTH ? $TRUE : $FALSE
+          - metavariable-regex:
+              metavariable: $AUTH
+              regex: '(?i).*(auth|isadmin|issuperuser|session|token|role|permission|loggedin|authenticated|authorized|credential).*'
+          - metavariable-pattern:
+              metavariable: $AUTH
+              patterns:
+                - pattern-not: $E.message === "..."
+                - pattern-not: $E.code === "..."
+                - pattern-not: $E.name === "..."
+                - pattern-not: $E.message.includes(...)
+                - pattern-not: $E.code.includes(...)
+                - pattern-not: $E.name.includes(...)
+                - pattern-not: $E.stack.includes(...)
     metadata:
       category: security
       cwe: 'CWE-287'
@@ -209,10 +285,82 @@ rules:
     languages:
       - javascript
       - typescript
+    # Only flag joins fed by request data. The bare path.join($BASE, $X)
+    # form matched every internal join (path.join(dir, 'package.json')) and
+    # produced almost all of this rule's false positives — removed.
+    #
+    # Both INLINE (`path.join(base, req.params.x)`) and ALIASED
+    # (`const f = req.params.x; path.join(base, f)`, including destructuring)
+    # request-data shapes are covered: the aliased arms use `pattern-inside`
+    # to require the joined metavariable to originate from req.params/query/body
+    # in the surrounding scope. Dropping the aliased form would silently miss
+    # the most common real-world traversal pattern.
     pattern-either:
+      # Inline member-expression arguments. The vararg forms use $REQ (not a
+      # literal `req`) so a request object named `request`/`ctx`/etc. and joins
+      # with 3+ segments (path.join(base, 'uploads', request.params.file)) are
+      # still caught — detection must not hinge on the local variable name.
       - pattern: path.join($BASE, $REQ.params.$PARAM)
       - pattern: path.join($BASE, $REQ.query.$PARAM)
-      - pattern: path.join($BASE, $USER_INPUT)
+      - pattern: path.join($BASE, $REQ.body.$PARAM)
+      - pattern: path.join(..., $REQ.params.$PARAM, ...)
+      - pattern: path.join(..., $REQ.query.$PARAM, ...)
+      - pattern: path.join(..., $REQ.body.$PARAM, ...)
+      # Aliased via direct assignment: const f = req.params.x; path.join(base, f)
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.params.$PARAM;
+              ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.query.$PARAM;
+              ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-inside: |
+              $ALIAS = $REQ.body.$PARAM;
+              ...
+      # Aliased via destructuring: const { x } = req.params; path.join(base, x)
+      # semgrep binds the destructuring keyword literally, so const/let/var are
+      # enumerated (an ellipsis does not generalize the declaration keyword).
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.params;
+                  ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.query;
+                  ...
+      - patterns:
+          - pattern: path.join(..., $ALIAS, ...)
+          - pattern-either:
+              - pattern-inside: |
+                  const { ..., $ALIAS, ... } = $REQ.body;
+                  ...
+              - pattern-inside: |
+                  let { ..., $ALIAS, ... } = $REQ.body;
+                  ...
+              - pattern-inside: |
+                  var { ..., $ALIAS, ... } = $REQ.body;
+                  ...
     metadata:
       category: security
       cwe: 'CWE-22'
