@@ -283,9 +283,13 @@ jobs:
           cache: true
           cache-key: semgrep-security-audit-1.85.0-javascript-1.85.0-${{ env.SEMGREP_VERSION }}
         env:
-          # Use Semgrep app token if available for enhanced features and rate limits
-          # Falls back to GitHub token for basic functionality
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN || secrets.GITHUB_TOKEN }}
+          # Use Semgrep app token ONLY if a real one is configured. Do NOT fall
+          # back to GITHUB_TOKEN: any non-empty SEMGREP_APP_TOKEN puts the action
+          # into "logged in" mode (`semgrep ci`), which refuses the `--config`
+          # rules below ("Cannot run semgrep ci with --config while logged in").
+          # Leaving it empty runs the registry config rules locally — exactly
+          # what we want for PR-time SAST without uploading findings to the app.
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
