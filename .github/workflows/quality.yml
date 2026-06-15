@@ -299,7 +299,12 @@ jobs:
       # misses. Report-only for now: posts findings as a PR comment so teams
       # see them on every PR without breaking builds on pre-existing issues.
       - name: Install semgrep CLI for vibe-audit
-        run: pipx install semgrep==1.85.0 || pip install semgrep==1.85.0
+        # pipx installs to ~/.local/bin, which is NOT on PATH for later steps by
+        # default — export it via $GITHUB_PATH so the audit step below can find
+        # the `semgrep` binary. Without this the audit reports "not installed".
+        run: |
+          pipx install semgrep==1.85.0 || pip install --user semgrep==1.85.0
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: QA Architect vibe-code audit
         run: |
