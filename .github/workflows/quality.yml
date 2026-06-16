@@ -330,15 +330,25 @@ jobs:
           esac
 
       - name: Install semgrep CLI for vibe-audit
-        # The installed binary's dir is NOT on PATH for later steps by default, so
-        # export it via $GITHUB_PATH. pipx's bin dir varies by runner
-        # (ubuntu-latest preconfigures PIPX_BIN_DIR=/opt/pipx_bin, NOT ~/.local/bin),
-        # so we PIN it to ~/.local/bin and export that exact path — otherwise the
-        # next step reports "semgrep not installed" even though install succeeded.
+        # Install semgrep, then resolve where the binary actually landed and put
+        # THAT dir on $GITHUB_PATH for the next step. pipx's bin dir varies by
+        # runner (ubuntu-latest preconfigures PIPX_BIN_DIR=/opt/pipx_bin, not
+        # ~/.local/bin), so we don't guess — we ask pipx for its bin dir and
+        # verify `semgrep --version` resolves before continuing. Falls back to
+        # `pip install --user` (~/.local/bin) if pipx is unavailable.
         run: |
-          export PIPX_BIN_DIR="$HOME/.local/bin"
-          pipx install semgrep==1.85.0 || pip install --user semgrep==1.85.0
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          set -e
+          if command -v pipx >/dev/null 2>&1; then
+            pipx install semgrep==1.85.0
+            BIN_DIR="$(pipx environment --value PIPX_BIN_DIR 2>/dev/null || echo "$HOME/.local/bin")"
+          else
+            pip install --user semgrep==1.85.0
+            BIN_DIR="$(python3 -m site --user-base)/bin"
+          fi
+          echo "Resolved semgrep bin dir: $BIN_DIR"
+          echo "$BIN_DIR" >> "$GITHUB_PATH"
+          # Verify it's actually runnable from that dir (fail loudly if not).
+          "$BIN_DIR/semgrep" --version
 
       - name: QA Architect vibe-code audit
         run: |
