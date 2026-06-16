@@ -338,23 +338,20 @@ jobs:
         # `pip install --user` (~/.local/bin) if pipx is unavailable.
         run: |
           set -e
-          # Use a semgrep that supports the runner's Python 3.12 natively. 1.85.0
-          # imports pkg_resources (removed from py3.12) and crashes; 1.96.0+ does
-          # not. The Docker registry-rules action in the security gate keeps 1.85.0
-          # (it ships its own runtime); only this CLI needs the newer build. Our
-          # rule files are simple pattern matches and validate across both.
+          # Install semgrep into a DEDICATED venv (not pipx, not --user). pipx on
+          # the runner produced a semgrep that crashes with
+          # `ModuleNotFoundError: pkg_resources` on Python 3.12; a clean venv
+          # isolates its deps and works reliably across environments (verified
+          # locally). 1.96.0 supports py3.12 natively. The Docker registry-rules
+          # action in the security gate keeps 1.85.0 (own runtime); only this CLI
+          # needs the newer build. Rule files validate across both versions.
           SEMGREP_CLI_VERSION=1.96.0
-          if command -v pipx >/dev/null 2>&1; then
-            pipx install "semgrep==$SEMGREP_CLI_VERSION"
-            BIN_DIR="$(pipx environment --value PIPX_BIN_DIR 2>/dev/null || echo "$HOME/.local/bin")"
-          else
-            pip install --user "semgrep==$SEMGREP_CLI_VERSION"
-            BIN_DIR="$(python3 -m site --user-base)/bin"
-          fi
-          echo "Resolved semgrep bin dir: $BIN_DIR"
-          echo "$BIN_DIR" >> "$GITHUB_PATH"
-          # Verify it's actually runnable from that dir (fail loudly if not).
-          "$BIN_DIR/semgrep" --version
+          python3 -m venv "$HOME/.semgrep-venv"
+          "$HOME/.semgrep-venv/bin/pip" install --quiet --upgrade pip setuptools
+          "$HOME/.semgrep-venv/bin/pip" install --quiet "semgrep==$SEMGREP_CLI_VERSION"
+          echo "$HOME/.semgrep-venv/bin" >> "$GITHUB_PATH"
+          # Verify it's actually runnable (fail loudly if not).
+          "$HOME/.semgrep-venv/bin/semgrep" --version
 
       - name: QA Architect vibe-code audit
         run: |
