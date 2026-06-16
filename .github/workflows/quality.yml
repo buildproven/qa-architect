@@ -330,10 +330,13 @@ jobs:
           esac
 
       - name: Install semgrep CLI for vibe-audit
-        # pipx installs to ~/.local/bin, which is NOT on PATH for later steps by
-        # default — export it via $GITHUB_PATH so the audit step below can find
-        # the `semgrep` binary. Without this the audit reports "not installed".
+        # The installed binary's dir is NOT on PATH for later steps by default, so
+        # export it via $GITHUB_PATH. pipx's bin dir varies by runner
+        # (ubuntu-latest preconfigures PIPX_BIN_DIR=/opt/pipx_bin, NOT ~/.local/bin),
+        # so we PIN it to ~/.local/bin and export that exact path — otherwise the
+        # next step reports "semgrep not installed" even though install succeeded.
         run: |
+          export PIPX_BIN_DIR="$HOME/.local/bin"
           pipx install semgrep==1.85.0 || pip install --user semgrep==1.85.0
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
