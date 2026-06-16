@@ -340,9 +340,13 @@ jobs:
           set -e
           if command -v pipx >/dev/null 2>&1; then
             pipx install semgrep==1.85.0
+            # semgrep 1.85.0 imports pkg_resources, which setuptools provides but
+            # Python 3.12 no longer bundles — inject setuptools into semgrep's venv
+            # so it runs on the runner's 3.12 (otherwise: ModuleNotFoundError).
+            pipx inject semgrep setuptools
             BIN_DIR="$(pipx environment --value PIPX_BIN_DIR 2>/dev/null || echo "$HOME/.local/bin")"
           else
-            pip install --user semgrep==1.85.0
+            pip install --user setuptools semgrep==1.85.0
             BIN_DIR="$(python3 -m site --user-base)/bin"
           fi
           echo "Resolved semgrep bin dir: $BIN_DIR"
