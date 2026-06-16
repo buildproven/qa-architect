@@ -103,3 +103,10 @@ if [ -f "scripts/run-semgrep.sh" ]; then
     bash scripts/run-semgrep.sh || true
   fi
 fi
+
+# Stray-file check — warn about untracked scratch files under source dirs that
+# diff-scoped CI never sees. Non-blocking warning.
+if [ -f "scripts/check-stray-files.js" ]; then
+  echo "  Checking for stray untracked files..."
+  node scripts/check-stray-files.js --warn || true
+fi
