@@ -87,6 +87,13 @@ test('.semgrep/vibe-audit-rules.yaml is in the published tarball', () => {
   )
 })
 
+test('.semgrep/vibe-moat-rules.yaml is in the published tarball', () => {
+  assert.ok(
+    packedFiles.includes('.semgrep/vibe-moat-rules.yaml'),
+    'vibe-moat-rules.yaml missing from npm pack output — add ".semgrep/" to package.json#files'
+  )
+})
+
 test('setup.js is in the published tarball (sanity check)', () => {
   assert.ok(
     packedFiles.includes('setup.js'),
