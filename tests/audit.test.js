@@ -15,6 +15,7 @@ const {
   groupBySeverity,
   buildMarkdownReport,
   buildHumanReport,
+  buildSkippedReport,
 } = require('../lib/commands/audit')
 
 let passed = 0
@@ -334,6 +335,40 @@ test('shows count summary', () => {
   assert.ok(report.includes('Total findings: 3'))
   assert.ok(report.includes('Critical: 1'))
   assert.ok(report.includes('Medium:   2'))
+})
+
+// ---------------------------------------------------------------------------
+// buildSkippedReport (--no-fail infrastructure-error path)
+// ---------------------------------------------------------------------------
+
+console.log('\nbuildSkippedReport')
+
+test('explains semgrep-not-installed and marks scan skipped', () => {
+  const report = buildSkippedReport({
+    error: 'semgrep_not_installed',
+    hint: 'install semgrep',
+  })
+  assert.ok(report.includes('SCAN SKIPPED'))
+  assert.ok(report.includes('semgrep is not installed'))
+  assert.ok(report.includes('--no-fail'))
+  assert.ok(report.includes('install semgrep'))
+})
+
+test('explains missing rule files', () => {
+  const report = buildSkippedReport({ error: 'no_rules' })
+  assert.ok(report.includes('SCAN SKIPPED'))
+  assert.ok(report.includes('rule files were not found'))
+})
+
+test('falls back to raw error text for unknown errors', () => {
+  const report = buildSkippedReport({ error: 'timeout' })
+  assert.ok(report.includes('SCAN SKIPPED'))
+  assert.ok(report.includes('timeout'))
+})
+
+test('omits hint code block when no hint provided', () => {
+  const report = buildSkippedReport({ error: 'no_rules' })
+  assert.ok(!report.includes('```'))
 })
 
 // ---------------------------------------------------------------------------
