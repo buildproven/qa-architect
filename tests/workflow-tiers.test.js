@@ -498,33 +498,34 @@ jobs:
     )
     const workflowContent = fs.readFileSync(workflowPath, 'utf8')
 
-    // Count pnpm setup steps (should be 4: detect-maturity, security, tests, documentation)
-    // Note: core-checks and linting jobs were removed (pre-commit handles lint/format locally)
+    // Count pnpm setup steps (should be 5: detect-maturity, security, audit-report, tests, documentation)
+    // Note: core-checks and linting jobs were removed (pre-commit handles lint/format locally).
+    // audit-report is the advisory job split out from the security gate.
     const pnpmSetupMatches = workflowContent.match(/- name: Setup pnpm/g)
     assert(
-      pnpmSetupMatches && pnpmSetupMatches.length === 4,
-      `Should have 4 pnpm setup steps, found ${pnpmSetupMatches ? pnpmSetupMatches.length : 0}`
+      pnpmSetupMatches && pnpmSetupMatches.length === 5,
+      `Should have 5 pnpm setup steps, found ${pnpmSetupMatches ? pnpmSetupMatches.length : 0}`
     )
 
-    // Count bun setup steps (should also be 4)
+    // Count bun setup steps (should also be 5)
     const bunSetupMatches = workflowContent.match(/- name: Setup Bun/g)
     assert(
-      bunSetupMatches && bunSetupMatches.length === 4,
-      `Should have 4 Bun setup steps, found ${bunSetupMatches ? bunSetupMatches.length : 0}`
+      bunSetupMatches && bunSetupMatches.length === 5,
+      `Should have 5 Bun setup steps, found ${bunSetupMatches ? bunSetupMatches.length : 0}`
     )
 
     // Verify pnpm version format
     const pnpmVersionMatches = workflowContent.match(/version: '8\.15\.0'/g)
     assert(
-      pnpmVersionMatches && pnpmVersionMatches.length === 4,
-      `Should have 4 pnpm version: '8.15.0' entries, found ${pnpmVersionMatches ? pnpmVersionMatches.length : 0}`
+      pnpmVersionMatches && pnpmVersionMatches.length === 5,
+      `Should have 5 pnpm version: '8.15.0' entries, found ${pnpmVersionMatches ? pnpmVersionMatches.length : 0}`
     )
 
     // Verify bun version format
     const bunVersionMatches = workflowContent.match(/bun-version: '1\.0\.0'/g)
     assert(
-      bunVersionMatches && bunVersionMatches.length === 4,
-      `Should have 4 bun-version: '1.0.0' entries, found ${bunVersionMatches ? bunVersionMatches.length : 0}`
+      bunVersionMatches && bunVersionMatches.length === 5,
+      `Should have 5 bun-version: '1.0.0' entries, found ${bunVersionMatches ? bunVersionMatches.length : 0}`
     )
 
     // Verify all pnpm setups are conditional

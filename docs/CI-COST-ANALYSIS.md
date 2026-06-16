@@ -54,7 +54,9 @@ detect-maturity:
 
 ### 2. Minimal Workflow Mode (v5.11.1)
 
-- Security scans: Weekly only (not every push)
+- Security GATE (secret scan + prod-dep CVE + SAST): every PR/push — "CI green" means secret-scanned + SAST-clean
+- Advisory audit report (vibe-audit + full-tree audit, non-blocking): every PR
+- Full-history secret deep scan: monthly (scheduled)
 - Test matrix: Node 22 only (not [20, 22])
 - Path filters: Skip docs-only changes
 - Concurrency: Cancel in-progress runs
@@ -81,7 +83,7 @@ qa-architect supports three workflow modes:
 ### Minimal Mode (Default)
 
 - Single Node.js version (22)
-- Security scans monthly only
+- Security gate (secrets + prod CVE + SAST) on every PR/push; full-history deep scan monthly
 - Path filters enabled
 - Skip Dependabot PRs
 - Concurrency limits
@@ -89,7 +91,7 @@ qa-architect supports three workflow modes:
 ### Standard Mode (`--workflow-standard`)
 
 - Single Node 22 (no matrix), tests restricted to main branch only
-- Security on manual/monthly schedule
+- Security gate on every PR/push; full-history deep scan monthly
 - Full test coverage
 
 ### Comprehensive Mode (`--workflow-comprehensive`)

@@ -231,36 +231,20 @@ jobs:
               ;;
           esac
 
-          echo "🔍 Checking for vulnerable dependencies..."
-          case "$PACKAGE_MANAGER" in
-            "pnpm") pnpm audit --audit-level=moderate ;;
-            "yarn") yarn audit --level=moderate ;;
-            "bun") bun audit --audit-level=moderate ;;
-            "npm"|*) npm audit --audit-level=moderate ;;
-          esac
-
-      - name: Security audit
+      # ONE blocking dependency-CVE gate. Prod deps only: this tool ships via npx,
+      # so production deps are what consumers download — that's the real "CI green
+      # = clean" line. Dev-tooling CVEs don't reach users and are surfaced
+      # (non-blocking) by the audit-report job instead. (Replaces the previous
+      # three cascading audits — moderate-all, high-all, high-prod.)
+      - name: Production dependency CVE gate
         run: |
           PACKAGE_MANAGER="${{ needs.detect-maturity.outputs.package-manager }}"
-          echo "🔐 Running security audit with $PACKAGE_MANAGER..."
-
-          case "$PACKAGE_MANAGER" in
-            "pnpm") pnpm audit --audit-level high ;;
-            "yarn") yarn audit --level high ;;
-            "bun") bun audit --audit-level high ;;
-            "npm"|*) npm audit --audit-level high ;;
-          esac
-
-      - name: Production dependencies security audit
-        run: |
-          PACKAGE_MANAGER="${{ needs.detect-maturity.outputs.package-manager }}"
-          echo "🔒 Running production-only dependency audit with $PACKAGE_MANAGER..."
-
+          echo "🔒 Auditing production dependencies (high+) with $PACKAGE_MANAGER..."
           case "$PACKAGE_MANAGER" in
             "pnpm") pnpm audit --audit-level high --prod ;;
             "yarn") yarn audit --level high --groups dependencies ;;
             "bun") bun audit --audit-level high --production ;;
-            "npm"|*) npm audit --audit-level high --production ;;
+            "npm"|*) npm audit --audit-level high --omit=dev ;;
           esac
 
       - name: Check for hardcoded secrets
@@ -271,7 +255,7 @@ jobs:
           if [ -f setup.js ]; then
             node setup.js --security-config
           else
-            npx create-qa-architect@latest --security-config
+            npx --yes create-qa-architect@latest --security-config
           fi
 
       - name: Security pattern detection
@@ -294,10 +278,57 @@ jobs:
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
 
-      # QA Architect's own vibe-code audit — the AI-native rules (secrets in
-      # client bundles, unscoped data access, injection) that generic SAST
-      # misses. Report-only for now: posts findings as a PR comment so teams
-      # see them on every PR without breaking builds on pre-existing issues.
+  # Step 2b: Advisory audit report (NON-BLOCKING). Runs in parallel with the
+  # security gate (needs detect-maturity, NOT security) so a gate failure can
+  # never suppress this report. Surfaces qa-architect's own vibe-code audit (the
+  # AI-native rules generic SAST misses) plus a full-dep-tree advisory audit, and
+  # posts them as a sticky PR comment. PR-only: the comment is meaningless on
+  # push/schedule, so this adds no cost to those runs.
+  audit-report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: detect-maturity
+    permissions:
+      contents: read
+      pull-requests: write
+    if: github.event_name == 'pull_request' && needs.detect-maturity.outputs.has-deps == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          cache: ${{ needs.detect-maturity.outputs.package-manager }}
+
+      - name: Setup pnpm
+        if: needs.detect-maturity.outputs.package-manager == 'pnpm'
+        uses: pnpm/action-setup@v4
+        with:
+          version: '8.15.0'
+
+      - name: Setup Bun
+        if: needs.detect-maturity.outputs.package-manager == 'bun'
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.0.0'
+
+      - name: Install dependencies
+        run: ${{ needs.detect-maturity.outputs.install-cmd }}
+
+      - name: Advisory full-tree dependency audit (non-blocking)
+        run: |
+          PACKAGE_MANAGER="${{ needs.detect-maturity.outputs.package-manager }}"
+          echo "ℹ️ Advisory audit — all deps incl. dev tooling (does not block)" >> "$GITHUB_STEP_SUMMARY"
+          case "$PACKAGE_MANAGER" in
+            "pnpm") pnpm audit --audit-level=moderate >> "$GITHUB_STEP_SUMMARY" 2>&1 || true ;;
+            "yarn") yarn audit --level=moderate >> "$GITHUB_STEP_SUMMARY" 2>&1 || true ;;
+            "bun") bun audit --audit-level=moderate >> "$GITHUB_STEP_SUMMARY" 2>&1 || true ;;
+            "npm"|*) npm audit --audit-level=moderate >> "$GITHUB_STEP_SUMMARY" 2>&1 || true ;;
+          esac
+
       - name: Install semgrep CLI for vibe-audit
         # pipx installs to ~/.local/bin, which is NOT on PATH for later steps by
         # default — export it via $GITHUB_PATH so the audit step below can find
@@ -316,9 +347,7 @@ jobs:
           fi
 
       - name: Post audit report as PR comment
-        # always() so the report still posts even if an earlier security step
-        # (gitleaks/semgrep) failed — the audit findings are useful regardless.
-        if: always() && github.event_name == 'pull_request' && hashFiles('qa-audit-report.md') != ''
+        if: always() && hashFiles('qa-audit-report.md') != ''
         uses: marocchino/sticky-pull-request-comment@331f8f5b4215f0445d3c07b4967662a32a2d3e31 # v2.9.0
         with:
           header: qa-architect-audit
@@ -447,14 +476,9 @@ jobs:
       - name: Install dependencies
         run: ${{ needs.detect-maturity.outputs.install-cmd }}
 
-      - name: Configuration security check
-        run: |
-          echo "🔍 Running configuration security validation..."
-          if [ -f setup.js ]; then
-            node setup.js --security-config
-          else
-            npx create-qa-architect@latest --security-config
-          fi
+      # (Secret scanning lives in the `security` gate job, which runs on every
+      # PR/push. It was duplicated here previously — removed to avoid running
+      # gitleaks twice per workflow.)
 
       - name: Documentation validation
         run: |
@@ -564,6 +588,7 @@ jobs:
     needs:
       - detect-maturity
       - security
+      - audit-report
       - tests
       - documentation
     if: always()

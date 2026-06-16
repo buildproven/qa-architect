@@ -111,7 +111,9 @@ npx create-qa-architect@latest
 | ------------------------------------------------- | ---- | --- |
 | SAST (semgrep — auth, injection, XSS, misconfigs) | ✅   | ✅  |
 | npm CVE audit                                     | ✅   | ✅  |
-| Gitleaks secrets scanning                         | ❌   | ✅  |
+| Gitleaks secret scanning (working tree)           | ✅   | ✅  |
+| Full-history secret scan (`--history-scan`)       | ❌   | ✅  |
+| ESLint security ruleset                           | ❌   | ✅  |
 | Hallucinated package detection                    | ❌   | ✅  |
 | `--fix` Claude Code prompts per finding           | ❌   | ✅  |
 
@@ -283,17 +285,17 @@ Shows estimated GitHub Actions usage and provides optimization recommendations.
 
 ## Tech Stack
 
-| Component         | Technology                                         |
-| ----------------- | -------------------------------------------------- |
-| **Runtime**       | Node.js 20+                                        |
-| **Linting**       | ESLint 9 (flat config)                             |
-| **Formatting**    | Prettier 3                                         |
-| **CSS Linting**   | Stylelint 16                                       |
-| **Git Hooks**     | Husky 9 + lint-staged 15                           |
-| **Python**        | Black, Ruff, mypy, pytest                          |
-| **Shell Scripts** | ShellCheck, syntax validation, permissions checks  |
-| **Performance**   | Lighthouse CI                                      |
-| **Security**      | npm audit (Free), Gitleaks + ESLint security (Pro) |
+| Component         | Technology                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------- |
+| **Runtime**       | Node.js 20+                                                                        |
+| **Linting**       | ESLint 9 (flat config)                                                             |
+| **Formatting**    | Prettier 3                                                                         |
+| **CSS Linting**   | Stylelint 16                                                                       |
+| **Git Hooks**     | Husky 9 + lint-staged 15                                                           |
+| **Python**        | Black, Ruff, mypy, pytest                                                          |
+| **Shell Scripts** | ShellCheck, syntax validation, permissions checks                                  |
+| **Performance**   | Lighthouse CI                                                                      |
+| **Security**      | npm audit + Gitleaks secret scan (Free), full-history scan + ESLint security (Pro) |
 
 ## Getting Started
 

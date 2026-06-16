@@ -643,8 +643,8 @@ assert.ok(
   'Workflow should include security job'
 )
 assert.ok(
-  workflowContent.includes('Security audit'),
-  'Workflow should include security audit step'
+  workflowContent.includes('Production dependency CVE gate'),
+  'Workflow should include the production dependency CVE gate step'
 )
 assert.ok(
   workflowContent.includes('gitleaks secret scanning'),
