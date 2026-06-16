@@ -336,21 +336,25 @@ jobs:
         # ~/.local/bin), so we don't guess — we ask pipx for its bin dir and
         # verify `semgrep --version` resolves before continuing. Falls back to
         # `pip install --user` (~/.local/bin) if pipx is unavailable.
+        # Best-effort: this is the ADVISORY job. If semgrep won't install, the
+        # vibe-audit degrades to a "SCAN SKIPPED" report (via --no-fail) and the
+        # job still passes — we never block a PR on advisory tooling.
+        continue-on-error: true
         run: |
           set -e
-          # Install semgrep into a DEDICATED venv (not pipx, not --user). pipx on
-          # the runner produced a semgrep that crashes with
-          # `ModuleNotFoundError: pkg_resources` on Python 3.12; a clean venv
-          # isolates its deps and works reliably across environments (verified
-          # locally). 1.96.0 supports py3.12 natively. The Docker registry-rules
-          # action in the security gate keeps 1.85.0 (own runtime); only this CLI
-          # needs the newer build. Rule files validate across both versions.
+          # Install semgrep into a dedicated venv with setuptools<81 PINNED.
+          # Root cause of the recurring crash: semgrep (through 1.96) imports
+          # pkg_resources, which setuptools >=81 no longer ships AND Python 3.12
+          # no longer bundles — so on the 3.12 runner the import fails. Pinning
+          # setuptools<81 restores pkg_resources. The Docker registry-rules action
+          # in the security gate keeps 1.85.0 (its own runtime); only this CLI
+          # needs the venv. (Local dev on py3.11 still bundles pkg_resources, which
+          # masked this — hence verifying --version loudly on the 3.12 runner.)
           SEMGREP_CLI_VERSION=1.96.0
           python3 -m venv "$HOME/.semgrep-venv"
-          "$HOME/.semgrep-venv/bin/pip" install --quiet --upgrade pip setuptools
-          "$HOME/.semgrep-venv/bin/pip" install --quiet "semgrep==$SEMGREP_CLI_VERSION"
+          "$HOME/.semgrep-venv/bin/pip" install --quiet --upgrade pip
+          "$HOME/.semgrep-venv/bin/pip" install --quiet "setuptools<81" "semgrep==$SEMGREP_CLI_VERSION"
           echo "$HOME/.semgrep-venv/bin" >> "$GITHUB_PATH"
-          # Verify it's actually runnable (fail loudly if not).
           "$HOME/.semgrep-venv/bin/semgrep" --version
 
       - name: QA Architect vibe-code audit
