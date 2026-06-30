@@ -370,13 +370,23 @@ deploy_to_repo() {
 
     (
       cd "$repo_dir"
+      # Capture the pre-deploy tip so a push-failure rollback resets to this
+      # exact SHA rather than the positional `HEAD~1`. The control flow makes
+      # them equal today, but a literal SHA keeps the rollback correct even if
+      # a future edit adds a step between commit and reset.
+      pre_commit_sha="$(git rev-parse HEAD)"
       git add .github/workflows/quality.yml package.json package-lock.json 2>/dev/null || true
       if ! git commit -m "chore: regenerate qa-architect workflow (${existing_tier} tier)
 
 Staged rollout: $([ "$is_canary" = true ] && echo "canary deployment" || echo "validated via canary")
 Fixes node_modules/create-qa-architect fallback paths.
 Consumers use npx create-qa-architect@latest instead of devDep."; then
+        # A commit failure (e.g. a pre-commit/commit-msg hook rejecting the
+        # change) leaves the regenerated files staged via the `git add` above.
+        # Discard them back to the pre-run tip so the consumer is not left
+        # dirty-ahead — symmetric with the push-failure rollback below.
         echo "  FAIL: commit failed"
+        git reset --hard "$pre_commit_sha"
         exit 1
       fi
       # Explicit push target — never rely on bare `git push` resolving the
@@ -384,7 +394,27 @@ Consumers use npx create-qa-architect@latest instead of devDep."; then
       if git push origin "HEAD:refs/heads/$default_branch"; then
         echo "  Pushed to origin/$default_branch"
       else
-        echo "  FAIL: push to origin/$default_branch failed (check remote)"
+        # The push commonly fails because the consumer's pre-push hook rejects
+        # the change (e.g. unresolved npm-audit vulnerabilities or a failing
+        # quality gate). The commit is already in local history, so a bare
+        # `exit 1` here would strand a committed-but-unpushed change on the
+        # consumer's default branch — leaving the repo permanently dirty-ahead
+        # and poisoning the next run's clean-tree preflight. Roll the commit
+        # back so the consumer returns to the exact clean state we started from;
+        # the deploy still fails loudly, but it fails *cleanly*.
+        echo "  FAIL: push to origin/$default_branch failed (pre-push hook or remote rejected the change)"
+        echo "  Rolling back the local commit to keep the consumer tree clean"
+        # Undo the commit and discard the regenerated files so the consumer
+        # returns to the clean default-branch state the preflight guaranteed.
+        # Resetting to the captured pre-deploy SHA (rather than positional
+        # HEAD~1) is safe because that preflight refused to proceed on a dirty
+        # tree — the only thing being discarded is our own regeneration.
+        # Surface a (near-impossible) rollback failure in this same run rather
+        # than deferring detection to the next run's preflight, so the stranded
+        # commit is never silent.
+        if ! git reset --hard "$pre_commit_sha"; then
+          echo "  ERROR: rollback failed — consumer left with an unpushed commit on $default_branch; reconcile manually before the next run"
+        fi
         exit 1
       fi
     )
