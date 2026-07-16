@@ -23,6 +23,35 @@ function createRepo(packageJson) {
   return directory
 }
 
+function addGitlink(directory, submodulePath) {
+  const tree = execFileSync('git', ['mktree'], {
+    cwd: directory,
+    encoding: 'utf8',
+    input: '',
+  }).trim()
+  const commit = execFileSync('git', ['commit-tree', tree, '-m', 'fixture'], {
+    cwd: directory,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'QA Test',
+      GIT_AUTHOR_EMAIL: 'qa@example.com',
+      GIT_COMMITTER_NAME: 'QA Test',
+      GIT_COMMITTER_EMAIL: 'qa@example.com',
+    },
+  }).trim()
+  execFileSync(
+    'git',
+    [
+      'update-index',
+      '--add',
+      '--cacheinfo',
+      `160000,${commit},${submodulePath}`,
+    ],
+    { cwd: directory }
+  )
+}
+
 function runSetup(directory) {
   const licenseDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'qaa-contract-license-')
@@ -100,6 +129,7 @@ try {
     path.join(submoduleRepo, '.gitmodules'),
     '[submodule "kit"]\n\tpath = .claude-kit\n\turl = https://example.invalid/kit.git\n'
   )
+  addGitlink(submoduleRepo, '.claude-kit')
   runSetup(submoduleRepo)
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(submoduleRepo, 'package.json'), 'utf8')

@@ -19,6 +19,35 @@ function createRepo(packageJson) {
   return directory
 }
 
+function addGitlink(directory, submodulePath) {
+  const tree = execFileSync('git', ['mktree'], {
+    cwd: directory,
+    encoding: 'utf8',
+    input: '',
+  }).trim()
+  const commit = execFileSync('git', ['commit-tree', tree, '-m', 'fixture'], {
+    cwd: directory,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      GIT_AUTHOR_NAME: 'QA Test',
+      GIT_AUTHOR_EMAIL: 'qa@example.com',
+      GIT_COMMITTER_NAME: 'QA Test',
+      GIT_COMMITTER_EMAIL: 'qa@example.com',
+    },
+  }).trim()
+  execFileSync(
+    'git',
+    [
+      'update-index',
+      '--add',
+      '--cacheinfo',
+      `160000,${commit},${submodulePath}`,
+    ],
+    { cwd: directory }
+  )
+}
+
 function runSetup(directory, options = {}) {
   const { developer = true } = options
   const licenseDirectory = fs.mkdtempSync(
@@ -98,6 +127,7 @@ try {
     path.join(pnpmRepo, '.gitmodules'),
     '[submodule ".claude-kit"]\n\tpath = .claude-kit\n\turl = https://example.invalid/kit.git\n'
   )
+  addGitlink(pnpmRepo, '.claude-kit')
   fs.mkdirSync(path.join(pnpmRepo, 'test'))
   fs.writeFileSync(path.join(pnpmRepo, 'test', 'app.test.ts'), 'export {}\n')
 
@@ -238,11 +268,49 @@ try {
     'utf8'
   )
   assert(workflow.includes('timeout 300 npm run test'))
+  assert(
+    workflow.includes('timeout 300 npm run format:check'),
+    'Generated check-mode gates must survive the final project-profile overlay'
+  )
   assert(workflow.includes('npm install --global npm@11.5.2'))
   assert(workflow.includes('echo "install-cmd=npm ci"'))
   assert(workflow.includes("cache: 'npm'"))
 } finally {
   fs.rmSync(npmRepo, { recursive: true, force: true })
+}
+
+const writeFormatRepo = createRepo({
+  name: 'write-format-fixture',
+  scripts: { format: 'prettier --write .' },
+  devDependencies: { prettier: '^3.0.0' },
+})
+
+try {
+  fs.writeFileSync(path.join(writeFormatRepo, 'package-lock.json'), '{}\n')
+  const initialProfile = detectProjectProfile(writeFormatRepo)
+  assert.strictEqual(
+    initialProfile.scripts.format,
+    null,
+    'A write-mode format script must not be classified as a CI format check'
+  )
+
+  runSetup(writeFormatRepo)
+  const generatedPackage = JSON.parse(
+    fs.readFileSync(path.join(writeFormatRepo, 'package.json'), 'utf8')
+  )
+  const workflow = fs.readFileSync(
+    path.join(writeFormatRepo, '.github/workflows/quality.yml'),
+    'utf8'
+  )
+  assert.strictEqual(generatedPackage.scripts.format, 'prettier --write .')
+  assert.strictEqual(
+    generatedPackage.scripts['format:check'],
+    'prettier --check .'
+  )
+  assert(workflow.includes('timeout 300 npm run format:check'))
+  assert(!workflow.includes('timeout 300 npm run format\n'))
+} finally {
+  fs.rmSync(writeFormatRepo, { recursive: true, force: true })
 }
 
 for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
@@ -473,6 +541,67 @@ try {
   fs.rmSync(yarnBerryRepo, { recursive: true, force: true })
 }
 
+const pnpmLockOnlyRepo = createRepo({ name: 'pnpm-lock-only-fixture' })
+const yarnClassicLockOnlyRepo = createRepo({
+  name: 'yarn-classic-lock-only-fixture',
+})
+const yarnModernLockOnlyRepo = createRepo({
+  name: 'yarn-modern-lock-only-fixture',
+  packageManager: 'yarn',
+})
+try {
+  fs.writeFileSync(
+    path.join(pnpmLockOnlyRepo, 'pnpm-lock.yaml'),
+    'lockfileVersion: 9\n'
+  )
+  fs.writeFileSync(
+    path.join(yarnClassicLockOnlyRepo, 'yarn.lock'),
+    '# yarn lockfile v1\n'
+  )
+  fs.writeFileSync(
+    path.join(yarnModernLockOnlyRepo, 'yarn.lock'),
+    '__metadata:\n  version: 8\n'
+  )
+  fs.writeFileSync(path.join(yarnModernLockOnlyRepo, '.yarnrc.yml'), '')
+
+  const pnpm = detectProjectProfile(pnpmLockOnlyRepo)
+  const classic = detectProjectProfile(yarnClassicLockOnlyRepo)
+  const modern = detectProjectProfile(yarnModernLockOnlyRepo)
+  assert.strictEqual(pnpm.packageManagerVersion, '10.12.1')
+  assert.strictEqual(classic.packageManagerVersion, '1.22.22')
+  assert.strictEqual(classic.installCommand, 'yarn install --frozen-lockfile')
+  assert.strictEqual(classic.auditCommand, 'yarn audit --level high')
+  assert.strictEqual(modern.packageManagerVersion, '4.9.2')
+  assert.strictEqual(modern.installCommand, 'yarn install --immutable')
+  assert.strictEqual(
+    modern.auditCommand,
+    'yarn npm audit --severity high --all --recursive'
+  )
+
+  runSetup(pnpmLockOnlyRepo)
+  runSetup(yarnModernLockOnlyRepo)
+  assert(
+    fs
+      .readFileSync(
+        path.join(pnpmLockOnlyRepo, '.github/workflows/quality.yml'),
+        'utf8'
+      )
+      .includes('corepack prepare pnpm@10.12.1 --activate')
+  )
+  assert(
+    fs
+      .readFileSync(
+        path.join(yarnModernLockOnlyRepo, '.github/workflows/quality.yml'),
+        'utf8'
+      )
+      .includes('corepack prepare yarn@4.9.2 --activate')
+  )
+} finally {
+  fs.rmSync(pnpmLockOnlyRepo, { recursive: true, force: true })
+  fs.rmSync(yarnClassicLockOnlyRepo, { recursive: true, force: true })
+  fs.rmSync(yarnModernLockOnlyRepo, { recursive: true, force: true })
+}
+
 const bunLockOnlyRepo = createRepo({ name: 'bun-lock-only-fixture' })
 const bunUnversionedRepo = createRepo({
   name: 'bun-unversioned-fixture',
@@ -516,6 +645,7 @@ try {
     path.join(submoduleRepo, '.gitmodules'),
     '[submodule "safe"]\n\tpath = vendor/module with spaces\n\turl = https://example.invalid/module.git\n'
   )
+  addGitlink(submoduleRepo, 'vendor/module with spaces')
   runSetup(submoduleRepo)
   const generatedPackage = JSON.parse(
     fs.readFileSync(path.join(submoduleRepo, 'package.json'), 'utf8')
@@ -532,6 +662,55 @@ try {
   assert(eslintConfig.includes('"**/vendor/module with spaces/**"'))
 } finally {
   fs.rmSync(submoduleRepo, { recursive: true, force: true })
+}
+
+const submoduleInjectionRepo = createRepo({
+  name: 'submodule-glob-injection-fixture',
+})
+try {
+  fs.writeFileSync(
+    path.join(submoduleInjectionRepo, '.gitmodules'),
+    '[submodule "injection"]\n\tpath = src/**\n\turl = https://example.invalid/module.git\n'
+  )
+  addGitlink(submoduleInjectionRepo, 'src/**')
+  assert.throws(
+    () => detectProjectProfile(submoduleInjectionRepo),
+    /Unsafe submodule path: src\/\*\*/
+  )
+} finally {
+  fs.rmSync(submoduleInjectionRepo, { recursive: true, force: true })
+}
+
+const fakeSubmoduleRepo = createRepo({ name: 'fake-submodule-fixture' })
+try {
+  fs.mkdirSync(path.join(fakeSubmoduleRepo, 'src'))
+  fs.writeFileSync(
+    path.join(fakeSubmoduleRepo, 'src', 'normal.js'),
+    'export {}\n'
+  )
+  fs.writeFileSync(
+    path.join(fakeSubmoduleRepo, '.gitmodules'),
+    '[submodule "fake"]\n\tpath = src\n\turl = https://example.invalid/module.git\n'
+  )
+  assert.throws(
+    () => detectProjectProfile(fakeSubmoduleRepo),
+    /Submodule config\/gitlink mismatch.*missing gitlinks \[src\]/
+  )
+} finally {
+  fs.rmSync(fakeSubmoduleRepo, { recursive: true, force: true })
+}
+
+const undeclaredGitlinkRepo = createRepo({
+  name: 'undeclared-gitlink-fixture',
+})
+try {
+  addGitlink(undeclaredGitlinkRepo, 'vendor/undeclared')
+  assert.throws(
+    () => detectProjectProfile(undeclaredGitlinkRepo),
+    /Gitlink entries require a regular \.gitmodules file/
+  )
+} finally {
+  fs.rmSync(undeclaredGitlinkRepo, { recursive: true, force: true })
 }
 
 for (const configName of [
