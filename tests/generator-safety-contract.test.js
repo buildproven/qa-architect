@@ -4,52 +4,27 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { execFileSync, execSync } = require('child_process')
+const { execFileSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
 const {
   readProjectFile,
   writeProjectFile,
 } = require('../lib/project-file-safety')
+const {
+  addGitlink,
+  initializeFixtureRepository,
+} = require('./git-fixture-helpers')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
 
 function createRepo(packageJson) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-contract-'))
-  execSync('git init', { cwd: directory, stdio: 'ignore' })
+  initializeFixtureRepository(directory)
   fs.writeFileSync(
     path.join(directory, 'package.json'),
     `${JSON.stringify(packageJson, null, 2)}\n`
   )
   return directory
-}
-
-function addGitlink(directory, submodulePath) {
-  const tree = execFileSync('git', ['mktree'], {
-    cwd: directory,
-    encoding: 'utf8',
-    input: '',
-  }).trim()
-  const commit = execFileSync('git', ['commit-tree', tree, '-m', 'fixture'], {
-    cwd: directory,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'QA Test',
-      GIT_AUTHOR_EMAIL: 'qa@example.com',
-      GIT_COMMITTER_NAME: 'QA Test',
-      GIT_COMMITTER_EMAIL: 'qa@example.com',
-    },
-  }).trim()
-  execFileSync(
-    'git',
-    [
-      'update-index',
-      '--add',
-      '--cacheinfo',
-      `160000,${commit},${submodulePath}`,
-    ],
-    { cwd: directory }
-  )
 }
 
 function runSetup(directory) {
@@ -70,6 +45,48 @@ function runSetup(directory) {
   } finally {
     fs.rmSync(licenseDirectory, { recursive: true, force: true })
   }
+}
+
+const inheritedIndexDirectory = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'qaa-inherited-index-')
+)
+const inheritedIndexPath = path.join(inheritedIndexDirectory, 'sentinel.index')
+const inheritedIndexBytes = Buffer.from(
+  'consumer-index-sentinel\0\xff',
+  'latin1'
+)
+const previousGitIndexFile = process.env.GIT_INDEX_FILE
+let inheritedIndexRepo
+try {
+  fs.writeFileSync(inheritedIndexPath, inheritedIndexBytes)
+  process.env.GIT_INDEX_FILE = inheritedIndexPath
+  inheritedIndexRepo = createRepo({ name: 'inherited-index-fixture' })
+  fs.writeFileSync(
+    path.join(inheritedIndexRepo, '.gitmodules'),
+    '[submodule "safe"]\n\tpath = vendor/safe\n\turl = https://example.invalid/safe.git\n'
+  )
+  addGitlink(inheritedIndexRepo, 'vendor/safe')
+  assert(
+    fs.readFileSync(inheritedIndexPath).equals(inheritedIndexBytes),
+    'Fixture Git commands must not read or mutate an inherited caller index'
+  )
+} finally {
+  if (previousGitIndexFile === undefined) {
+    delete process.env.GIT_INDEX_FILE
+  } else {
+    process.env.GIT_INDEX_FILE = previousGitIndexFile
+  }
+}
+try {
+  assert(
+    detectProjectProfile(inheritedIndexRepo).submodulePaths.includes(
+      'vendor/safe'
+    ),
+    'Fixture gitlink must be written to the fixture repository index'
+  )
+} finally {
+  fs.rmSync(inheritedIndexRepo, { recursive: true, force: true })
+  fs.rmSync(inheritedIndexDirectory, { recursive: true, force: true })
 }
 
 const fileSafetyRepo = createRepo({ name: 'file-safety-contract' })

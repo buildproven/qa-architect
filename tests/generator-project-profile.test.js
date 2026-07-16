@@ -6,46 +6,21 @@ const os = require('os')
 const path = require('path')
 const { execFileSync, execSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
+const {
+  addGitlink,
+  initializeFixtureRepository,
+} = require('./git-fixture-helpers')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
 
 function createRepo(packageJson) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-profile-'))
-  execSync('git init', { cwd: directory, stdio: 'ignore' })
+  initializeFixtureRepository(directory)
   fs.writeFileSync(
     path.join(directory, 'package.json'),
     `${JSON.stringify(packageJson, null, 2)}\n`
   )
   return directory
-}
-
-function addGitlink(directory, submodulePath) {
-  const tree = execFileSync('git', ['mktree'], {
-    cwd: directory,
-    encoding: 'utf8',
-    input: '',
-  }).trim()
-  const commit = execFileSync('git', ['commit-tree', tree, '-m', 'fixture'], {
-    cwd: directory,
-    encoding: 'utf8',
-    env: {
-      ...process.env,
-      GIT_AUTHOR_NAME: 'QA Test',
-      GIT_AUTHOR_EMAIL: 'qa@example.com',
-      GIT_COMMITTER_NAME: 'QA Test',
-      GIT_COMMITTER_EMAIL: 'qa@example.com',
-    },
-  }).trim()
-  execFileSync(
-    'git',
-    [
-      'update-index',
-      '--add',
-      '--cacheinfo',
-      `160000,${commit},${submodulePath}`,
-    ],
-    { cwd: directory }
-  )
 }
 
 function runSetup(directory, options = {}) {
