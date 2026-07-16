@@ -1,6 +1,12 @@
 'use strict'
 
 const assert = require('assert')
+const {
+  formatMessage,
+  icons,
+  ACCESSIBILITY_MODE,
+  showProgress,
+} = require('../lib/ui-helpers')
 
 /**
  * Test suite for UI Helpers
@@ -15,8 +21,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 1: formatMessage returns icon + message')
-  const { formatMessage, icons } = require('../lib/ui-helpers')
-
   const result = formatMessage('success', 'All good')
   assert(result.includes('All good'), 'Should contain the message')
   assert(result.startsWith(icons.success), 'Should start with success icon')
@@ -36,8 +40,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 2: All icon types exist')
-  const { icons } = require('../lib/ui-helpers')
-
   const expectedTypes = ['success', 'error', 'warning', 'info', 'working']
   for (const type of expectedTypes) {
     assert(icons[type], `Should have icon for ${type}`)
@@ -52,7 +54,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 3: ACCESSIBILITY_MODE is boolean')
-  const { ACCESSIBILITY_MODE } = require('../lib/ui-helpers')
   assert(typeof ACCESSIBILITY_MODE === 'boolean', 'Should be boolean')
   console.log(`  ✅ PASS (current: ${ACCESSIBILITY_MODE})`)
 }
@@ -62,8 +63,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 4: showProgress returns spinner-like object')
-  const { showProgress } = require('../lib/ui-helpers')
-
   // In test environment (non-TTY), should get fallback
   const spinner = showProgress('Testing...')
   assert(typeof spinner.succeed === 'function', 'Should have succeed method')
@@ -84,8 +83,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 5: formatMessage handles all types')
-  const { formatMessage } = require('../lib/ui-helpers')
-
   const types = ['success', 'error', 'warning', 'info', 'working']
   for (const type of types) {
     const result = formatMessage(type, `test ${type}`)
@@ -99,8 +96,6 @@ console.log('🧪 Testing UI Helpers...\n')
 // ============================================================
 {
   console.log('Test 6: Icons are valid format')
-  const { icons, ACCESSIBILITY_MODE } = require('../lib/ui-helpers')
-
   if (ACCESSIBILITY_MODE) {
     assert(icons.success === '[OK]', 'Accessibility success should be [OK]')
     assert(icons.error === '[ERROR]', 'Accessibility error should be [ERROR]')

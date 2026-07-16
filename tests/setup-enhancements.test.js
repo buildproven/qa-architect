@@ -6,6 +6,7 @@ const os = require('os')
 const path = require('path')
 
 const {
+  applyProductionQualityFixes,
   generateEnhancedPreCommitHook,
   validateProjectSetup,
   copyQualityTroubleshootingGuide,
@@ -254,6 +255,54 @@ console.log('🧪 Testing Setup Enhancements...\n')
     scriptWarnings.length,
     0,
     'No script warnings without package.json'
+  )
+  console.log('  ✅ PASS')
+  cleanup(tempDir)
+}
+
+// ============================================================
+// Test 11: Existing tests do not suppress required TS config
+// ============================================================
+{
+  console.log(
+    'Test 11: Existing tests preserve content and still get TS config'
+  )
+  const tempDir = createTempProject({
+    hasTsConfig: true,
+    hasPackageJson: true,
+    scripts: { test: 'node --test' },
+  })
+  const testDir = path.join(tempDir, 'test')
+  const testPath = path.join(testDir, 'existing.test.ts')
+  fs.mkdirSync(testDir, { recursive: true })
+  fs.writeFileSync(testPath, 'export const preserved = true\n')
+
+  applyProductionQualityFixes(tempDir, {
+    hasTypeScript: true,
+    preserveExistingTests: true,
+  })
+
+  assert(
+    fs.existsSync(path.join(tempDir, 'tests/tsconfig.json')),
+    'Preserving tests must not suppress the required tests TypeScript config'
+  )
+  assert.strictEqual(
+    fs.readFileSync(testPath, 'utf8'),
+    'export const preserved = true\n',
+    'Existing test content must remain unchanged'
+  )
+  const testsTsConfigPath = path.join(tempDir, 'tests/tsconfig.json')
+  const customTestsConfig =
+    '{"extends":"../tsconfig.json","include":["custom/**/*"]}\n'
+  fs.writeFileSync(testsTsConfigPath, customTestsConfig)
+  applyProductionQualityFixes(tempDir, {
+    hasTypeScript: true,
+    preserveExistingTests: true,
+  })
+  assert.strictEqual(
+    fs.readFileSync(testsTsConfigPath, 'utf8'),
+    customTestsConfig,
+    'Existing test TypeScript configuration must remain user-owned'
   )
   console.log('  ✅ PASS')
   cleanup(tempDir)

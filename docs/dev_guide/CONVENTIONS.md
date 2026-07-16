@@ -80,6 +80,29 @@ qa-architect/
 - Standard: single Node 22, tests on main only (~$5-10/mo)
 - Comprehensive: matrix every commit (~$100-350/mo)
 
+**Consumer project profiling:**
+
+- `lib/project-profile.js` is the source of truth for package manager, framework,
+  existing quality scripts/configuration, submodules, and build outputs.
+- Setup must preserve real project scripts and formatter/linter configuration.
+  Do not add a second ESLint configuration or a placeholder test framework when
+  the consumer already has tests.
+- Generated hooks and workflows must use the detected package manager and its
+  declared version. Minimal CI retains real maturity/test detection; it must
+  never authorize skipping tests by hardcoding a zero test count.
+- `packageManager` is authoritative. A conflicting lockfile or multiple
+  package-manager lockfiles is a setup error, not a condition to guess through.
+- Package-manager versions and semantics travel with the profile: pnpm and
+  modern Yarn are activated through Corepack before setup-node caching, Bun
+  uses `bun.lock`/`bun.lockb`, `bun x` for package executables, and the declared
+  Bun version in CI. Yarn 1 and Yarn 2+ use their respective install and audit
+  command families.
+- Consumer CI runs only scripts the profile actually found, in the order lint,
+  format check, type check, tests, and build. Test files without a test script
+  must not cause QA Architect to invent `npm test`.
+- Generated ignore files include detected submodule paths and framework build
+  outputs. Re-running setup must preserve user-owned files and content.
+
 **Testing approach:** Tests use real filesystem with temp directories (no mocks). `createTempGitRepo()` is the standard test setup helper.
 
 **Publishing:** Never run `npm publish` manually. GitHub Actions handles publishing via trusted publishing when `package.json` version changes on `main`.

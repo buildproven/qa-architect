@@ -99,6 +99,27 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('path-traversal-join'))
   })
 
+  test('path-traversal-resolve fires on request-fed resolution', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js': 'const f = path.resolve(req.query.filename)\n',
+    })
+    assert.ok(fired.has('path-traversal-resolve'))
+  })
+
+  test('prototype-pollution JSON parse fires on request bodies', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js': 'const payload = JSON.parse(request.body)\n',
+    })
+    assert.ok(fired.has('prototype-pollution-json-parse'))
+  })
+
+  test('unbounded array growth fires on an infinite loop', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js': 'while (true) { values.push(nextValue()) }\n',
+    })
+    assert.ok(fired.has('unbounded-array-growth'))
+  })
+
   test('auth-bypass-or-condition fires on auth-named OR', () => {
     const fired = rulesFiredOn({
       'lib/a.js': 'if (isAuthenticated || debugMode) { grantAccess() }\n',
@@ -232,6 +253,29 @@ if (!semgrepAvailable()) {
       'lib/a.js': "const p = path.join(projectPath, 'package.json')\n",
     })
     assert.ok(!fired.has('path-traversal-join'))
+  })
+
+  test('validated generic path.resolve does NOT fire request traversal', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'const resolved = path.resolve(dirPath); if (!resolved.startsWith(root)) throw new Error("outside")\n',
+    })
+    assert.ok(!fired.has('path-traversal-resolve'))
+  })
+
+  test('JSON parsing a fetched response body does NOT imply request pollution', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js': 'const payload = JSON.parse(response.body)\n',
+    })
+    assert.ok(!fired.has('prototype-pollution-json-parse'))
+  })
+
+  test('input-bounded array growth does NOT fire unbounded-loop rule', () => {
+    const fired = rulesFiredOn({
+      'lib/a.js':
+        'while ((match = regex.exec(content)) !== null) { values.push(match[0]) }\n',
+    })
+    assert.ok(!fired.has('unbounded-array-growth'))
   })
 
   test('non-auth OR condition does NOT fire auth-bypass-or-condition', () => {

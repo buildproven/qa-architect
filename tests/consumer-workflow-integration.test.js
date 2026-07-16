@@ -23,6 +23,10 @@ function createTempGitRepo() {
   const testDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'cqa-consumer-workflow-')
   )
+  process.env.QAA_LICENSE_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cqa-consumer-license-')
+  )
+  process.env.NODE_ENV = 'test'
   execSync('git init', { cwd: testDir, stdio: 'ignore' })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
@@ -56,6 +60,8 @@ const QA_ARCHITECT_ONLY_CONTENT = [
 const CONSUMER_FORBIDDEN_CONTENT = [
   ...QA_ARCHITECT_ONLY_CONTENT,
   'node_modules/create-qa-architect',
+  'create-qa-architect@latest',
+  'npx --yes create-qa-architect',
 ]
 
 const SECTION_MARKERS = [
@@ -104,6 +110,30 @@ function assertValidYamlStructure(content, tier) {
     content.includes('security:'),
     `${tier} workflow must have security job`
   )
+  assert(
+    content.includes("GITLEAKS_VERSION='8.28.0'"),
+    `${tier} workflow must pin the gitleaks version`
+  )
+  assert(
+    content.includes(
+      "GITLEAKS_SHA256='5fd1b3b0073269484d40078662e921d07427340ab9e6ed526ccd215a565b3298'"
+    ),
+    `${tier} workflow must pin the verified gitleaks binary checksum`
+  )
+  assert(
+    content.includes('sha256sum --check -'),
+    `${tier} workflow must verify gitleaks before execution`
+  )
+  assert(
+    content.includes(
+      '"${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner'
+    ),
+    `${tier} workflow must run blocking gitleaks secret scanning`
+  )
+  assert(
+    !content.includes('gitleaks@latest'),
+    `${tier} workflow must not execute mutable gitleaks code`
+  )
 }
 
 // Use child_process.execSync for legitimate test CLI invocation (not user input)
@@ -127,32 +157,21 @@ const setupPath = path.join(__dirname, '../setup.js')
     assertNoSectionMarkers(content, 'Minimal')
     assertValidYamlStructure(content, 'Minimal')
 
-    // Minimal-specific: hardcoded maturity outputs
+    // Minimal-specific: retain real project detection so existing tests run.
     assert(
-      content.includes("maturity: 'minimal'"),
-      'Minimal must have hardcoded maturity'
-    )
-    assert(
-      content.includes("source-count: '0'"),
-      'Minimal must have hardcoded source-count'
-    )
-    assert(
-      content.includes("test-count: '0'"),
-      'Minimal must have hardcoded test-count'
-    )
-    assert(
-      content.includes("has-deps: 'false'"),
-      'Minimal must have hardcoded has-deps'
+      content.includes('test-count: ${{ steps.detect.outputs.test-count }}'),
+      'Minimal must retain real test detection'
     )
 
-    // Minimal-specific: no full detection steps
+    // Minimal-specific: no dependency install for detection, while retaining
+    // the source-only scan that discovers real tests.
     assert(
       !content.includes('Install dependencies for maturity detection'),
       'Minimal must NOT have dep install step'
     )
     assert(
-      !content.includes('Detect Project Maturity'),
-      'Minimal must NOT have maturity detection step'
+      content.includes('Detect Project Maturity'),
+      'Minimal must retain maturity detection'
     )
 
     // Minimal-specific: single node version, path filters, schedule

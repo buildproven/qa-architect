@@ -1,5 +1,7 @@
 'use strict'
 
+require('./typescript-config-atomicity.test')
+
 const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
@@ -15,10 +17,6 @@ const {
   STYLELINT_EXTENSIONS,
 } = require('../config/defaults')
 
-// Import enhanced scripts for testing
-const {
-  getEnhancedTypeScriptScripts,
-} = require('../lib/typescript-config-generator')
 // const {
 //   getSecurityScripts
 // } = require('../lib/security-enhancements')
@@ -28,9 +26,18 @@ const {
   getQualityToolsDependencies,
 } = require('../lib/quality-tools-generator')
 
+const withoutGitRepositoryEnvironment = environment =>
+  Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !key.startsWith('GIT_'))
+  )
+
 const createTempProject = initialPackageJson => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-template-'))
-  execSync('git init', { cwd: tempDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: tempDir,
+    stdio: 'ignore',
+    env: withoutGitRepositoryEnvironment(process.env),
+  })
 
   fs.writeFileSync(
     path.join(tempDir, 'package.json'),
@@ -44,7 +51,10 @@ const runSetup = (cwd, envOverrides = {}) => {
   execFileSync(process.execPath, [setupScript], {
     cwd,
     stdio: 'ignore',
-    env: { ...process.env, ...envOverrides },
+    env: withoutGitRepositoryEnvironment({
+      ...process.env,
+      ...envOverrides,
+    }),
   })
 }
 
@@ -225,7 +235,9 @@ try {
 
   // Include enhanced scripts in expected results (matching setup.js behavior)
   const defaultScripts = getDefaultScripts({ typescript: false })
-  const enhancedScripts = getEnhancedTypeScriptScripts()
+  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['validate:pre-push'] = 'npm run lint'
+  const enhancedScripts = {}
   const smartStrategyScripts = {}
   // Quality tools scripts (added by setupQualityTools based on license tier)
   const qualityToolsScripts = getQualityToolsScripts({
@@ -307,7 +319,9 @@ try {
   const pkg = readJson(path.join(jsProjectDirPro, 'package.json'))
 
   const defaultScripts = getDefaultScripts({ typescript: false })
-  const enhancedScripts = getEnhancedTypeScriptScripts()
+  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['validate:pre-push'] = 'npm run lint'
+  const enhancedScripts = {}
   const smartStrategyScripts = getTestTierScripts()
   const qualityToolsScripts = getQualityToolsScripts({
     lighthouse: true,
@@ -647,8 +661,8 @@ assert.ok(
   'Workflow should include the production dependency CVE gate step'
 )
 assert.ok(
-  workflowContent.includes('gitleaks secret scanning'),
-  'Workflow should include gitleaks scanning'
+  workflowContent.includes('detect --source . --redact --no-banner'),
+  'Workflow should execute blocking gitleaks scanning'
 )
 
 console.log('✅ All security pattern tests passed!')

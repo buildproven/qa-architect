@@ -128,7 +128,19 @@ const {
   detectExistingMatrix,
   injectWorkflowMode,
   injectMatrix,
+  injectProjectProfile,
 } = require('./lib/workflow-config')
+const {
+  ESLINT_CONFIGS,
+  PRETTIER_CONFIGS,
+  detectProjectProfile,
+} = require('./lib/project-profile')
+const {
+  appendProjectFile,
+  assertSafeProjectFile,
+  readProjectFile,
+  writeProjectFile,
+} = require('./lib/project-file-safety')
 
 // Command handlers (extracted for maintainability)
 const {
@@ -197,6 +209,9 @@ const {
   applyProductionQualityFixes,
   validateProjectSetup,
 } = require('./lib/setup-enhancements')
+const {
+  generateTestsTypeScriptConfig,
+} = require('./lib/typescript-config-generator')
 
 const STYLELINT_EXTENSION_SET = new Set(STYLELINT_EXTENSIONS)
 const STYLELINT_DEFAULT_TARGET = `**/*.{${STYLELINT_EXTENSIONS.join(',')}}`
@@ -502,7 +517,7 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
  *
  * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
  * @param {string[]} rawArgs - Original args (for path values that may include `..`)
- * @returns {{json:boolean, skipTests:boolean, noFail:boolean, base:string|null, depth:string|null, outPath:string|null}}
+ * @returns {{json:boolean, skipTests:boolean, noFail:boolean, fix:boolean, base:string|null, depth:string|null, outPath:string|null, projectPath:string}}
  */
 function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const pickValue = (flag, source) => {
@@ -1031,7 +1046,11 @@ HELP:
      * - Conventional commits (Free)
      * - Coverage thresholds (Pro only)
      */
-    async function setupQualityTools(usesTypeScript, packageJson) {
+    async function setupQualityTools(
+      usesTypeScript,
+      packageJson,
+      projectProfile
+    ) {
       void usesTypeScript // Reserved for TypeScript-specific quality tools
       void packageJson // Reserved for package.json-based quality configuration
       const qualitySpinner = showProgress('Setting up quality tools...')
@@ -1039,14 +1058,15 @@ HELP:
       try {
         const projectPath = process.cwd()
         const PackageJson = checkNodeVersionAndLoadPackageJson()
-        const pkgJson = await PackageJson.load(projectPath)
+        let pkgJson = await PackageJson.load(projectPath)
         const addedTools = []
 
         // Determine which features are available
         const hasLighthouse = hasFeature('lighthouseCI')
         const hasLighthouseThresholds = hasFeature('lighthouseThresholds')
         const hasBundleSizeLimits = hasFeature('bundleSizeLimits')
-        const hasAxeAccessibility = hasFeature('axeAccessibility')
+        const hasAxeAccessibility =
+          hasFeature('axeAccessibility') && !projectProfile.hasTests
         const hasConventionalCommits = hasFeature('conventionalCommits')
         const hasCoverageThresholds = hasFeature('coverageThresholds')
 
@@ -1189,6 +1209,10 @@ HELP:
           axeCore: hasAxeAccessibility,
           coverage: hasCoverageThresholds,
         })
+
+        // Some tool writers update package.json directly. Reload before the
+        // final merge so those writes are not lost and setup remains idempotent.
+        pkgJson = await PackageJson.load(projectPath)
 
         // Merge dependencies and scripts
         pkgJson.content.devDependencies = mergeDevDependencies(
@@ -1334,7 +1358,10 @@ HELP:
 
       if (fs.existsSync(packageJsonPath)) {
         try {
-          const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8')
+          const packageJsonContent = readProjectFile(
+            process.cwd(),
+            packageJsonPath
+          )
           // Validate JSON content before parsing
           if (packageJsonContent.trim().length === 0) {
             console.error('❌ package.json is empty')
@@ -1399,6 +1426,54 @@ HELP:
       const usesTypeScript = Boolean(
         hasTypeScriptDependency || hasTypeScriptConfig
       )
+      // Detect the consumer's original capabilities before creating any
+      // generated prerequisite files. Otherwise tests/tsconfig.json makes a
+      // test-less project look as though it already has a real test suite.
+      const projectProfile = detectProjectProfile(process.cwd(), packageJson)
+      // Establish every file referenced by generated TypeScript scripts before
+      // mutating the consumer project. If this prerequisite cannot be created,
+      // setup fails with the original project tree untouched.
+      if (usesTypeScript) {
+        generateTestsTypeScriptConfig(process.cwd())
+      }
+      const detectedProjectScripts = Object.fromEntries(
+        Object.entries(projectProfile.scripts).filter(([, script]) => script)
+      )
+      if (
+        projectProfile.scripts.lint &&
+        projectProfile.submodulePaths.length > 0
+      ) {
+        const shellQuote = value => `'${value.replaceAll("'", "'\"'\"'")}'`
+        const ignoreArguments = projectProfile.submodulePaths
+          .map(
+            submodulePath =>
+              `--ignore-pattern ${shellQuote(`${submodulePath}/**`)}`
+          )
+          .join(' ')
+        const packageScripts = /** @type {Record<string, string>} */ (
+          packageJson.scripts || {}
+        )
+        packageJson.scripts = packageScripts
+        if (!packageScripts['quality:lint']) {
+          packageScripts['quality:lint'] =
+            `${projectProfile.runScript(projectProfile.scripts.lint)} -- ${ignoreArguments}`
+        }
+        projectProfile.scripts.lint = 'quality:lint'
+      }
+      const finalProjectProfile = () => {
+        const profile = detectProjectProfile(process.cwd(), packageJson)
+        profile.scripts = {
+          ...profile.scripts,
+          ...detectedProjectScripts,
+        }
+        if (!profile.scripts.test && !projectProfile.hasTests) {
+          profile.scripts.test = 'test'
+        }
+        if (packageJson.scripts?.['quality:lint']) {
+          profile.scripts.lint = 'quality:lint'
+        }
+        return profile
+      }
       if (usesTypeScript) {
         console.log(
           '🔍 Detected TypeScript configuration; enabling TypeScript lint defaults'
@@ -1509,12 +1584,48 @@ HELP:
         typescript: usesTypeScript,
         stylelintTargets,
       })
+      if (projectProfile.hasTests) {
+        delete defaultScripts.test
+        delete defaultScripts['test:watch']
+        delete defaultScripts['test:coverage']
+        delete defaultScripts['test:changed']
+      }
+      defaultScripts['security:audit'] = projectProfile.auditCommand
+      const runScript = projectProfile.runScript
+      defaultScripts['validate:all'] =
+        `${runScript('validate:comprehensive')} && ${runScript('security:audit')}`
+      const detectedPrePush = [
+        projectProfile.scripts.lint && runScript(projectProfile.scripts.lint),
+        projectProfile.scripts.format &&
+          runScript(projectProfile.scripts.format),
+        projectProfile.scripts.test && runScript(projectProfile.scripts.test),
+      ]
+        .filter(Boolean)
+        .join(' && ')
+      if (detectedPrePush) {
+        defaultScripts['validate:pre-push'] = detectedPrePush
+      }
 
       // Import enhanced scripts to fix production quality gaps
       const {
         getEnhancedTypeScriptScripts,
       } = require('./lib/typescript-config-generator')
-      const enhancedScripts = getEnhancedTypeScriptScripts()
+      const hasSecurityAuditScript = Boolean(
+        packageJson.scripts?.['security:audit'] ||
+        defaultScripts['security:audit']
+      )
+      const enhancedScripts = usesTypeScript
+        ? getEnhancedTypeScriptScripts({
+            runScript: projectProfile.runScript,
+            lintScript:
+              projectProfile.scripts.lint ||
+              (defaultScripts.lint ? 'lint' : null),
+            testScript:
+              projectProfile.scripts.test ||
+              (defaultScripts.test ? 'test' : null),
+            securityScript: hasSecurityAuditScript ? 'security:audit' : null,
+          })
+        : {}
 
       // Merge both default and enhanced scripts
       packageJson.scripts = mergeScripts(packageJson.scripts || {}, {
@@ -1528,6 +1639,22 @@ HELP:
         typescript: usesTypeScript,
         projectPath: process.cwd(),
       })
+      if (projectProfile.hasTests) {
+        delete defaultDevDependencies.vitest
+        delete defaultDevDependencies['@vitest/coverage-v8']
+      }
+      if (projectProfile.eslintDependencies.eslint) {
+        delete defaultDevDependencies.eslint
+      }
+      if (projectProfile.eslintDependencies.typescriptPlugin) {
+        delete defaultDevDependencies['@typescript-eslint/eslint-plugin']
+      }
+      if (projectProfile.eslintDependencies.typescriptParser) {
+        delete defaultDevDependencies['@typescript-eslint/parser']
+      }
+      if (projectProfile.prettierDependency) {
+        delete defaultDevDependencies.prettier
+      }
       packageJson.devDependencies = mergeDevDependencies(
         packageJson.devDependencies || {},
         defaultDevDependencies
@@ -1585,6 +1712,7 @@ HELP:
           Object.assign(pkgJson.content, packageJson)
         }
 
+        assertSafeProjectFile(process.cwd(), packageJsonPath)
         await pkgJson.save()
         console.log('✅ Updated package.json')
       } catch (error) {
@@ -1807,6 +1935,10 @@ HELP:
 
           // Inject matrix testing if enabled (for library authors)
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
+          templateWorkflow = injectProjectProfile(
+            templateWorkflow,
+            finalProjectProfile()
+          )
 
           // Inject collaboration steps
           templateWorkflow = injectCollaborationSteps(templateWorkflow, {
@@ -1814,7 +1946,7 @@ HELP:
             enablePrComments,
           })
 
-          fs.writeFileSync(workflowFile, templateWorkflow)
+          writeProjectFile(process.cwd(), workflowFile, templateWorkflow)
           console.log(`✅ Added GitHub Actions workflow (${workflowMode} mode)`)
         } else if (isUpdateMode) {
           // Refresh existing workflow from the current template.
@@ -1833,9 +1965,13 @@ HELP:
 
           // Inject matrix testing if enabled (for library authors)
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
+          templateWorkflow = injectProjectProfile(
+            templateWorkflow,
+            finalProjectProfile()
+          )
 
           // Inject collaboration steps (preserve from existing if present)
-          const existingWorkflow = fs.readFileSync(workflowFile, 'utf8')
+          const existingWorkflow = readProjectFile(process.cwd(), workflowFile)
           const hasSlackAlerts = existingWorkflow.includes('SLACK_WEBHOOK_URL')
           const hasPrComments = existingWorkflow.includes(
             'PR_COMMENT_PLACEHOLDER'
@@ -1846,13 +1982,13 @@ HELP:
             enablePrComments: hasPrComments,
           })
 
-          fs.writeFileSync(workflowFile, templateWorkflow)
+          writeProjectFile(process.cwd(), workflowFile, templateWorkflow)
           if (workflowMode === 'minimal') {
             console.log(
-              '⚠️  Minimal mode disables tests and security scans in CI (detection-only).'
+              'ℹ️  Minimal mode runs detected project scripts on a single Node version.'
             )
             console.log(
-              '   Use --workflow-standard to re-enable full CI checks.'
+              '   Use --workflow-standard or --workflow-comprehensive for broader scheduling and matrices.'
             )
           }
           console.log(
@@ -1863,7 +1999,10 @@ HELP:
 
       // Copy Prettier config if it doesn't exist
       const prettierrcPath = path.join(process.cwd(), '.prettierrc')
-      if (!fs.existsSync(prettierrcPath)) {
+      const existingPrettierConfig = PRETTIER_CONFIGS.find(config =>
+        fs.existsSync(path.join(process.cwd(), config))
+      )
+      if (!existingPrettierConfig && !packageJson.prettier) {
         const templatePrettierrc =
           templateLoader.getTemplate(templates, '.prettierrc') ||
           fs.readFileSync(path.join(__dirname, '.prettierrc'), 'utf8')
@@ -1873,24 +2012,30 @@ HELP:
 
       // Copy ESLint config if it doesn't exist
       const eslintConfigPath = path.join(process.cwd(), 'eslint.config.cjs')
+      const existingEslintConfig = ESLINT_CONFIGS.find(config =>
+        fs.existsSync(path.join(process.cwd(), config))
+      )
       const eslintTemplateFile = usesTypeScript
         ? 'eslint.config.ts.cjs'
         : 'eslint.config.cjs'
-      const templateEslint =
+      let templateEslint =
         templateLoader.getTemplate(templates, eslintTemplateFile) ||
         fs.readFileSync(path.join(__dirname, eslintTemplateFile), 'utf8')
+      if (projectProfile.submodulePaths.length > 0) {
+        const ignoreEntries = projectProfile.submodulePaths
+          .map(submodulePath => JSON.stringify(`**/${submodulePath}/**`))
+          .join(', ')
+        templateEslint = templateEslint.replace(
+          'ignores: [',
+          `ignores: [${ignoreEntries}, `
+        )
+      }
 
-      if (!fs.existsSync(eslintConfigPath)) {
+      if (!existingEslintConfig && !packageJson.eslintConfig) {
         fs.writeFileSync(eslintConfigPath, templateEslint)
         console.log(
           `✅ Added ESLint configuration${usesTypeScript ? ' (TypeScript-aware)' : ''}`
         )
-      } else if (usesTypeScript) {
-        const existingConfig = fs.readFileSync(eslintConfigPath, 'utf8')
-        if (!existingConfig.includes('@typescript-eslint')) {
-          fs.writeFileSync(eslintConfigPath, templateEslint)
-          console.log('♻️ Updated ESLint configuration with TypeScript support')
-        }
       }
 
       const legacyEslintrcPath = path.join(process.cwd(), '.eslintrc.json')
@@ -1916,8 +2061,38 @@ HELP:
         const templatePrettierignore =
           templateLoader.getTemplate(templates, '.prettierignore') ||
           fs.readFileSync(path.join(__dirname, '.prettierignore'), 'utf8')
-        fs.writeFileSync(prettierignorePath, templatePrettierignore)
+        writeProjectFile(
+          process.cwd(),
+          prettierignorePath,
+          templatePrettierignore
+        )
         console.log('✅ Added Prettier ignore file')
+      }
+      const generatedIgnoreEntries = [
+        ...projectProfile.submodulePaths,
+        ...projectProfile.buildOutputs,
+      ]
+      const prettierignoreContent = readProjectFile(
+        process.cwd(),
+        prettierignorePath
+      )
+      const missingPrettierIgnores = generatedIgnoreEntries.filter(
+        entry => !prettierignoreContent.split(/\r?\n/).includes(entry)
+      )
+      if (missingPrettierIgnores.length > 0) {
+        appendProjectFile(
+          process.cwd(),
+          prettierignorePath,
+          `\n# Generated project paths\n${missingPrettierIgnores.join('\n')}\n`
+        )
+      }
+      const stylelintignorePath = path.join(process.cwd(), '.stylelintignore')
+      if (!fs.existsSync(stylelintignorePath)) {
+        writeProjectFile(
+          process.cwd(),
+          stylelintignorePath,
+          `${generatedIgnoreEntries.join('\n')}\n`
+        )
       }
 
       // Copy Lighthouse CI config if it doesn't exist
@@ -2020,8 +2195,9 @@ coverage/
         }
         const preCommitPath = path.join(huskyDir, 'pre-commit')
         if (!fs.existsSync(preCommitPath)) {
-          const hook =
-            '# Run lint-staged on staged files\nnpx --no -- lint-staged\n'
+          const hook = `# Run lint-staged on staged files
+${projectProfile.exec('lint-staged')}
+`
           fs.writeFileSync(preCommitPath, hook)
           fs.chmodSync(preCommitPath, 0o755)
           console.log('✅ Added Husky pre-commit hook (lint-staged)')
@@ -2039,7 +2215,17 @@ coverage/
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
         if (!fs.existsSync(prePushPath)) {
-          const hook = `echo "🔍 Running pre-push validation..."
+          const detectedTestScript = projectProfile.scripts.test
+          const testFallback = detectedTestScript
+            ? `elif node -e "const pkg=require('./package.json');process.exit(pkg.scripts['${detectedTestScript}']?0:1)" 2>/dev/null; then
+  echo "🧪 Running ${detectedTestScript}..."
+  ${projectProfile.runScript(detectedTestScript)} || {
+    echo "❌ Tests failed! Fix failing tests before pushing."
+    exit 1
+  }
+fi`
+            : 'fi'
+          let hook = `echo "🔍 Running pre-push validation..."
 
 # Enforce Free tier pre-push cap (50/month)
 node - <<'EOF'
@@ -2152,16 +2338,13 @@ if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:c
     echo "❌ Tests failed! Fix failing tests before pushing."
     exit 1
   }
-elif node -e "const pkg=require('./package.json');process.exit(pkg.scripts.test?0:1)" 2>/dev/null; then
-  echo "🧪 Running unit tests..."
-  npm test || {
-    echo "❌ Tests failed! Fix failing tests before pushing."
-    exit 1
-  }
-fi
+${testFallback}
 
 echo "✅ Pre-push validation passed!"
 `
+          hook = hook
+            .replaceAll('npm run ', `${projectProfile.packageManager} run `)
+            .replaceAll('npx tsc', projectProfile.exec('tsc'))
           fs.writeFileSync(prePushPath, hook)
           fs.chmodSync(prePushPath, 0o755)
           console.log('✅ Added Husky pre-push hook (validation)')
@@ -2190,7 +2373,9 @@ echo "✅ Pre-push validation passed!"
           pkgJson.content.volta = {
             ...existingVolta,
             node: '20.11.1',
-            npm: '10.2.4',
+          }
+          if (projectProfile.packageManager === 'npm') {
+            pkgJson.content.volta.npm = '10.2.4'
           }
 
           await pkgJson.save()
@@ -2507,7 +2692,7 @@ Quality checks are automated via GitHub Actions:
           console.log('✅ Updated pre-push hook to use smart strategy')
 
           // Add test tier scripts to package.json
-          const testTierScripts = getTestTierScripts(projectType)
+          const testTierScripts = getTestTierScripts()
           const PackageJson = checkNodeVersionAndLoadPackageJson()
           const pkgJson = await PackageJson.load(process.cwd())
           pkgJson.content.scripts = mergeScripts(
@@ -2542,7 +2727,7 @@ Quality checks are automated via GitHub Actions:
       }
 
       // Quality Tools Integration
-      await setupQualityTools(usesTypeScript, packageJson)
+      await setupQualityTools(usesTypeScript, packageJson, projectProfile)
 
       // Generate placeholder test file with helpful documentation
       const testsDir = path.join(process.cwd(), 'tests')
@@ -2556,7 +2741,7 @@ Quality checks are automated via GitHub Actions:
         fs.mkdirSync(testsDir, { recursive: true })
       }
 
-      if (!fs.existsSync(placeholderTestPath)) {
+      if (!projectProfile.hasTests && !fs.existsSync(placeholderTestPath)) {
         const placeholderContent = `import { describe, it, expect } from 'vitest'
 
 /**
@@ -2622,7 +2807,8 @@ describe('Test framework validation', () => {
       const qualityEnhancements = applyProductionQualityFixes('.', {
         hasTypeScript: usesTypeScript,
         hasPython: usesPython,
-        skipTypeScriptTests: false,
+        preserveExistingTests: projectProfile.hasTests,
+        preserveExistingLint: Boolean(projectProfile.eslintConfig),
       })
 
       // Display applied fixes
@@ -2640,6 +2826,11 @@ describe('Test framework validation', () => {
         console.log('\n⚠️  Setup Warnings:')
         warnings.forEach(warning => console.log(warning))
       }
+
+      // Do not execute repository-controlled formatter configuration during
+      // setup. JavaScript Prettier configs are executable code; setup must stay
+      // a file-generation operation. Consumers can run their existing format
+      // command explicitly after reviewing the generated diff.
 
       console.log('\n🎉 Quality automation setup complete!')
 
@@ -2662,8 +2853,8 @@ describe('Test framework validation', () => {
 
       if (usesPython && fs.existsSync(packageJsonPath)) {
         console.log('JavaScript/TypeScript setup:')
-        console.log('1. Run: npm install')
-        console.log('2. Run: npm run prepare')
+        console.log(`1. Run: ${projectProfile.packageManager} install`)
+        console.log(`2. Run: ${projectProfile.runScript('prepare')}`)
         console.log('\nPython setup:')
         console.log('3. Run: python3 -m pip install -r requirements-dev.txt')
         console.log('4. Run: pre-commit install')
@@ -2674,8 +2865,8 @@ describe('Test framework validation', () => {
         console.log('2. Run: pre-commit install')
         console.log('3. Commit your changes to activate the workflow')
       } else {
-        console.log('1. Run: npm install')
-        console.log('2. Run: npm run prepare')
+        console.log(`1. Run: ${projectProfile.packageManager} install`)
+        console.log(`2. Run: ${projectProfile.runScript('prepare')}`)
         console.log('3. Commit your changes to activate the workflow')
       }
       console.log('\n✨ Your project now has:')
