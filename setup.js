@@ -1426,13 +1426,16 @@ HELP:
       const usesTypeScript = Boolean(
         hasTypeScriptDependency || hasTypeScriptConfig
       )
+      // Detect the consumer's original capabilities before creating any
+      // generated prerequisite files. Otherwise tests/tsconfig.json makes a
+      // test-less project look as though it already has a real test suite.
+      const projectProfile = detectProjectProfile(process.cwd(), packageJson)
       // Establish every file referenced by generated TypeScript scripts before
       // mutating the consumer project. If this prerequisite cannot be created,
       // setup fails with the original project tree untouched.
       if (usesTypeScript) {
         generateTestsTypeScriptConfig(process.cwd())
       }
-      const projectProfile = detectProjectProfile(process.cwd(), packageJson)
       const detectedProjectScripts = Object.fromEntries(
         Object.entries(projectProfile.scripts).filter(([, script]) => script)
       )
