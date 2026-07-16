@@ -9,6 +9,7 @@ const { detectProjectProfile } = require('../lib/project-profile')
 const {
   addGitlink,
   initializeFixtureRepository,
+  runFixtureGit,
 } = require('./git-fixture-helpers')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
@@ -686,6 +687,35 @@ try {
   )
 } finally {
   fs.rmSync(undeclaredGitlinkRepo, { recursive: true, force: true })
+}
+
+const largeIndexRepo = createRepo({ name: 'large-index-fixture' })
+try {
+  const blob = runFixtureGit(largeIndexRepo, ['hash-object', '-w', '--stdin'], {
+    encoding: 'utf8',
+    input: '',
+  }).trim()
+  const indexRecords = Array.from({ length: 18_000 }, (_, index) => {
+    const sequence = String(index).padStart(6, '0')
+    return `100644 ${blob}\tgenerated/${sequence}-${'x'.repeat(32)}.js\n`
+  }).join('')
+  assert(
+    Buffer.byteLength(indexRecords) > 1024 * 1024,
+    'Large-index fixture must exceed the child_process default output buffer'
+  )
+  runFixtureGit(largeIndexRepo, ['update-index', '--index-info'], {
+    input: indexRecords,
+  })
+  fs.writeFileSync(
+    path.join(largeIndexRepo, '.gitmodules'),
+    '[submodule "large"]\n\tpath = vendor/large\n\turl = https://example.invalid/large.git\n'
+  )
+  addGitlink(largeIndexRepo, 'vendor/large')
+
+  const profile = detectProjectProfile(largeIndexRepo)
+  assert.deepStrictEqual(profile.submodulePaths, ['vendor/large'])
+} finally {
+  fs.rmSync(largeIndexRepo, { recursive: true, force: true })
 }
 
 for (const configName of [
