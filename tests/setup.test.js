@@ -26,9 +26,18 @@ const {
   getQualityToolsDependencies,
 } = require('../lib/quality-tools-generator')
 
+const withoutGitRepositoryEnvironment = environment =>
+  Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !key.startsWith('GIT_'))
+  )
+
 const createTempProject = initialPackageJson => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-template-'))
-  execSync('git init', { cwd: tempDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: tempDir,
+    stdio: 'ignore',
+    env: withoutGitRepositoryEnvironment(process.env),
+  })
 
   fs.writeFileSync(
     path.join(tempDir, 'package.json'),
@@ -42,7 +51,10 @@ const runSetup = (cwd, envOverrides = {}) => {
   execFileSync(process.execPath, [setupScript], {
     cwd,
     stdio: 'ignore',
-    env: { ...process.env, ...envOverrides },
+    env: withoutGitRepositoryEnvironment({
+      ...process.env,
+      ...envOverrides,
+    }),
   })
 }
 
