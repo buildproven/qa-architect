@@ -135,6 +135,12 @@ const {
   PRETTIER_CONFIGS,
   detectProjectProfile,
 } = require('./lib/project-profile')
+const {
+  appendProjectFile,
+  assertSafeProjectFile,
+  readProjectFile,
+  writeProjectFile,
+} = require('./lib/project-file-safety')
 
 // Command handlers (extracted for maintainability)
 const {
@@ -1349,7 +1355,10 @@ HELP:
 
       if (fs.existsSync(packageJsonPath)) {
         try {
-          const packageJsonContent = fs.readFileSync(packageJsonPath, 'utf8')
+          const packageJsonContent = readProjectFile(
+            process.cwd(),
+            packageJsonPath
+          )
           // Validate JSON content before parsing
           if (packageJsonContent.trim().length === 0) {
             console.error('❌ package.json is empty')
@@ -1431,8 +1440,10 @@ HELP:
           packageJson.scripts || {}
         )
         packageJson.scripts = packageScripts
-        packageScripts['quality:lint'] =
-          `${projectProfile.runScript(projectProfile.scripts.lint)} -- ${ignoreArguments}`
+        if (!packageScripts['quality:lint']) {
+          packageScripts['quality:lint'] =
+            `${projectProfile.runScript(projectProfile.scripts.lint)} -- ${ignoreArguments}`
+        }
         projectProfile.scripts.lint = 'quality:lint'
       }
       const finalProjectProfile = () => {
@@ -1585,8 +1596,21 @@ HELP:
       const {
         getEnhancedTypeScriptScripts,
       } = require('./lib/typescript-config-generator')
+      const hasSecurityAuditScript = Boolean(
+        packageJson.scripts?.['security:audit'] ||
+        defaultScripts['security:audit']
+      )
       const enhancedScripts = usesTypeScript
-        ? getEnhancedTypeScriptScripts({ runScript: projectProfile.runScript })
+        ? getEnhancedTypeScriptScripts({
+            runScript: projectProfile.runScript,
+            lintScript:
+              projectProfile.scripts.lint ||
+              (defaultScripts.lint ? 'lint' : null),
+            testScript:
+              projectProfile.scripts.test ||
+              (defaultScripts.test ? 'test' : null),
+            securityScript: hasSecurityAuditScript ? 'security:audit' : null,
+          })
         : {}
 
       // Merge both default and enhanced scripts
@@ -1605,12 +1629,16 @@ HELP:
         delete defaultDevDependencies.vitest
         delete defaultDevDependencies['@vitest/coverage-v8']
       }
-      if (projectProfile.eslintConfig) {
+      if (projectProfile.eslintDependencies.eslint) {
         delete defaultDevDependencies.eslint
+      }
+      if (projectProfile.eslintDependencies.typescriptPlugin) {
         delete defaultDevDependencies['@typescript-eslint/eslint-plugin']
+      }
+      if (projectProfile.eslintDependencies.typescriptParser) {
         delete defaultDevDependencies['@typescript-eslint/parser']
       }
-      if (projectProfile.prettierConfig) {
+      if (projectProfile.prettierDependency) {
         delete defaultDevDependencies.prettier
       }
       packageJson.devDependencies = mergeDevDependencies(
@@ -1670,6 +1698,7 @@ HELP:
           Object.assign(pkgJson.content, packageJson)
         }
 
+        assertSafeProjectFile(process.cwd(), packageJsonPath)
         await pkgJson.save()
         console.log('✅ Updated package.json')
       } catch (error) {
@@ -1903,7 +1932,7 @@ HELP:
             enablePrComments,
           })
 
-          fs.writeFileSync(workflowFile, templateWorkflow)
+          writeProjectFile(process.cwd(), workflowFile, templateWorkflow)
           console.log(`✅ Added GitHub Actions workflow (${workflowMode} mode)`)
         } else if (isUpdateMode) {
           // Refresh existing workflow from the current template.
@@ -1928,7 +1957,7 @@ HELP:
           )
 
           // Inject collaboration steps (preserve from existing if present)
-          const existingWorkflow = fs.readFileSync(workflowFile, 'utf8')
+          const existingWorkflow = readProjectFile(process.cwd(), workflowFile)
           const hasSlackAlerts = existingWorkflow.includes('SLACK_WEBHOOK_URL')
           const hasPrComments = existingWorkflow.includes(
             'PR_COMMENT_PLACEHOLDER'
@@ -1939,7 +1968,7 @@ HELP:
             enablePrComments: hasPrComments,
           })
 
-          fs.writeFileSync(workflowFile, templateWorkflow)
+          writeProjectFile(process.cwd(), workflowFile, templateWorkflow)
           if (workflowMode === 'minimal') {
             console.log(
               'ℹ️  Minimal mode runs detected project scripts on a single Node version.'
@@ -2018,26 +2047,35 @@ HELP:
         const templatePrettierignore =
           templateLoader.getTemplate(templates, '.prettierignore') ||
           fs.readFileSync(path.join(__dirname, '.prettierignore'), 'utf8')
-        fs.writeFileSync(prettierignorePath, templatePrettierignore)
+        writeProjectFile(
+          process.cwd(),
+          prettierignorePath,
+          templatePrettierignore
+        )
         console.log('✅ Added Prettier ignore file')
       }
       const generatedIgnoreEntries = [
         ...projectProfile.submodulePaths,
         ...projectProfile.buildOutputs,
       ]
-      const prettierignoreContent = fs.readFileSync(prettierignorePath, 'utf8')
+      const prettierignoreContent = readProjectFile(
+        process.cwd(),
+        prettierignorePath
+      )
       const missingPrettierIgnores = generatedIgnoreEntries.filter(
         entry => !prettierignoreContent.split(/\r?\n/).includes(entry)
       )
       if (missingPrettierIgnores.length > 0) {
-        fs.appendFileSync(
+        appendProjectFile(
+          process.cwd(),
           prettierignorePath,
           `\n# Generated project paths\n${missingPrettierIgnores.join('\n')}\n`
         )
       }
       const stylelintignorePath = path.join(process.cwd(), '.stylelintignore')
       if (!fs.existsSync(stylelintignorePath)) {
-        fs.writeFileSync(
+        writeProjectFile(
+          process.cwd(),
           stylelintignorePath,
           `${generatedIgnoreEntries.join('\n')}\n`
         )
@@ -2163,6 +2201,16 @@ ${projectProfile.exec('lint-staged')}
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
         if (!fs.existsSync(prePushPath)) {
+          const detectedTestScript = projectProfile.scripts.test
+          const testFallback = detectedTestScript
+            ? `elif node -e "const pkg=require('./package.json');process.exit(pkg.scripts['${detectedTestScript}']?0:1)" 2>/dev/null; then
+  echo "🧪 Running ${detectedTestScript}..."
+  ${projectProfile.runScript(detectedTestScript)} || {
+    echo "❌ Tests failed! Fix failing tests before pushing."
+    exit 1
+  }
+fi`
+            : 'fi'
           let hook = `echo "🔍 Running pre-push validation..."
 
 # Enforce Free tier pre-push cap (50/month)
@@ -2276,24 +2324,12 @@ if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:c
     echo "❌ Tests failed! Fix failing tests before pushing."
     exit 1
   }
-elif node -e "const pkg=require('./package.json');process.exit(pkg.scripts.test?0:1)" 2>/dev/null; then
-  echo "🧪 Running unit tests..."
-  npm test || {
-    echo "❌ Tests failed! Fix failing tests before pushing."
-    exit 1
-  }
-fi
+${testFallback}
 
 echo "✅ Pre-push validation passed!"
 `
           hook = hook
             .replaceAll('npm run ', `${projectProfile.packageManager} run `)
-            .replaceAll(
-              'npm test',
-              projectProfile.scripts.test
-                ? projectProfile.runScript(projectProfile.scripts.test)
-                : `${projectProfile.packageManager} run test`
-            )
             .replaceAll('npx tsc', projectProfile.exec('tsc'))
           fs.writeFileSync(prePushPath, hook)
           fs.chmodSync(prePushPath, 0o755)

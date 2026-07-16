@@ -19,19 +19,25 @@ function createRepo(packageJson) {
   return directory
 }
 
-function runSetup(directory) {
+function runSetup(directory, options = {}) {
+  const { developer = true } = options
   const licenseDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'qaa-profile-license-')
   )
+  const env = /** @type {NodeJS.ProcessEnv} */ ({
+    ...process.env,
+    NODE_ENV: 'test',
+    QAA_LICENSE_DIR: licenseDirectory,
+  })
+  if (developer) {
+    env.QAA_DEVELOPER = 'true'
+  } else {
+    delete env.QAA_DEVELOPER
+  }
   execFileSync(process.execPath, [setupPath, '--workflow-minimal'], {
     cwd: directory,
     stdio: 'pipe',
-    env: {
-      ...process.env,
-      NODE_ENV: 'test',
-      QAA_DEVELOPER: 'true',
-      QAA_LICENSE_DIR: licenseDirectory,
-    },
+    env,
   })
   return licenseDirectory
 }
@@ -44,6 +50,19 @@ function runGeneratedScript(directory, scriptName) {
     env: {
       ...process.env,
       PATH: `${localBin}${path.delimiter}${process.env.PATH || ''}`,
+    },
+  })
+}
+
+function runGeneratedPrePush(directory, licenseDirectory) {
+  execFileSync('sh', [path.join(directory, '.husky', 'pre-push')], {
+    cwd: directory,
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      QAA_DEVELOPER: 'true',
+      QAA_LICENSE_DIR: licenseDirectory,
     },
   })
 }
@@ -226,6 +245,28 @@ try {
   fs.rmSync(npmRepo, { recursive: true, force: true })
 }
 
+for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
+  const markerName = detectedTestScript.replace(':', '-')
+  const testScriptRepo = createRepo({
+    name: `${markerName}-pre-push-fixture`,
+    scripts: {
+      [detectedTestScript]: `node -e "require('fs').writeFileSync('${markerName}.ran', 'yes')"`,
+    },
+  })
+  try {
+    fs.writeFileSync(path.join(testScriptRepo, 'package-lock.json'), '{}\n')
+    const licenseDirectory = runSetup(testScriptRepo, { developer: false })
+    runGeneratedPrePush(testScriptRepo, licenseDirectory)
+    assert(
+      fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)),
+      `Generated pre-push hook must execute detected ${detectedTestScript}`
+    )
+    fs.rmSync(licenseDirectory, { recursive: true, force: true })
+  } finally {
+    fs.rmSync(testScriptRepo, { recursive: true, force: true })
+  }
+}
+
 const executablePrettierConfigRepo = createRepo({
   name: 'untrusted-prettier-config-fixture',
   scripts: { test: 'node --test' },
@@ -290,6 +331,9 @@ try {
     'export {}\n'
   )
   runSetup(noTestScriptRepo)
+  const generatedPackage = JSON.parse(
+    fs.readFileSync(path.join(noTestScriptRepo, 'package.json'), 'utf8')
+  )
   const workflow = fs.readFileSync(
     path.join(noTestScriptRepo, '.github/workflows/quality.yml'),
     'utf8'
@@ -299,6 +343,29 @@ try {
   assert(workflow.includes('timeout 300 npm run build'))
   assert(!workflow.includes('npm test'))
   assert(!workflow.includes('npm run test'))
+  assert(!generatedPackage.scripts['quality:check'].includes('run test'))
+  assert(!generatedPackage.scripts['quality:ci'].includes('run test'))
+
+  const binDirectory = path.join(noTestScriptRepo, 'bin')
+  const invocationLog = path.join(noTestScriptRepo, 'quality-invocations.log')
+  fs.mkdirSync(binDirectory)
+  fs.writeFileSync(
+    path.join(binDirectory, 'npm'),
+    `#!/bin/sh\nprintf '%s\\n' "$*" >> "${invocationLog}"\nexit 0\n`
+  )
+  fs.chmodSync(path.join(binDirectory, 'npm'), 0o755)
+  execSync(generatedPackage.scripts['quality:check'], {
+    cwd: noTestScriptRepo,
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      PATH: `${binDirectory}${path.delimiter}${process.env.PATH || ''}`,
+    },
+  })
+  const invokedCommands = fs.readFileSync(invocationLog, 'utf8')
+  assert(invokedCommands.includes('run type-check:all'))
+  assert(invokedCommands.includes('run lint'))
+  assert(!invokedCommands.includes('run test'))
 } finally {
   fs.rmSync(noTestScriptRepo, { recursive: true, force: true })
 }
@@ -394,10 +461,37 @@ try {
   )
   assert(workflow.includes("cache: 'yarn'"))
   assert(workflow.includes('echo "install-cmd=yarn install --immutable"'))
+  assert(workflow.includes('yarn npm audit --severity high --all --recursive'))
+  assert(!workflow.includes('yarn audit --level'))
+  assert(
+    (workflow.match(/yarn install --immutable/g) || []).length >= 2,
+    'Yarn Berry workflow should use immutable install for install and integrity checks'
+  )
   assert(workflow.includes('timeout 300 yarn build'))
 } finally {
   fs.rmSync(yarnClassicRepo, { recursive: true, force: true })
   fs.rmSync(yarnBerryRepo, { recursive: true, force: true })
+}
+
+const bunLockOnlyRepo = createRepo({ name: 'bun-lock-only-fixture' })
+const bunUnversionedRepo = createRepo({
+  name: 'bun-unversioned-fixture',
+  packageManager: 'bun',
+})
+try {
+  fs.writeFileSync(path.join(bunLockOnlyRepo, 'bun.lock'), '')
+  fs.writeFileSync(path.join(bunUnversionedRepo, 'bun.lock'), '')
+  assert.throws(
+    () => detectProjectProfile(bunLockOnlyRepo),
+    /Bun projects must declare an exact packageManager version/
+  )
+  assert.throws(
+    () => detectProjectProfile(bunUnversionedRepo),
+    /Bun projects must declare an exact packageManager version/
+  )
+} finally {
+  fs.rmSync(bunLockOnlyRepo, { recursive: true, force: true })
+  fs.rmSync(bunUnversionedRepo, { recursive: true, force: true })
 }
 
 const injectionRepo = createRepo({

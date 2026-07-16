@@ -277,14 +277,16 @@ jobs:
 
       - name: Check for hardcoded secrets
         run: |
-          echo "🔍 Running gitleaks secret scanning..."
-          # Use setup.js security scan which manages gitleaks binary internally
-          # This avoids the commercial license requirement of the gitleaks-action
-          if [ -f setup.js ]; then
-            node setup.js --security-config
-          else
-            echo "Consumer secret scanning is provided by the pinned Semgrep security gate below."
-          fi
+          set -euo pipefail
+          GITLEAKS_VERSION='8.28.0'
+          GITLEAKS_SHA256='5fd1b3b0073269484d40078662e921d07427340ab9e6ed526ccd215a565b3298'
+          GITLEAKS_DIR="$(mktemp -d)"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            --output "${GITLEAKS_DIR}/gitleaks.tar.gz"
+          tar -xzf "${GITLEAKS_DIR}/gitleaks.tar.gz" -C "${GITLEAKS_DIR}" gitleaks
+          echo "${GITLEAKS_SHA256}  ${GITLEAKS_DIR}/gitleaks" | sha256sum --check -
+          "${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner
 
       - name: Security pattern detection
         uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1

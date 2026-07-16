@@ -647,8 +647,8 @@ assert.ok(
   'Workflow should include the production dependency CVE gate step'
 )
 assert.ok(
-  workflowContent.includes('gitleaks secret scanning'),
-  'Workflow should include gitleaks scanning'
+  workflowContent.includes('detect --source . --redact --no-banner'),
+  'Workflow should execute blocking gitleaks scanning'
 )
 
 console.log('✅ All security pattern tests passed!')

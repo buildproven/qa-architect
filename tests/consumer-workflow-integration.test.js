@@ -110,6 +110,30 @@ function assertValidYamlStructure(content, tier) {
     content.includes('security:'),
     `${tier} workflow must have security job`
   )
+  assert(
+    content.includes("GITLEAKS_VERSION='8.28.0'"),
+    `${tier} workflow must pin the gitleaks version`
+  )
+  assert(
+    content.includes(
+      "GITLEAKS_SHA256='5fd1b3b0073269484d40078662e921d07427340ab9e6ed526ccd215a565b3298'"
+    ),
+    `${tier} workflow must pin the verified gitleaks binary checksum`
+  )
+  assert(
+    content.includes('sha256sum --check -'),
+    `${tier} workflow must verify gitleaks before execution`
+  )
+  assert(
+    content.includes(
+      '"${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner'
+    ),
+    `${tier} workflow must run blocking gitleaks secret scanning`
+  )
+  assert(
+    !content.includes('gitleaks@latest'),
+    `${tier} workflow must not execute mutable gitleaks code`
+  )
 }
 
 // Use child_process.execSync for legitimate test CLI invocation (not user input)
