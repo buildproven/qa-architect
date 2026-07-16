@@ -15,10 +15,6 @@ const {
   STYLELINT_EXTENSIONS,
 } = require('../config/defaults')
 
-// Import enhanced scripts for testing
-const {
-  getEnhancedTypeScriptScripts,
-} = require('../lib/typescript-config-generator')
 // const {
 //   getSecurityScripts
 // } = require('../lib/security-enhancements')
@@ -225,7 +221,9 @@ try {
 
   // Include enhanced scripts in expected results (matching setup.js behavior)
   const defaultScripts = getDefaultScripts({ typescript: false })
-  const enhancedScripts = getEnhancedTypeScriptScripts()
+  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['validate:pre-push'] = 'npm run lint'
+  const enhancedScripts = {}
   const smartStrategyScripts = {}
   // Quality tools scripts (added by setupQualityTools based on license tier)
   const qualityToolsScripts = getQualityToolsScripts({
@@ -307,7 +305,9 @@ try {
   const pkg = readJson(path.join(jsProjectDirPro, 'package.json'))
 
   const defaultScripts = getDefaultScripts({ typescript: false })
-  const enhancedScripts = getEnhancedTypeScriptScripts()
+  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['validate:pre-push'] = 'npm run lint'
+  const enhancedScripts = {}
   const smartStrategyScripts = getTestTierScripts()
   const qualityToolsScripts = getQualityToolsScripts({
     lighthouse: true,

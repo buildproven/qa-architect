@@ -40,10 +40,30 @@ function defaultGitRunner(args) {
       stdio: ['ignore', 'pipe', 'pipe'],
     }).trim()
   } catch (error) {
-    const err = new Error(`git ${args.join(' ')} failed: ${error.message}`)
-    err.failed = true
+    const err = createPolicyError(
+      `git ${args.join(' ')} failed: ${error.message}`,
+      null,
+      true
+    )
     throw err
   }
+}
+
+/**
+ * Create an error carrying the structured metadata used by the policy gate.
+ *
+ * @param {string} message
+ * @param {string|null} [reason]
+ * @param {boolean} [failed]
+ * @returns {Error & {reason?: string, failed?: boolean}}
+ */
+function createPolicyError(message, reason = null, failed = false) {
+  const error = /** @type {Error & {reason?: string, failed?: boolean}} */ (
+    new Error(message)
+  )
+  if (reason) error.reason = reason
+  if (failed) error.failed = true
+  return error
 }
 
 /**
@@ -72,18 +92,20 @@ function resolveBase({
   // Step 2: explicit --base
   if (baseArg) {
     if (!refExists(baseArg, gitRunner)) {
-      const err = new Error(`--base ${baseArg} is not resolvable in this repo`)
-      err.reason = 'base-not-resolvable'
-      throw err
+      throw createPolicyError(
+        `--base ${baseArg} is not resolvable in this repo`,
+        'base-not-resolvable'
+      )
     }
     return { mode: 'local', base: baseArg }
   }
 
   // Step 3: detached HEAD
   if (isHeadDetached(gitRunner)) {
-    const err = new Error('HEAD is detached; pass --base <ref> explicitly')
-    err.reason = 'detached-head'
-    throw err
+    throw createPolicyError(
+      'HEAD is detached; pass --base <ref> explicitly',
+      'detached-head'
+    )
   }
 
   // Step 4: candidate base order
@@ -95,11 +117,10 @@ function resolveBase({
   }
 
   // Step 5: nothing resolved
-  const err = new Error(
-    'No base ref found (tried origin/main, origin/master, main, master); pass --base explicitly'
+  throw createPolicyError(
+    'No base ref found (tried origin/main, origin/master, main, master); pass --base explicitly',
+    'no-base'
   )
-  err.reason = 'no-base'
-  throw err
 }
 
 function refExists(ref, gitRunner) {
@@ -130,18 +151,18 @@ function getChangedFilesForBase(base, gitRunner = defaultGitRunner) {
   try {
     mergeBase = gitRunner(['merge-base', 'HEAD', base])
   } catch {
-    const err = new Error(
+    throw createPolicyError(
       `Could not compute merge-base between HEAD and ${base} ` +
-        '(unrelated history or shallow clone too short); deepen clone or pass --base explicitly'
+        '(unrelated history or shallow clone too short); deepen clone or pass --base explicitly',
+      'no-merge-base'
     )
-    err.reason = 'no-merge-base'
-    throw err
   }
 
   if (!mergeBase) {
-    const err = new Error(`merge-base HEAD ${base} returned empty`)
-    err.reason = 'no-merge-base'
-    throw err
+    throw createPolicyError(
+      `merge-base HEAD ${base} returned empty`,
+      'no-merge-base'
+    )
   }
 
   const branch = gitRunner(['diff', '--name-only', `${mergeBase}...HEAD`])

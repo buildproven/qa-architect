@@ -16,7 +16,16 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 // For component testing, use @axe-core/react or @axe-core/playwright
 // This example uses puppeteer for full page testing
 
-let browser
+/**
+ * @typedef {{close: () => Promise<void>}} BrowserHandle
+ */
+
+/** @returns {BrowserHandle|null} */
+function initialBrowserHandle() {
+  return null
+}
+
+let browser = initialBrowserHandle()
 
 describe('Accessibility Tests', () => {
   beforeAll(async () => {
@@ -61,7 +70,7 @@ describe('Accessibility Tests', () => {
 
 /**
  * Helper function to run axe-core on a page
- * @param {Object} page - Puppeteer/Playwright page object
+ * @param {{addScriptTag: (options: {path: string}) => Promise<unknown>, evaluate: (callback: () => Promise<Object>) => Promise<Object>}} page - Puppeteer/Playwright page object
  * @returns {Promise<Object>} axe results
  */
 export async function runAxeOnPage(page) {
@@ -72,8 +81,10 @@ export async function runAxeOnPage(page) {
 
   // Run axe
   const results = await page.evaluate(async () => {
-    // eslint-disable-next-line no-undef
-    return await axe.run()
+    const axeRuntime = /** @type {{run: () => Promise<Object>}} */ (
+      globalThis['axe']
+    )
+    return await axeRuntime.run()
   })
 
   return results

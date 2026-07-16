@@ -1,7 +1,5 @@
 'use strict'
 
-// @ts-nocheck — test mocks use internal Node APIs (Module._resolveFilename, require.cache)
-
 /**
  * Unit tests for lib/blob-storage.js
  * Mocks @vercel/blob to test load/save logic without real Vercel infra.
@@ -10,10 +8,18 @@
 const assert = require('node:assert')
 const Module = require('module')
 
+/**
+ * @typedef {{path: string, content: string, options: {ifMatch?: string, addRandomSuffix?: boolean, allowOverwrite?: boolean, access?: string, contentType?: string}}} PutCall
+ * @typedef {{url: string, content?: string, etag?: string}} MockBlobEntry
+ */
+
 // --- Mock @vercel/blob ---
+/** @type {Map<string, MockBlobEntry>} */
 const mockStore = new Map()
+/** @type {PutCall|null} */
 let putCallArgs = null
 let putShouldThrow = false
+/** @type {((path: string) => Promise<{url: string, etag: string}>)|null} */
 let headOverride = null
 
 // Monotonic etag generator so each write produces a distinct version tag,
@@ -29,7 +35,11 @@ class BlobPreconditionFailedError extends Error {
 
 const mockBlob = {
   BlobPreconditionFailedError,
-  put: async (path, content, options = {}) => {
+  put: async (
+    /** @type {string} */ path,
+    /** @type {string} */ content,
+    /** @type {PutCall['options']} */ options = {}
+  ) => {
     if (putShouldThrow) {
       throw new Error('Blob store unavailable')
     }
@@ -49,46 +59,47 @@ const mockBlob = {
     mockStore.set(path, { url, content, etag })
     return { url, pathname: path }
   },
-  head: async path => {
+  head: async (/** @type {string} */ path) => {
     if (headOverride) return headOverride(path)
     if (!mockStore.has(path)) {
-      const err = new Error('Blob not found')
-      err.code = 'blob_not_found'
+      const err = Object.assign(new Error('Blob not found'), {
+        code: 'blob_not_found',
+      })
       throw err
     }
     const entry = mockStore.get(path)
-    return { url: entry.url, etag: entry.etag }
+    return { url: entry.url, etag: entry.etag || '' }
   },
 }
 
 // Intercept require('@vercel/blob')
-const originalResolve = Module._resolveFilename
-Module._resolveFilename = function (request, parent, ...args) {
+const originalResolve = Reflect.get(Module, '_resolveFilename')
+Reflect.set(Module, '_resolveFilename', function (request, parent, ...args) {
   if (request === '@vercel/blob') {
     return '@vercel/blob'
   }
   return originalResolve.call(this, request, parent, ...args)
-}
+})
 
-require.cache['@vercel/blob'] = {
-  id: '@vercel/blob',
-  filename: '@vercel/blob',
-  loaded: true,
-  exports: mockBlob,
-}
+const mockBlobModule = new Module('@vercel/blob')
+mockBlobModule.filename = '@vercel/blob'
+mockBlobModule.loaded = true
+mockBlobModule.exports = mockBlob
+require.cache['@vercel/blob'] = mockBlobModule
 
 // Mock global fetch for blob content retrieval
 const originalFetch = global.fetch
 global.fetch = async url => {
+  const requestedUrl = String(url)
   for (const [, entry] of mockStore) {
-    if (entry.url === url) {
-      return {
-        ok: true,
-        json: async () => JSON.parse(entry.content),
-      }
+    if (entry.url === requestedUrl) {
+      return new Response(entry.content || '', {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
     }
   }
-  return { ok: false, status: 404 }
+  return new Response(null, { status: 404 })
 }
 
 // Now require the module under test
@@ -159,13 +170,15 @@ async function testSaveBlobCallsPutCorrectly() {
   const result = await saveBlob('test/data.json', data)
 
   assert.ok(result, 'saveBlob should return truthy result')
-  assert.strictEqual(putCallArgs.path, 'test/data.json')
-  assert.strictEqual(putCallArgs.options.addRandomSuffix, false)
-  assert.strictEqual(putCallArgs.options.allowOverwrite, true)
-  assert.strictEqual(putCallArgs.options.access, 'public')
-  assert.strictEqual(putCallArgs.options.contentType, 'application/json')
+  const call = putCallArgs
+  assert.ok(call, 'put should capture its arguments')
+  assert.strictEqual(call.path, 'test/data.json')
+  assert.strictEqual(call.options.addRandomSuffix, false)
+  assert.strictEqual(call.options.allowOverwrite, true)
+  assert.strictEqual(call.options.access, 'public')
+  assert.strictEqual(call.options.contentType, 'application/json')
 
-  const savedContent = JSON.parse(putCallArgs.content)
+  const savedContent = JSON.parse(call.content)
   assert.deepStrictEqual(savedContent, data)
   console.log('  ✅ saveBlob calls put with correct options')
 }
@@ -211,7 +224,7 @@ async function testLoadBlobThrowsOnFetchFailure() {
   mockStore.set('bad/fetch.json', {
     url: 'https://blob.vercel-storage.com/bad/fetch.json',
   })
-  global.fetch = async () => ({ ok: false, status: 503 })
+  global.fetch = async () => new Response(null, { status: 503 })
   await assert.rejects(
     () => loadBlob('bad/fetch.json'),
     /Blob fetch failed.*HTTP 503/,
@@ -243,10 +256,11 @@ async function testLoadBlobThrowsOnCorruptJson() {
   })
   // Need fetch to return this content
   const prevFetch = global.fetch
-  global.fetch = async () => ({
-    ok: true,
-    json: async () => JSON.parse('<html>not json</html>'),
-  })
+  global.fetch = async () =>
+    new Response('<html>not json</html>', {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
   await assert.rejects(
     () => loadBlob('corrupt/data.json'),
     /Blob JSON parse failed/,
@@ -346,7 +360,7 @@ async function runTests() {
     console.log('\n✅ All blob-storage tests passed!\n')
   } finally {
     // Restore mocks
-    Module._resolveFilename = originalResolve
+    Reflect.set(Module, '_resolveFilename', originalResolve)
     delete require.cache['@vercel/blob']
     global.fetch = originalFetch
   }

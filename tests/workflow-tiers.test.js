@@ -15,6 +15,10 @@ console.log('🧪 Testing workflow tier system...\n')
 // Helper to create a temp git repo
 function createTempGitRepo() {
   const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cqa-workflow-test-'))
+  process.env.QAA_LICENSE_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cqa-workflow-license-')
+  )
+  process.env.NODE_ENV = 'test'
   execSync('git init', { cwd: testDir, stdio: 'ignore' })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
@@ -412,7 +416,8 @@ jobs:
     )
     const workflowContent = fs.readFileSync(workflowPath, 'utf8')
 
-    // Verify expensive steps are REMOVED in minimal mode
+    // Minimal mode avoids a dependency install in the detector, but retains
+    // the source-only maturity scan so real tests cannot be hidden.
     assert(
       !workflowContent.includes(
         '- name: Install dependencies for maturity detection'
@@ -420,26 +425,16 @@ jobs:
       'Minimal mode should NOT have dependency installation step'
     )
     assert(
-      !workflowContent.includes('- name: Detect Project Maturity'),
-      'Minimal mode should NOT have maturity detection step'
+      workflowContent.includes('- name: Detect Project Maturity'),
+      'Minimal mode should retain maturity detection'
     )
 
-    // Verify maturity outputs are hardcoded
+    // Verify maturity outputs remain revision-specific.
     assert(
-      workflowContent.includes("maturity: 'minimal'"),
-      'Minimal mode should have hardcoded maturity output'
-    )
-    assert(
-      workflowContent.includes("source-count: '0'"),
-      'Minimal mode should have hardcoded source-count output'
-    )
-    assert(
-      workflowContent.includes("test-count: '0'"),
-      'Minimal mode should have hardcoded test-count output'
-    )
-    assert(
-      workflowContent.includes("has-deps: 'false'"),
-      'Minimal mode should have hardcoded has-deps output'
+      workflowContent.includes(
+        'test-count: ${{ steps.detect.outputs.test-count }}'
+      ),
+      'Minimal mode should retain real test detection'
     )
 
     // Verify package manager detection is preserved (fast lockfile check)
@@ -468,9 +463,7 @@ jobs:
       'Minimal mode should NOT reference gitleaks-real-binary-test.js'
     )
 
-    console.log(
-      '✅ PASS - Minimal mode skips expensive steps, uses hardcoded outputs\n'
-    )
+    console.log('✅ PASS - Minimal mode retains real project detection\n')
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })
   }
@@ -514,11 +507,13 @@ jobs:
       `Should have 5 Bun setup steps, found ${bunSetupMatches ? bunSetupMatches.length : 0}`
     )
 
-    // Verify pnpm version format
-    const pnpmVersionMatches = workflowContent.match(/version: '8\.15\.0'/g)
     assert(
-      pnpmVersionMatches && pnpmVersionMatches.length === 5,
-      `Should have 5 pnpm version: '8.15.0' entries, found ${pnpmVersionMatches ? pnpmVersionMatches.length : 0}`
+      !workflowContent.includes("version: '8.15.0'"),
+      'Workflow must not pin a stale hardcoded pnpm version'
+    )
+    assert(
+      (workflowContent.match(/corepack enable/g) || []).length === 5,
+      'Every pnpm setup should use Corepack'
     )
 
     // Verify bun version format
@@ -544,19 +539,6 @@ jobs:
     assert(
       bunConditionalMatches && bunConditionalMatches.length >= 3,
       `Should have at least 3 conditional bun checks, found ${bunConditionalMatches ? bunConditionalMatches.length : 0}`
-    )
-
-    // Verify setup order: Node.js → pnpm → Bun
-    const setupNodeIndex = workflowContent.indexOf('- name: Setup Node.js')
-    const firstPnpmSetupIndex = workflowContent.indexOf('- name: Setup pnpm')
-    const firstBunSetupIndex = workflowContent.indexOf('- name: Setup Bun')
-    assert(
-      setupNodeIndex < firstPnpmSetupIndex,
-      'Setup Node.js should come before Setup pnpm'
-    )
-    assert(
-      firstPnpmSetupIndex < firstBunSetupIndex,
-      'Setup pnpm should come before Setup Bun'
     )
 
     console.log(

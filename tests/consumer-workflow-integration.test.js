@@ -23,6 +23,10 @@ function createTempGitRepo() {
   const testDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'cqa-consumer-workflow-')
   )
+  process.env.QAA_LICENSE_DIR = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cqa-consumer-license-')
+  )
+  process.env.NODE_ENV = 'test'
   execSync('git init', { cwd: testDir, stdio: 'ignore' })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
@@ -127,32 +131,21 @@ const setupPath = path.join(__dirname, '../setup.js')
     assertNoSectionMarkers(content, 'Minimal')
     assertValidYamlStructure(content, 'Minimal')
 
-    // Minimal-specific: hardcoded maturity outputs
+    // Minimal-specific: retain real project detection so existing tests run.
     assert(
-      content.includes("maturity: 'minimal'"),
-      'Minimal must have hardcoded maturity'
-    )
-    assert(
-      content.includes("source-count: '0'"),
-      'Minimal must have hardcoded source-count'
-    )
-    assert(
-      content.includes("test-count: '0'"),
-      'Minimal must have hardcoded test-count'
-    )
-    assert(
-      content.includes("has-deps: 'false'"),
-      'Minimal must have hardcoded has-deps'
+      content.includes('test-count: ${{ steps.detect.outputs.test-count }}'),
+      'Minimal must retain real test detection'
     )
 
-    // Minimal-specific: no full detection steps
+    // Minimal-specific: no dependency install for detection, while retaining
+    // the source-only scan that discovers real tests.
     assert(
       !content.includes('Install dependencies for maturity detection'),
       'Minimal must NOT have dep install step'
     )
     assert(
-      !content.includes('Detect Project Maturity'),
-      'Minimal must NOT have maturity detection step'
+      content.includes('Detect Project Maturity'),
+      'Minimal must retain maturity detection'
     )
 
     // Minimal-specific: single node version, path filters, schedule
