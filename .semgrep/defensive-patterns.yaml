@@ -22,10 +22,14 @@ rules:
       - javascript
       - typescript
     pattern-either:
-      - pattern: JSON.parse($REQ.body)
-      - pattern: JSON.parse($REQ.query.$PARAM)
-      - pattern: JSON.parse($REQ.params.$PARAM)
-      - pattern: JSON.parse(await $REQ.json())
+      - pattern: JSON.parse(req.body)
+      - pattern: JSON.parse(req.query.$PARAM)
+      - pattern: JSON.parse(req.params.$PARAM)
+      - pattern: JSON.parse(await req.json())
+      - pattern: JSON.parse(request.body)
+      - pattern: JSON.parse(request.query.$PARAM)
+      - pattern: JSON.parse(request.params.$PARAM)
+      - pattern: JSON.parse(await request.json())
     metadata:
       category: security
       cwe: 'CWE-1321'
@@ -373,7 +377,13 @@ rules:
     languages:
       - javascript
       - typescript
-    pattern: path.resolve($USER_INPUT)
+    pattern-either:
+      - pattern: path.resolve($REQ.body.$PARAM)
+      - pattern: path.resolve($REQ.query.$PARAM)
+      - pattern: path.resolve($REQ.params.$PARAM)
+    metavariable-regex:
+      metavariable: $REQ
+      regex: ^(req|request)$
     metadata:
       category: security
       cwe: 'CWE-22'
@@ -462,7 +472,7 @@ rules:
       - javascript
       - typescript
     pattern: |
-      while (...) {
+      while (true) {
         ...
         $ARR.push(...)
         ...

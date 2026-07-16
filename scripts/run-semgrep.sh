@@ -159,6 +159,7 @@ run_semgrep() {
 
   local semgrep_args=(
     "--config" "$config_path"
+    "--error"
     "--exclude" "node_modules"
     "--exclude" "dist"
     "--exclude" "build"
