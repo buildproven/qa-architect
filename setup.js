@@ -1546,8 +1546,7 @@ HELP:
         delete defaultScripts['test:coverage']
         delete defaultScripts['test:changed']
       }
-      defaultScripts['security:audit'] =
-        `${projectProfile.packageManager} audit --audit-level high`
+      defaultScripts['security:audit'] = projectProfile.auditCommand
       const runScript = projectProfile.runScript
       defaultScripts['validate:all'] =
         `${runScript('validate:comprehensive')} && ${runScript('security:audit')}`
@@ -2739,7 +2738,6 @@ describe('Test framework validation', () => {
       const qualityEnhancements = applyProductionQualityFixes('.', {
         hasTypeScript: usesTypeScript,
         hasPython: usesPython,
-        skipTypeScriptTests: projectProfile.hasTests,
         preserveExistingTests: projectProfile.hasTests,
         preserveExistingLint: Boolean(projectProfile.eslintConfig),
       })
@@ -2760,34 +2758,10 @@ describe('Test framework validation', () => {
         warnings.forEach(warning => console.log(warning))
       }
 
-      // Normalize only generated files supported by the configured Prettier
-      // setup. Never pass the repository root or unsupported files such as
-      // .gitleaks.toml to a formatter.
-      if (projectProfile.prettierConfig) {
-        const generatedFormattableFiles = [
-          'package.json',
-          '.qualityrc.json',
-          '.github/workflows/quality.yml',
-          '.stylelintrc.json',
-          '.lighthouserc.js',
-          'lighthouserc.js',
-          'commitlint.config.js',
-          'SECURITY.md',
-          'QUALITY_TROUBLESHOOTING.md',
-        ].filter(file => fs.existsSync(path.join(process.cwd(), file)))
-        if (generatedFormattableFiles.length > 0) {
-          const formatterCommand = `${projectProfile.exec('prettier')} --write ${generatedFormattableFiles
-            .map(file => JSON.stringify(file))
-            .join(' ')}`
-          try {
-            execSync(formatterCommand, { stdio: 'ignore' })
-          } catch {
-            console.warn(
-              '⚠️ Configured Prettier could not normalize generated files; run the project format command after installing dependencies.'
-            )
-          }
-        }
-      }
+      // Do not execute repository-controlled formatter configuration during
+      // setup. JavaScript Prettier configs are executable code; setup must stay
+      // a file-generation operation. Consumers can run their existing format
+      // command explicitly after reviewing the generated diff.
 
       console.log('\n🎉 Quality automation setup complete!')
 

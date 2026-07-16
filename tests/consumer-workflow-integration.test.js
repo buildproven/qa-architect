@@ -60,6 +60,8 @@ const QA_ARCHITECT_ONLY_CONTENT = [
 const CONSUMER_FORBIDDEN_CONTENT = [
   ...QA_ARCHITECT_ONLY_CONTENT,
   'node_modules/create-qa-architect',
+  'create-qa-architect@latest',
+  'npx --yes create-qa-architect',
 ]
 
 const SECTION_MARKERS = [

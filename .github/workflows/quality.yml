@@ -34,6 +34,12 @@ on:
 concurrency:
   group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
+# Consumer workflows are read-only by default. Jobs that post PR comments
+# declare their narrow pull-requests permission explicitly.
+permissions:
+  contents: read
+
 # WORKFLOW_MODE: minimal
 
 jobs:
@@ -59,6 +65,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -75,7 +83,7 @@ jobs:
           elif [ -f yarn.lock ]; then
             echo "manager=yarn" >> $GITHUB_OUTPUT
             echo "install-cmd=yarn install --frozen-lockfile" >> $GITHUB_OUTPUT
-          elif [ -f bun.lockb ]; then
+          elif [ -f bun.lock ] || [ -f bun.lockb ]; then
             echo "manager=bun" >> $GITHUB_OUTPUT
             echo "install-cmd=bun install --frozen-lockfile" >> $GITHUB_OUTPUT
           elif [ -f package-lock.json ]; then
@@ -116,7 +124,25 @@ jobs:
           if [ -f lib/project-maturity.js ]; then
             node lib/project-maturity.js --github-actions >> $GITHUB_OUTPUT
           else
-            npx create-qa-architect@latest --check-maturity --github-actions >> $GITHUB_OUTPUT
+            SOURCE_COUNT=$(find . -type f \( -name '*.js' -o -name '*.jsx' -o -name '*.ts' -o -name '*.tsx' -o -name '*.py' -o -name '*.sh' \) \
+              -not -path './.git/*' -not -path './node_modules/*' -not -path './dist/*' -not -path './build/*' -not -path './coverage/*' | wc -l | tr -d ' ')
+            TEST_COUNT=$(find . -type f \( -path '*/test/*' -o -path '*/tests/*' -o -path '*/__tests__/*' -o -name '*.test.js' -o -name '*.test.ts' -o -name '*.test.tsx' -o -name '*.spec.js' -o -name '*.spec.ts' -o -name '*.spec.tsx' \) \
+              -not -path './.git/*' -not -path './node_modules/*' | wc -l | tr -d ' ')
+            [ -f package.json ] && HAS_DEPS=true || HAS_DEPS=false
+            [ -f README.md ] && HAS_DOCS=true || HAS_DOCS=false
+            if find . -type f \( -name '*.css' -o -name '*.scss' -o -name '*.sass' -o -name '*.less' \) \
+              -not -path './node_modules/*' -print -quit | grep -q .; then HAS_CSS=true; else HAS_CSS=false; fi
+            if [ "$SOURCE_COUNT" -ge 20 ] && [ "$TEST_COUNT" -gt 0 ]; then MATURITY=production-ready
+            elif [ "$SOURCE_COUNT" -ge 5 ]; then MATURITY=growing
+            else MATURITY=minimal; fi
+            {
+              echo "maturity=$MATURITY"
+              echo "source-count=$SOURCE_COUNT"
+              echo "test-count=$TEST_COUNT"
+              echo "has-deps=$HAS_DEPS"
+              echo "has-docs=$HAS_DOCS"
+              echo "has-css=$HAS_CSS"
+            } >> "$GITHUB_OUTPUT"
           fi
       # {{FULL_DETECTION_END}}
       # {{FULL_REPORT_BEGIN}}
@@ -169,6 +195,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -255,7 +283,7 @@ jobs:
           if [ -f setup.js ]; then
             node setup.js --security-config
           else
-            npx --yes create-qa-architect@latest --security-config
+            echo "Consumer secret scanning is provided by the pinned Semgrep security gate below."
           fi
 
       - name: Security pattern detection
@@ -296,6 +324,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -363,7 +393,7 @@ jobs:
           if [ -f setup.js ]; then
             node setup.js --audit --out qa-audit-report.md --no-fail
           else
-            npx --yes create-qa-architect@latest --audit --out qa-audit-report.md --no-fail
+            echo "QA Architect audit is available locally; consumer CI does not execute mutable external CLI code."
           fi
 
       - name: Post audit report as PR comment
@@ -390,6 +420,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v6
@@ -474,6 +506,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
+        with:
+          persist-credentials: false
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -506,7 +540,7 @@ jobs:
           if [ -f setup.js ]; then
             node setup.js --validate-docs
           else
-            npx create-qa-architect@latest --validate-docs
+            test -f README.md
           fi
 
       - name: Documentation consistency and security audit freshness

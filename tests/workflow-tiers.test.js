@@ -516,11 +516,9 @@ jobs:
       'Every pnpm setup should use Corepack'
     )
 
-    // Verify bun version format
-    const bunVersionMatches = workflowContent.match(/bun-version: '1\.0\.0'/g)
     assert(
-      bunVersionMatches && bunVersionMatches.length === 5,
-      `Should have 5 bun-version: '1.0.0' entries, found ${bunVersionMatches ? bunVersionMatches.length : 0}`
+      !workflowContent.includes("bun-version: '1.0.0'"),
+      'Workflow must not pin a stale hardcoded Bun version'
     )
 
     // Verify all pnpm setups are conditional

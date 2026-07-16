@@ -36,6 +36,18 @@ function runSetup(directory) {
   return licenseDirectory
 }
 
+function runGeneratedScript(directory, scriptName) {
+  const localBin = path.join(__dirname, '..', 'node_modules', '.bin')
+  execFileSync('npm', ['run', scriptName], {
+    cwd: directory,
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      PATH: `${localBin}${path.delimiter}${process.env.PATH || ''}`,
+    },
+  })
+}
+
 const pnpmRepo = createRepo({
   name: 'next-pnpm-fixture',
   private: true,
@@ -94,7 +106,32 @@ try {
   assert(!fs.existsSync(path.join(pnpmRepo, 'tests/unit/sample.test.js')))
   assert(!fs.existsSync(path.join(pnpmRepo, 'tests/e2e/smoke.test.js')))
   const generatedPackage = JSON.parse(packageAfterFirstRun)
+  const generatedTestsTsConfigPath = path.join(
+    pnpmRepo,
+    'tests',
+    'tsconfig.json'
+  )
+  assert(
+    fs.existsSync(generatedTestsTsConfigPath),
+    'Existing tests must not suppress the config referenced by type-check:tests'
+  )
+  const generatedTestsTsConfig = JSON.parse(
+    fs.readFileSync(generatedTestsTsConfigPath, 'utf8')
+  )
+  assert(
+    generatedTestsTsConfig.include.includes('../test/**/*'),
+    'Generated test config must cover singular test/ directories'
+  )
   assert.strictEqual(generatedPackage.scripts.test, 'node --test')
+  assert(
+    generatedPackage.scripts['type-check:tests'].includes('tests/tsconfig.json')
+  )
+  assert(
+    generatedPackage['lint-staged']['tests/**/*.{ts,tsx,js,jsx}'].includes(
+      'tsc --noEmit --project tests/tsconfig.json'
+    )
+  )
+  runGeneratedScript(pnpmRepo, 'type-check:tests')
   assert(!generatedPackage.devDependencies.vitest)
   assert(!generatedPackage.devDependencies['@vitest/coverage-v8'])
   assert(generatedPackage.scripts['quality:check'].includes('pnpm run'))
@@ -111,6 +148,13 @@ try {
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run test'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run build'))
   assert(!workflowAfterFirstRun.includes("test-count: '0'"))
+  assert(!workflowAfterFirstRun.includes('create-qa-architect@latest'))
+  assert(workflowAfterFirstRun.includes('permissions:\n  contents: read'))
+  assert(
+    [...workflowAfterFirstRun.matchAll(/uses: actions\/checkout@v5/g)]
+      .length ===
+      [...workflowAfterFirstRun.matchAll(/persist-credentials: false/g)].length
+  )
   assert(
     fs
       .readFileSync(path.join(pnpmRepo, '.husky/pre-commit'), 'utf8')
@@ -128,6 +172,7 @@ try {
   )
 
   runSetup(pnpmRepo)
+  runGeneratedScript(pnpmRepo, 'type-check:tests')
   assert.strictEqual(
     fs.readFileSync(path.join(pnpmRepo, 'package.json'), 'utf8'),
     packageAfterFirstRun
@@ -146,6 +191,7 @@ try {
 
 const npmRepo = createRepo({
   name: 'npm-jest-fixture',
+  packageManager: 'npm@11.5.2',
   scripts: { lint: 'eslint .', test: 'jest --runInBand' },
   devDependencies: { eslint: '^9.0.0', jest: '^30.0.0' },
 })
@@ -168,13 +214,58 @@ try {
   assert.strictEqual(generatedPackage.scripts.test, 'jest --runInBand')
   assert(!generatedPackage.devDependencies.vitest)
   assert(!fs.existsSync(path.join(npmRepo, 'eslint.config.cjs')))
-  assert(
-    fs
-      .readFileSync(path.join(npmRepo, '.github/workflows/quality.yml'), 'utf8')
-      .includes('timeout 300 npm run test')
+  const workflow = fs.readFileSync(
+    path.join(npmRepo, '.github/workflows/quality.yml'),
+    'utf8'
   )
+  assert(workflow.includes('timeout 300 npm run test'))
+  assert(workflow.includes('npm install --global npm@11.5.2'))
+  assert(workflow.includes('echo "install-cmd=npm ci"'))
+  assert(workflow.includes("cache: 'npm'"))
 } finally {
   fs.rmSync(npmRepo, { recursive: true, force: true })
+}
+
+const executablePrettierConfigRepo = createRepo({
+  name: 'untrusted-prettier-config-fixture',
+  scripts: { test: 'node --test' },
+  devDependencies: { prettier: '^3.0.0' },
+})
+
+try {
+  fs.writeFileSync(
+    path.join(executablePrettierConfigRepo, 'package-lock.json'),
+    '{}\n'
+  )
+  fs.writeFileSync(
+    path.join(executablePrettierConfigRepo, 'prettier.config.cjs'),
+    "require('fs').writeFileSync('formatter-executed', 'unsafe')\nmodule.exports = {}\n"
+  )
+  const binDirectory = path.join(
+    executablePrettierConfigRepo,
+    'node_modules',
+    '.bin'
+  )
+  fs.mkdirSync(binDirectory, { recursive: true })
+  const fakePrettier = path.join(binDirectory, 'prettier')
+  fs.writeFileSync(
+    fakePrettier,
+    '#!/bin/sh\nnode -e "require(process.cwd() + \'/prettier.config.cjs\')"\n'
+  )
+  fs.chmodSync(fakePrettier, 0o755)
+
+  runSetup(executablePrettierConfigRepo)
+  assert(
+    !fs.existsSync(
+      path.join(executablePrettierConfigRepo, 'formatter-executed')
+    ),
+    'setup must not execute repository-controlled Prettier configuration'
+  )
+} finally {
+  fs.rmSync(executablePrettierConfigRepo, {
+    recursive: true,
+    force: true,
+  })
 }
 
 const noTestScriptRepo = createRepo({
@@ -232,6 +323,81 @@ try {
   )
 } finally {
   fs.rmSync(conflictRepo, { recursive: true, force: true })
+}
+
+const bunRepo = createRepo({
+  name: 'bun-fixture',
+  packageManager: 'bun@1.2.20',
+  scripts: { lint: 'eslint .' },
+  devDependencies: { eslint: '^9.0.0' },
+})
+try {
+  fs.writeFileSync(path.join(bunRepo, 'bun.lock'), '')
+  fs.writeFileSync(
+    path.join(bunRepo, 'eslint.config.js'),
+    'module.exports=[]\n'
+  )
+  const profile = detectProjectProfile(bunRepo)
+  assert.strictEqual(profile.packageManager, 'bun')
+  assert.strictEqual(profile.packageManagerVersion, '1.2.20')
+  assert.strictEqual(profile.installCommand, 'bun install --frozen-lockfile')
+  assert.strictEqual(profile.auditCommand, 'bun audit --audit-level=high')
+  assert.strictEqual(profile.exec('lint-staged'), 'bun x lint-staged')
+  runSetup(bunRepo)
+  const workflow = fs.readFileSync(
+    path.join(bunRepo, '.github/workflows/quality.yml'),
+    'utf8'
+  )
+  assert(workflow.includes('echo "manager=bun"'))
+  assert(workflow.includes('echo "install-cmd=bun install --frozen-lockfile"'))
+  assert(workflow.includes("bun-version: '1.2.20'"))
+  assert(!workflow.includes("cache: 'bun'"))
+  assert(
+    fs
+      .readFileSync(path.join(bunRepo, '.husky/pre-commit'), 'utf8')
+      .includes('bun x lint-staged')
+  )
+} finally {
+  fs.rmSync(bunRepo, { recursive: true, force: true })
+}
+
+const yarnClassicRepo = createRepo({
+  name: 'yarn-classic-fixture',
+  packageManager: 'yarn@1.22.22',
+})
+const yarnBerryRepo = createRepo({
+  name: 'yarn-berry-fixture',
+  packageManager: 'yarn@4.9.2',
+  scripts: { build: 'node build.js' },
+})
+try {
+  fs.writeFileSync(path.join(yarnClassicRepo, 'yarn.lock'), '')
+  fs.writeFileSync(path.join(yarnBerryRepo, 'yarn.lock'), '')
+  const classic = detectProjectProfile(yarnClassicRepo)
+  const berry = detectProjectProfile(yarnBerryRepo)
+  assert.strictEqual(classic.installCommand, 'yarn install --frozen-lockfile')
+  assert.strictEqual(classic.auditCommand, 'yarn audit --level high')
+  assert.strictEqual(berry.installCommand, 'yarn install --immutable')
+  assert.strictEqual(
+    berry.auditCommand,
+    'yarn npm audit --severity high --all --recursive'
+  )
+  runSetup(yarnBerryRepo)
+  const workflow = fs.readFileSync(
+    path.join(yarnBerryRepo, '.github/workflows/quality.yml'),
+    'utf8'
+  )
+  assert(workflow.includes('corepack prepare yarn@4.9.2 --activate'))
+  assert(
+    workflow.indexOf('corepack prepare yarn@4.9.2 --activate') <
+      workflow.indexOf('- name: Setup Node.js')
+  )
+  assert(workflow.includes("cache: 'yarn'"))
+  assert(workflow.includes('echo "install-cmd=yarn install --immutable"'))
+  assert(workflow.includes('timeout 300 yarn build'))
+} finally {
+  fs.rmSync(yarnClassicRepo, { recursive: true, force: true })
+  fs.rmSync(yarnBerryRepo, { recursive: true, force: true })
 }
 
 console.log('✅ Generator project profile regression tests passed')

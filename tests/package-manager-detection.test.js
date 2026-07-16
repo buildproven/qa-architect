@@ -74,8 +74,8 @@ function testYarnDetection() {
 function testBunDetection() {
   const tempDir = createTempDir()
   try {
-    // Create bun.lockb (binary format, just create empty file for test)
-    fs.writeFileSync(path.join(tempDir, 'bun.lockb'), '')
+    // Bun 1.2+ uses the text-based bun.lock format.
+    fs.writeFileSync(path.join(tempDir, 'bun.lock'), '')
     fs.writeFileSync(
       path.join(tempDir, 'package.json'),
       JSON.stringify({ name: 'test' })
@@ -83,7 +83,7 @@ function testBunDetection() {
 
     const pm = detectPackageManager(tempDir)
     assert.strictEqual(pm, 'bun', 'Should detect bun from lockfile')
-    console.log('✅ Test 3 passed: Detects bun from bun.lockb')
+    console.log('✅ Test 3 passed: Detects bun from bun.lock')
   } finally {
     cleanup(tempDir)
   }
