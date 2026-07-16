@@ -8,6 +8,12 @@ const { execFileSync, spawnSync } = require('child_process')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
 
+function withoutGitRepositoryEnvironment(environment = process.env) {
+  return Object.fromEntries(
+    Object.entries(environment).filter(([key]) => !key.startsWith('GIT_'))
+  )
+}
+
 function snapshotTopLevelFiles(directory) {
   return Object.fromEntries(
     fs
@@ -33,7 +39,10 @@ const licenseDirectory = fs.mkdtempSync(
 )
 
 try {
-  execFileSync('git', ['init', '-q'], { cwd: project })
+  execFileSync('git', ['init', '-q'], {
+    cwd: project,
+    env: withoutGitRepositoryEnvironment(),
+  })
   fs.writeFileSync(
     path.join(project, 'package.json'),
     `${JSON.stringify(
