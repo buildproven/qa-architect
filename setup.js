@@ -1415,12 +1415,17 @@ HELP:
         hasTypeScriptDependency || hasTypeScriptConfig
       )
       const projectProfile = detectProjectProfile(process.cwd(), packageJson)
+      const detectedProjectScripts = { ...projectProfile.scripts }
       if (
         projectProfile.scripts.lint &&
         projectProfile.submodulePaths.length > 0
       ) {
+        const shellQuote = value => `'${value.replaceAll("'", "'\"'\"'")}'`
         const ignoreArguments = projectProfile.submodulePaths
-          .map(submodulePath => `--ignore-pattern "${submodulePath}/**"`)
+          .map(
+            submodulePath =>
+              `--ignore-pattern ${shellQuote(`${submodulePath}/**`)}`
+          )
           .join(' ')
         const packageScripts = /** @type {Record<string, string>} */ (
           packageJson.scripts || {}
@@ -1429,6 +1434,20 @@ HELP:
         packageScripts['quality:lint'] =
           `${projectProfile.runScript(projectProfile.scripts.lint)} -- ${ignoreArguments}`
         projectProfile.scripts.lint = 'quality:lint'
+      }
+      const finalProjectProfile = () => {
+        const profile = detectProjectProfile(process.cwd(), packageJson)
+        profile.scripts = {
+          ...profile.scripts,
+          ...detectedProjectScripts,
+        }
+        if (!profile.scripts.test && !projectProfile.hasTests) {
+          profile.scripts.test = 'test'
+        }
+        if (packageJson.scripts?.['quality:lint']) {
+          profile.scripts.lint = 'quality:lint'
+        }
+        return profile
       }
       if (usesTypeScript) {
         console.log(
@@ -1875,7 +1894,7 @@ HELP:
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
           templateWorkflow = injectProjectProfile(
             templateWorkflow,
-            projectProfile
+            finalProjectProfile()
           )
 
           // Inject collaboration steps
@@ -1905,7 +1924,7 @@ HELP:
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
           templateWorkflow = injectProjectProfile(
             templateWorkflow,
-            projectProfile
+            finalProjectProfile()
           )
 
           // Inject collaboration steps (preserve from existing if present)
@@ -1961,7 +1980,7 @@ HELP:
         fs.readFileSync(path.join(__dirname, eslintTemplateFile), 'utf8')
       if (projectProfile.submodulePaths.length > 0) {
         const ignoreEntries = projectProfile.submodulePaths
-          .map(submodulePath => `'**/${submodulePath}/**'`)
+          .map(submodulePath => JSON.stringify(`**/${submodulePath}/**`))
           .join(', ')
         templateEslint = templateEslint.replace(
           'ignores: [',

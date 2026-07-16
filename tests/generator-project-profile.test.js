@@ -167,7 +167,7 @@ try {
   )
   assert(
     generatedPackage.scripts['quality:lint'].includes(
-      '--ignore-pattern ".claude-kit/**"'
+      "--ignore-pattern '.claude-kit/**'"
     )
   )
 
@@ -398,6 +398,81 @@ try {
 } finally {
   fs.rmSync(yarnClassicRepo, { recursive: true, force: true })
   fs.rmSync(yarnBerryRepo, { recursive: true, force: true })
+}
+
+const injectionRepo = createRepo({
+  name: 'injection-fixture',
+  packageManager: 'pnpm@10.0.0; echo INJECTED',
+})
+try {
+  assert.throws(
+    () => detectProjectProfile(injectionRepo),
+    /must pin an exact pnpm version/
+  )
+} finally {
+  fs.rmSync(injectionRepo, { recursive: true, force: true })
+}
+
+const submoduleRepo = createRepo({
+  name: 'submodule-escaping-fixture',
+  scripts: { lint: 'eslint .' },
+})
+try {
+  fs.writeFileSync(
+    path.join(submoduleRepo, '.gitmodules'),
+    '[submodule "safe"]\n\tpath = vendor/module with spaces\n\turl = https://example.invalid/module.git\n'
+  )
+  runSetup(submoduleRepo)
+  const generatedPackage = JSON.parse(
+    fs.readFileSync(path.join(submoduleRepo, 'package.json'), 'utf8')
+  )
+  assert(
+    generatedPackage.scripts['quality:lint'].includes(
+      "'vendor/module with spaces/**'"
+    )
+  )
+  const eslintConfig = fs.readFileSync(
+    path.join(submoduleRepo, 'eslint.config.cjs'),
+    'utf8'
+  )
+  assert(eslintConfig.includes('"**/vendor/module with spaces/**"'))
+} finally {
+  fs.rmSync(submoduleRepo, { recursive: true, force: true })
+}
+
+for (const configName of [
+  '.prettierrc.yml',
+  '.prettierrc.yaml',
+  '.prettierrc.json5',
+  '.prettierrc.toml',
+  '.prettierrc.ts',
+  '.prettierrc.mts',
+  '.prettierrc.cts',
+  'prettier.config.ts',
+  'prettier.config.mts',
+  'prettier.config.cts',
+]) {
+  const prettierRepo = createRepo({ name: `prettier-${configName}` })
+  try {
+    fs.writeFileSync(path.join(prettierRepo, configName), '{}\n')
+    runSetup(prettierRepo)
+    assert(!fs.existsSync(path.join(prettierRepo, '.prettierrc')))
+  } finally {
+    fs.rmSync(prettierRepo, { recursive: true, force: true })
+  }
+}
+
+const freshRepo = createRepo({ name: 'fresh-project-fixture' })
+try {
+  runSetup(freshRepo)
+  const workflow = fs.readFileSync(
+    path.join(freshRepo, '.github/workflows/quality.yml'),
+    'utf8'
+  )
+  assert(!workflow.includes('      false'))
+  assert(workflow.includes('- name: Tests'))
+} finally {
+  fs.rmSync(freshRepo, { recursive: true, force: true })
 }
 
 console.log('✅ Generator project profile regression tests passed')
