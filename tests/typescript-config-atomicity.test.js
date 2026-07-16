@@ -54,6 +54,14 @@ try {
   )
 
   const before = snapshotTopLevelFiles(project)
+  const callerGitDirectory = execFileSync(
+    'git',
+    ['rev-parse', '--absolute-git-dir'],
+    {
+      cwd: path.join(__dirname, '..'),
+      encoding: 'utf8',
+    }
+  ).trim()
   const result = spawnSync(
     process.execPath,
     [setupPath, '--workflow-minimal'],
@@ -65,6 +73,9 @@ try {
         NODE_ENV: 'test',
         QAA_DEVELOPER: 'true',
         QAA_LICENSE_DIR: licenseDirectory,
+        // Git hooks export their caller's index. Project detection must ignore
+        // it and inspect the target repository's own index.
+        GIT_INDEX_FILE: path.join(callerGitDirectory, 'index'),
       },
     }
   )
