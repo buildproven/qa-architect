@@ -23,14 +23,14 @@ function initializeFixtureRepository(directory) {
 }
 
 function addGitlink(directory, submodulePath) {
-  const tree = runFixtureGit(directory, ['mktree'], {
-    encoding: 'utf8',
-    input: '',
-  }).trim()
-  const commit = runFixtureGit(
-    directory,
-    ['commit-tree', tree, '-m', 'fixture'],
-    {
+  const tree = String(
+    runFixtureGit(directory, ['mktree'], {
+      encoding: 'utf8',
+      input: '',
+    })
+  ).trim()
+  const commit = String(
+    runFixtureGit(directory, ['commit-tree', tree, '-m', 'fixture'], {
       encoding: 'utf8',
       env: {
         GIT_AUTHOR_NAME: 'QA Test',
@@ -38,7 +38,7 @@ function addGitlink(directory, submodulePath) {
         GIT_COMMITTER_NAME: 'QA Test',
         GIT_COMMITTER_EMAIL: 'qa@example.com',
       },
-    }
+    })
   ).trim()
   runFixtureGit(directory, [
     'update-index',

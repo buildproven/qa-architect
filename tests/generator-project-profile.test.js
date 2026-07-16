@@ -691,10 +691,12 @@ try {
 
 const largeIndexRepo = createRepo({ name: 'large-index-fixture' })
 try {
-  const blob = runFixtureGit(largeIndexRepo, ['hash-object', '-w', '--stdin'], {
-    encoding: 'utf8',
-    input: '',
-  }).trim()
+  const blob = String(
+    runFixtureGit(largeIndexRepo, ['hash-object', '-w', '--stdin'], {
+      encoding: 'utf8',
+      input: '',
+    })
+  ).trim()
   const indexRecords = Array.from({ length: 18_000 }, (_, index) => {
     const sequence = String(index).padStart(6, '0')
     return `100644 ${blob}\tgenerated/${sequence}-${'x'.repeat(32)}.js\n`
