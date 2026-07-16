@@ -1,5 +1,7 @@
 'use strict'
 
+require('./typescript-config-atomicity.test')
+
 const assert = require('assert')
 const fs = require('fs')
 const os = require('os')

@@ -209,6 +209,9 @@ const {
   applyProductionQualityFixes,
   validateProjectSetup,
 } = require('./lib/setup-enhancements')
+const {
+  generateTestsTypeScriptConfig,
+} = require('./lib/typescript-config-generator')
 
 const STYLELINT_EXTENSION_SET = new Set(STYLELINT_EXTENSIONS)
 const STYLELINT_DEFAULT_TARGET = `**/*.{${STYLELINT_EXTENSIONS.join(',')}}`
@@ -1423,6 +1426,12 @@ HELP:
       const usesTypeScript = Boolean(
         hasTypeScriptDependency || hasTypeScriptConfig
       )
+      // Establish every file referenced by generated TypeScript scripts before
+      // mutating the consumer project. If this prerequisite cannot be created,
+      // setup fails with the original project tree untouched.
+      if (usesTypeScript) {
+        generateTestsTypeScriptConfig(process.cwd())
+      }
       const projectProfile = detectProjectProfile(process.cwd(), packageJson)
       const detectedProjectScripts = { ...projectProfile.scripts }
       if (
