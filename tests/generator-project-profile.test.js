@@ -567,7 +567,7 @@ try {
   const pnpm = detectProjectProfile(pnpmLockOnlyRepo)
   const classic = detectProjectProfile(yarnClassicLockOnlyRepo)
   const modern = detectProjectProfile(yarnModernLockOnlyRepo)
-  assert.strictEqual(pnpm.packageManagerVersion, '10.12.1')
+  assert.strictEqual(pnpm.packageManagerVersion, '10.34.5')
   assert.strictEqual(classic.packageManagerVersion, '1.22.22')
   assert.strictEqual(classic.installCommand, 'yarn install --frozen-lockfile')
   assert.strictEqual(classic.auditCommand, 'yarn audit --level high')
@@ -586,7 +586,7 @@ try {
         path.join(pnpmLockOnlyRepo, '.github/workflows/quality.yml'),
         'utf8'
       )
-      .includes('corepack prepare pnpm@10.12.1 --activate')
+      .includes('corepack prepare pnpm@10.34.5 --activate')
   )
   assert(
     fs
