@@ -1433,7 +1433,9 @@ HELP:
         generateTestsTypeScriptConfig(process.cwd())
       }
       const projectProfile = detectProjectProfile(process.cwd(), packageJson)
-      const detectedProjectScripts = { ...projectProfile.scripts }
+      const detectedProjectScripts = Object.fromEntries(
+        Object.entries(projectProfile.scripts).filter(([, script]) => script)
+      )
       if (
         projectProfile.scripts.lint &&
         projectProfile.submodulePaths.length > 0

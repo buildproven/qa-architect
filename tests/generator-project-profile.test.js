@@ -268,11 +268,49 @@ try {
     'utf8'
   )
   assert(workflow.includes('timeout 300 npm run test'))
+  assert(
+    workflow.includes('timeout 300 npm run format:check'),
+    'Generated check-mode gates must survive the final project-profile overlay'
+  )
   assert(workflow.includes('npm install --global npm@11.5.2'))
   assert(workflow.includes('echo "install-cmd=npm ci"'))
   assert(workflow.includes("cache: 'npm'"))
 } finally {
   fs.rmSync(npmRepo, { recursive: true, force: true })
+}
+
+const writeFormatRepo = createRepo({
+  name: 'write-format-fixture',
+  scripts: { format: 'prettier --write .' },
+  devDependencies: { prettier: '^3.0.0' },
+})
+
+try {
+  fs.writeFileSync(path.join(writeFormatRepo, 'package-lock.json'), '{}\n')
+  const initialProfile = detectProjectProfile(writeFormatRepo)
+  assert.strictEqual(
+    initialProfile.scripts.format,
+    null,
+    'A write-mode format script must not be classified as a CI format check'
+  )
+
+  runSetup(writeFormatRepo)
+  const generatedPackage = JSON.parse(
+    fs.readFileSync(path.join(writeFormatRepo, 'package.json'), 'utf8')
+  )
+  const workflow = fs.readFileSync(
+    path.join(writeFormatRepo, '.github/workflows/quality.yml'),
+    'utf8'
+  )
+  assert.strictEqual(generatedPackage.scripts.format, 'prettier --write .')
+  assert.strictEqual(
+    generatedPackage.scripts['format:check'],
+    'prettier --check .'
+  )
+  assert(workflow.includes('timeout 300 npm run format:check'))
+  assert(!workflow.includes('timeout 300 npm run format\n'))
+} finally {
+  fs.rmSync(writeFormatRepo, { recursive: true, force: true })
 }
 
 for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
