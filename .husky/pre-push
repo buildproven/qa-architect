@@ -1,3 +1,10 @@
+#!/bin/bash
+
+# Git hooks export GIT_DIR and related variables for this worktree. The test
+# strategy creates isolated fixture repositories, so those values must not be
+# inherited by subprocesses that operate outside this repository.
+unset $(git rev-parse --local-env-vars)
+
 echo "🔍 Running smart pre-push validation..."
 
 # Check if smart test strategy script exists
