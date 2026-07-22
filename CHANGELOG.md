@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.14.1] - 2026-07-22
+
+### Fixed
+
+- **Release security gate:** updated the lockfile with the upstream `tar` and
+  `body-parser` security fixes, and require the release workflow to run the
+  dependency audit before publishing.
+- **Lazy loading:** replaced caller-controlled dynamic module paths with a
+  closed registry of literal module loaders, preventing arbitrary module
+  resolution through the exported cache.
+- **Release integrity:** publishing now verifies that the pushed `vX.Y.Z` tag
+  matches `package.json`, preventing an npm version/tag mismatch.
+
+### Changed
+
+- **Release validation:** `npm run prerelease` now also runs formatting, lint,
+  and TypeScript checks.
+
 ## [5.14.0] - 2026-05-28
 
 ### Added
@@ -258,7 +276,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `lib/smart-strategy-generator.js` for all project types (cli, webapp, saas, api)
   - E2E tests now only run in CI with proper infrastructure (dev server, browsers)
   - Pre-push hooks now complete in < 2 minutes (was hanging for 5-10 minutes)
-  - Fixes: postrail, brettstark-about, and other web app projects
+  - Fixes: affected web app projects
 - **Test Error Handling**: Fixed undefined stdout/stderr handling in deps-edge-cases test
 
 ## [5.9.1] - 2026-01-17

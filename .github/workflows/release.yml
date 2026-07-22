@@ -34,6 +34,16 @@ jobs:
         env:
           CI: 'true'
 
+      - name: Verify tag matches package version
+        env:
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          expected="v$(node -p \"require('./package.json').version\")"
+          test "$TAG_NAME" = "$expected" || {
+            echo "Tag $TAG_NAME does not match package version $expected"
+            exit 1
+          }
+
       - name: Run pre-release checks
         run: npm run prerelease
         env:

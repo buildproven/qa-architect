@@ -18,7 +18,7 @@ Apache-2.0 lets you read, modify, and redistribute the source. It does **not** g
 ## Tiers and pricing
 
 - **Free** — $0. Works without a license key. Includes the free CLI features above.
-- **Pro** — $49/month or $490/year. Unlocks Pro features via a signed license key issued at purchase.
+- **Pro** — $29/month or $290/year. Unlocks Pro features via a signed license key issued at purchase.
 
 Purchase at the URL printed by `create-qa-architect --activate-license` (currently Polar.sh checkout).
 
@@ -34,7 +34,10 @@ When you purchase Pro and receive a license key, BuildProven grants you a non-ex
 - Resell, sublicense, or redistribute Pro features or the license key itself.
 - Share your license key with parties outside your own organization.
 - Bypass, circumvent, or remove the license verification logic.
-- Use the key after the subscription is canceled or revoked (it will stop working when the revocation list updates, typically within 24 hours).
+- Use the key after the subscription is canceled or revoked. Revocation is
+  enforced when the CLI can complete a signature-verified registry check;
+  offline use remains available until that check succeeds, and no fixed timing
+  is guaranteed.
 
 ## Subscription lifecycle
 

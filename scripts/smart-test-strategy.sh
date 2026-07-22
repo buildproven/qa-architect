@@ -25,20 +25,41 @@ if [[ "$FORCE_MINIMAL" == "1" ]]; then
   exit 0
 fi
 
+# Resolve the complete pushed range. HEAD~1 only sees the last commit of a
+# multi-commit push and can silently downgrade a risky earlier change.
+if [[ -n "${QAA_TEST_BASE_REF:-}" ]]; then
+  BASE_REF="$QAA_TEST_BASE_REF"
+elif git rev-parse --verify --quiet '@{upstream}' >/dev/null; then
+  BASE_REF='@{upstream}'
+elif git rev-parse --verify --quiet origin/main >/dev/null; then
+  BASE_REF='origin/main'
+elif git rev-parse --verify --quiet origin/master >/dev/null; then
+  BASE_REF='origin/master'
+else
+  echo "❌ Smart Test Strategy could not resolve a push base. Set QAA_TEST_BASE_REF." >&2
+  exit 1
+fi
+
+BASE_SHA=$(git merge-base "$BASE_REF" HEAD) || {
+  echo "❌ Smart Test Strategy could not find a merge base for $BASE_REF." >&2
+  exit 1
+}
+DIFF_RANGE="$BASE_SHA...HEAD"
+
 # Collect metrics
-CHANGED_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | wc -l | tr -d ' ')
-CHANGED_LINES=$(git diff --stat HEAD~1..HEAD 2>/dev/null | tail -1 | grep -o '[0-9]* insertions' | grep -o '[0-9]*' || echo "0")
+CHANGED_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | wc -l | tr -d ' ')
+CHANGED_LINES=$(git diff --stat "$DIFF_RANGE" 2>/dev/null | tail -1 | grep -o '[0-9]* insertions' | grep -o '[0-9]*' || echo "0")
 CURRENT_BRANCH=$(git branch --show-current)
 HOUR=$(date +%H)
 DAY_OF_WEEK=$(date +%u)
 
 # Project-specific high-risk patterns (customized per project type)
 # Project type: CLI Tool
-HIGH_RISK_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "setup\.js|lib/.*|templates/.*|config/.*|bin/.*" || true)
-API_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "api/|routes/|endpoints/" || true)
-CONFIG_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "(package\.json|\.env|config|tsconfig)" || true)
-SECURITY_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "(auth|security|crypto|payment|billing)" || true)
-TEST_FILES=$(git diff --name-only HEAD~1..HEAD 2>/dev/null | grep -E "test|spec|__tests__" || true)
+HIGH_RISK_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | grep -E "setup\.js|lib/.*|templates/.*|config/.*|bin/.*" || true)
+API_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | grep -E "api/|routes/|endpoints/" || true)
+CONFIG_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | grep -E "(package\.json|\.env|config|tsconfig)" || true)
+SECURITY_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | grep -E "(auth|security|crypto|payment|billing)" || true)
+TEST_FILES=$(git diff --name-only "$DIFF_RANGE" 2>/dev/null | grep -E "test|spec|__tests__" || true)
 
 # Calculate risk score (0-10)
 RISK_SCORE=0
