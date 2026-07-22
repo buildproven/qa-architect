@@ -110,6 +110,10 @@ function createTempGitRepo() {
       workflowContent.includes("github.event_name == 'schedule'"),
       'Security should only run on schedule'
     )
+    assert(
+      !workflowContent.includes('Run project mutation confidence gate'),
+      'Minimal workflows should not add the comprehensive mutation command'
+    )
 
     console.log('✅ PASS\n')
   } finally {
@@ -173,6 +177,10 @@ function createTempGitRepo() {
       workflowContent.includes('node-version: [22]'),
       'Should have single Node 22 (no matrix)'
     )
+    assert(
+      !workflowContent.includes('Run project mutation confidence gate'),
+      'Standard workflows should not add the comprehensive mutation command'
+    )
 
     console.log('✅ PASS\n')
   } finally {
@@ -222,6 +230,10 @@ function createTempGitRepo() {
     assert(
       workflowContent.includes('node-version: [20, 22]'),
       'Should have Node 20 and 22 matrix'
+    )
+    assert(
+      workflowContent.includes('Run project mutation confidence gate'),
+      'Should run the project-provided mutation command in comprehensive mode'
     )
 
     console.log('✅ PASS\n')
