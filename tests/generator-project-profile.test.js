@@ -72,6 +72,23 @@ function runGeneratedPrePush(directory, licenseDirectory) {
   })
 }
 
+const nonGitProject = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'qaa-profile-non-git-')
+)
+try {
+  fs.writeFileSync(
+    path.join(nonGitProject, 'package.json'),
+    `${JSON.stringify({ name: 'non-git-project', version: '1.0.0' })}\n`
+  )
+  assert.deepStrictEqual(
+    detectProjectProfile(nonGitProject).submodulePaths,
+    [],
+    'A normal project outside Git must not fail submodule discovery'
+  )
+} finally {
+  fs.rmSync(nonGitProject, { recursive: true, force: true })
+}
+
 const pnpmRepo = createRepo({
   name: 'next-pnpm-fixture',
   private: true,
