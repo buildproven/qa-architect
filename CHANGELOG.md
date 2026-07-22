@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Release security gate:** updated the lockfile with the upstream `tar` and
   `body-parser` security fixes, and require the release workflow to run the
   dependency audit before publishing.
+- **Lazy loading:** replaced caller-controlled dynamic module paths with a
+  closed registry of literal module loaders, preventing arbitrary module
+  resolution through the exported cache.
 - **Release integrity:** publishing now verifies that the pushed `vX.Y.Z` tag
   matches `package.json`, preventing an npm version/tag mismatch.
 
