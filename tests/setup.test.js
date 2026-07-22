@@ -48,14 +48,21 @@ const createTempProject = initialPackageJson => {
 }
 
 const runSetup = (cwd, envOverrides = {}) => {
-  execFileSync(process.execPath, [setupScript], {
-    cwd,
-    stdio: 'ignore',
-    env: withoutGitRepositoryEnvironment({
-      ...process.env,
-      ...envOverrides,
-    }),
-  })
+  try {
+    execFileSync(process.execPath, [setupScript], {
+      cwd,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: withoutGitRepositoryEnvironment({
+        ...process.env,
+        ...envOverrides,
+      }),
+    })
+  } catch (error) {
+    throw new Error(
+      `setup failed in ${cwd}: ${error.stderr || error.stdout || error.message}`
+    )
+  }
 }
 
 const createLicenseEnv = ({ developer = false } = {}) => {
