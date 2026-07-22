@@ -19,8 +19,21 @@ const STRATEGY_SCRIPT = path.join(
   'smart-test-strategy.sh'
 )
 
+// Git hooks export GIT_DIR and related variables for the repository being
+// pushed. This test creates a separate repository, so inheriting those values
+// makes the fixture's commits operate on the caller's repository instead.
+function fixtureEnvironment() {
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_'))
+  )
+}
+
 function git(cwd, args) {
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trim()
+  return execFileSync('git', args, {
+    cwd,
+    encoding: 'utf8',
+    env: fixtureEnvironment(),
+  }).trim()
 }
 
 function writeExecutable(file, content) {
@@ -78,7 +91,7 @@ test('includes a risky first commit in a two-commit push', () => {
       cwd: root,
       encoding: 'utf8',
       env: {
-        ...process.env,
+        ...fixtureEnvironment(),
         PATH: `${bin}${path.delimiter}${process.env.PATH}`,
         QAA_TEST_BASE_REF: 'origin/main',
       },
