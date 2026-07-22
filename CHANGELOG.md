@@ -258,7 +258,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated `lib/smart-strategy-generator.js` for all project types (cli, webapp, saas, api)
   - E2E tests now only run in CI with proper infrastructure (dev server, browsers)
   - Pre-push hooks now complete in < 2 minutes (was hanging for 5-10 minutes)
-  - Fixes: postrail, brettstark-about, and other web app projects
+  - Fixes: affected web app projects
 - **Test Error Handling**: Fixed undefined stdout/stderr handling in deps-edge-cases test
 
 ## [5.9.1] - 2026-01-17

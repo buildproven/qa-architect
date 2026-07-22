@@ -108,6 +108,22 @@ test('lib/commands/audit.js is in the published tarball', () => {
   )
 })
 
+test('private key and local environment files are excluded from the published tarball', () => {
+  const sensitiveFiles = packedFiles.filter(file => {
+    const basename = path.basename(file).toLowerCase()
+    return (
+      basename === 'private-key.pem' ||
+      basename === '.env' ||
+      basename.startsWith('.env.')
+    )
+  })
+  assert.deepStrictEqual(
+    sensitiveFiles,
+    [],
+    `sensitive local files must not ship in the tarball: ${sensitiveFiles.join(', ')}`
+  )
+})
+
 console.log(`\n${passed} passed, ${failed} failed (audit-packaging.test.js)\n`)
 
 if (failed > 0) {
