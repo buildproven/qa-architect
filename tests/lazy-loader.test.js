@@ -108,9 +108,9 @@ console.log('  ✅ All modules load successfully\n')
 // Test 4: Cache can be cleared
 console.log('Test 4: Cache clearing')
 const cache = new LazyModuleCache()
-const mod1 = cache.load('test', '../lib/licensing')
+const mod1 = cache.load('licensing')
 cache.clear()
-const mod2 = cache.load('test', '../lib/licensing')
+const mod2 = cache.load('licensing')
 // After clear, new instance should be created
 assert.ok(mod1, 'First load should work')
 assert.ok(mod2, 'Second load after clear should work')
@@ -131,13 +131,13 @@ console.log('  ✅ LazyModuleCache is properly exported\n')
 console.log('Test 6: Lazy loading behavior')
 const freshCache = new LazyModuleCache()
 assert.strictEqual(freshCache.cache.size, 0, 'Cache should be empty initially')
-freshCache.load('licensing', './licensing')
+freshCache.load('licensing')
 assert.strictEqual(
   freshCache.cache.size,
   1,
   'Cache should have 1 entry after load'
 )
-freshCache.load('licensing', './licensing') // Load same module again
+freshCache.load('licensing') // Load same module again
 assert.strictEqual(
   freshCache.cache.size,
   1,
@@ -145,8 +145,17 @@ assert.strictEqual(
 )
 console.log('  ✅ Modules are loaded lazily and cached\n')
 
-// Test 7: Global lazyCache instance is exported
-console.log('Test 7: Global lazyCache export')
+// Test 7: Unknown modules cannot influence module resolution
+console.log('Test 7: Unknown module rejection')
+assert.throws(
+  () => freshCache.load('../untrusted-module'),
+  /Unknown lazy module/,
+  'Only the closed set of lazy module names may load modules'
+)
+console.log('  ✅ Unknown module names are rejected\n')
+
+// Test 8: Global lazyCache instance is exported
+console.log('Test 8: Global lazyCache export')
 assert.ok(
   lazyCache instanceof LazyModuleCache,
   'lazyCache should be a LazyModuleCache'
