@@ -48,14 +48,21 @@ const createTempProject = initialPackageJson => {
 }
 
 const runSetup = (cwd, envOverrides = {}) => {
-  execFileSync(process.execPath, [setupScript], {
-    cwd,
-    stdio: 'ignore',
-    env: withoutGitRepositoryEnvironment({
-      ...process.env,
-      ...envOverrides,
-    }),
-  })
+  try {
+    execFileSync(process.execPath, [setupScript], {
+      cwd,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      env: withoutGitRepositoryEnvironment({
+        ...process.env,
+        ...envOverrides,
+      }),
+    })
+  } catch (error) {
+    throw new Error(
+      `setup failed in ${cwd}: ${error.stderr || error.stdout || error.message}`
+    )
+  }
 }
 
 const createLicenseEnv = ({ developer = false } = {}) => {
@@ -500,13 +507,10 @@ try {
 // Test Python project setup
 console.log('\n🐍 Testing Python project setup...')
 
-const pythonProjectDir = path.join(os.tmpdir(), 'test-python-setup')
+const pythonProjectDir = fs.mkdtempSync(
+  path.join(os.tmpdir(), 'test-python-setup-')
+)
 try {
-  if (fs.existsSync(pythonProjectDir)) {
-    fs.rmSync(pythonProjectDir, { recursive: true, force: true })
-  }
-  fs.mkdirSync(pythonProjectDir, { recursive: true })
-
   // Create enough meaningful Python files to trigger detection (requires 5+)
   const pyFiles = ['main.py', 'app.py', 'utils.py', 'models.py', 'config.py']
   for (const f of pyFiles) {
@@ -517,7 +521,11 @@ try {
   }
 
   // Initialize git (required by setup script)
-  execSync('git init', { cwd: pythonProjectDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: pythonProjectDir,
+    stdio: 'ignore',
+    env: withoutGitRepositoryEnvironment(process.env),
+  })
 
   // Run setup script
   const pythonFreeLicense = createLicenseEnv()
