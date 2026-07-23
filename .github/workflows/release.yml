@@ -38,7 +38,7 @@ jobs:
         env:
           TAG_NAME: ${{ github.ref_name }}
         run: |
-          expected="v$(node -p \"require('./package.json').version\")"
+          expected="v$(node -p 'require("./package.json").version')"
           test "$TAG_NAME" = "$expected" || {
             echo "Tag $TAG_NAME does not match package version $expected"
             exit 1
