@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>QA Architect — Security Audit for Vibe-Coded Apps</title>
+<style>
+  @font-face {
+    font-family: 'JBMono';
+    src: local('JetBrains Mono'), local('JetBrainsMono-Regular');
+    font-weight: 400 800;
+  }
+
+  :root {
+    --bg: #F7F5F0;
+    --bg-raised: #FFFFFF;
+    --ink: #1B1A17;
+    --ink-dim: #635E52;
+    --line: #E4DFD3;
+    --terminal-bg: #0F1115;
+    --terminal-line: #262A33;
+    --terminal-text: #D8D6CE;
+    --terminal-dim: #7C8593;
+    --amber: #C97F1E;
+    --amber-strong: #A9660F;
+    --green: #3F7D57;
+    --red: #B23B32;
+    --mono: 'JBMono', ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+    --sans: 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121316;
+      --bg-raised: #191B1F;
+      --ink: #EEEBE3;
+      --ink-dim: #9C978A;
+      --line: #2B2D33;
+      --terminal-bg: #0A0B0D;
+      --terminal-line: #23262D;
+      --terminal-text: #DEDCD3;
+      --terminal-dim: #757D8A;
+      --amber: #E8A33D;
+      --amber-strong: #F2B85C;
+      --green: #5FA87A;
+      --red: #D4685D;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121316;
+    --bg-raised: #191B1F;
+    --ink: #EEEBE3;
+    --ink-dim: #9C978A;
+    --line: #2B2D33;
+    --terminal-bg: #0A0B0D;
+    --terminal-line: #23262D;
+    --terminal-text: #DEDCD3;
+    --terminal-dim: #757D8A;
+    --amber: #E8A33D;
+    --amber-strong: #F2B85C;
+    --green: #5FA87A;
+    --red: #D4685D;
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F5F0;
+    --bg-raised: #FFFFFF;
+    --ink: #1B1A17;
+    --ink-dim: #635E52;
+    --line: #E4DFD3;
+    --terminal-bg: #0F1115;
+    --terminal-line: #262A33;
+    --terminal-text: #D8D6CE;
+    --terminal-dim: #7C8593;
+    --amber: #C97F1E;
+    --amber-strong: #A9660F;
+    --green: #3F7D57;
+    --red: #B23B32;
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    overflow-x: hidden;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  a { color: inherit; }
+
+  .wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar .wrap {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: 20px;
+    padding-bottom: 20px;
+  }
+  .brand {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .brand .dot { color: var(--amber); }
+  .brand .maker {
+    font-family: var(--sans);
+    font-weight: 400;
+    font-size: 12.5px;
+    color: var(--ink-dim);
+  }
+  .topbar nav a {
+    text-decoration: none;
+    font-size: 14px;
+    color: var(--ink-dim);
+    margin-left: 28px;
+  }
+  .topbar nav a:hover { color: var(--ink); }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    padding: 72px 0 56px;
+  }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--amber-strong);
+    margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: clamp(32px, 5vw, 46px);
+    line-height: 1.12;
+    letter-spacing: -0.01em;
+    margin: 0 0 20px;
+    text-wrap: balance;
+    max-width: 15ch;
+  }
+  .sub {
+    font-size: 18px;
+    color: var(--ink-dim);
+    max-width: 56ch;
+    margin: 0 0 12px;
+  }
+  .stat-line {
+    font-size: 14.5px;
+    color: var(--ink-dim);
+    max-width: 60ch;
+    margin: 0 0 36px;
+  }
+  .stat-line strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Terminal ---------- */
+  .terminal {
+    background: var(--terminal-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px -30px rgba(0,0,0,0.5);
+    border: 1px solid var(--terminal-line);
+  }
+  .terminal-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--terminal-line);
+  }
+  .terminal-head .dots { display: flex; gap: 6px; }
+  .terminal-head .dots span {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--terminal-line);
+  }
+  .terminal-head .label {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--terminal-dim);
+    margin-left: 8px;
+  }
+  .terminal-body {
+    padding: 22px 20px 26px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.65;
+    color: var(--terminal-text);
+    overflow-x: auto;
+  }
+  .terminal-body .cmd { color: var(--terminal-dim); }
+  .terminal-body .cmd .prompt { color: var(--green); }
+  .t-rule { color: var(--terminal-line); }
+  .t-title { color: var(--terminal-text); font-weight: 700; }
+  .t-verdict { color: var(--red); font-weight: 700; }
+  .t-summary { color: var(--terminal-dim); }
+  .t-crit { color: var(--red); font-weight: 700; }
+  .t-high { color: var(--amber); font-weight: 700; }
+  .t-med { color: var(--terminal-dim); }
+  .finding { margin-top: 14px; }
+  .finding .loc { color: var(--amber-strong); }
+  .finding .desc { color: var(--terminal-text); }
+  .finding .fix { color: var(--green); }
+  .finding .fix code { color: var(--terminal-text); background: none; }
+
+  .caret {
+    display: inline-block;
+    width: 8px; height: 15px;
+    background: var(--amber);
+    margin-left: 2px;
+    vertical-align: -2px;
+    animation: blink 1.1s steps(1) infinite;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* ---------- CTA row ---------- */
+  .cta-row {
+    display: flex;
+    gap: 14px;
+    margin-top: 32px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font-family: var(--sans);
+    font-weight: 600;
+    font-size: 15px;
+    padding: 13px 22px;
+    border-radius: 7px;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid transparent;
+  }
+  .btn-primary {
+    background: var(--amber);
+    color: #17130A;
+  }
+  .btn-primary:hover { background: var(--amber-strong); }
+  .btn-ghost {
+    color: var(--ink);
+    border-color: var(--line);
+  }
+  .btn-ghost:hover { border-color: var(--ink-dim); }
+  .btn code {
+    font-family: var(--mono);
+    font-size: 13px;
+    opacity: 0.75;
+  }
+
+  /* ---------- Sections ---------- */
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--amber-strong);
+    margin: 0 0 10px;
+  }
+  h2 {
+    font-size: clamp(24px, 3vw, 30px);
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .lede {
+    color: var(--ink-dim);
+    max-width: 60ch;
+    font-size: 16px;
+    margin: 0 0 36px;
+  }
+
+  /* Coverage table */
+  .cov-table {
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-raised);
+  }
+  .cov-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 16px;
+    padding: 14px 18px;
+    align-items: center;
+    border-bottom: 1px solid var(--line);
+    font-size: 14.5px;
+  }
+  .cov-row:last-child { border-bottom: none; }
+  .cov-row .cat { color: var(--ink); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    padding: 4px 9px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .badge-free { color: var(--green); background: color-mix(in srgb, var(--green) 14%, transparent); }
+  .badge-pro { color: var(--amber-strong); background: color-mix(in srgb, var(--amber) 16%, transparent); }
+
+  /* Pricing */
+  .price-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  @media (max-width: 640px) { .price-grid { grid-template-columns: 1fr; } }
+  .price-card {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px 26px;
+    display: flex;
+    flex-direction: column;
+  }
+  .price-card.featured {
+    border-color: var(--amber);
+    box-shadow: 0 0 0 1px var(--amber);
+  }
+  .price-name {
+    font-family: var(--mono);
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    margin: 0 0 14px;
+  }
+  .price-amount {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 34px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .price-amount span {
+    font-size: 15px;
+    font-weight: 400;
+    color: var(--ink-dim);
+  }
+  .price-sub {
+    font-size: 13px;
+    color: var(--ink-dim);
+    margin: 0 0 22px;
+  }
+  .price-list {
+    list-style: none;
+    margin: 0 0 24px;
+    padding: 0;
+    font-size: 14.5px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: 1;
+  }
+  .price-list li { display: flex; gap: 9px; }
+  .price-list li::before {
+    content: "→";
+    color: var(--amber-strong);
+    font-family: var(--mono);
+    flex-shrink: 0;
+  }
+  .price-card .btn { justify-content: center; width: 100%; }
+
+  .billing-toggle {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    color: var(--ink-dim);
+    margin-top: 14px;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 32px 0 48px;
+    font-size: 13px;
+    color: var(--ink-dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  .install-line {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="wrap">
+    <div class="brand">QA<span class="dot">::</span>Architect <span class="maker">by BuildProven</span></div>
+    <nav>
+      <a href="#coverage">Coverage</a>
+      <a href="#pricing">Pricing</a>
+      <a href="https://github.com/buildproven-ai/qa-architect" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</div>
+
+<div class="hero wrap">
+  <p class="eyebrow">npx create-qa-architect@latest --audit</p>
+  <h1>Find what your AI wrote wrong, before someone else does.</h1>
+  <p class="sub">A security audit built for AI-generated codebases — catches the vulnerability classes generic SAST tools miss, like secrets shipped in the client bundle and unscoped data access across Prisma, Drizzle, and Supabase.</p>
+  <p class="stat-line"><strong>45% of AI-generated code</strong> contains an OWASP Top-10 vulnerability, across 100+ LLMs tested (Veracode). This is what it looks like against your own repo.</p>
+
+  <div class="terminal">
+    <div class="terminal-head">
+      <div class="dots"><span></span><span></span><span></span></div>
+      <div class="label">zsh — qa-architect --audit</div>
+    </div>
+    <div class="terminal-body">
+      <div class="cmd"><span class="prompt">❯</span> npx create-qa-architect@latest --audit</div>
+      <div class="t-rule">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      <div class="t-title">QA Architect — Vibe-Code Security Audit</div>
+      <div class="t-rule">━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</div>
+      <div class="t-verdict">NOT SAFE TO SHIP</div>
+      <div class="t-summary">Total findings: 7 &nbsp; · &nbsp; <span class="t-crit">Critical: 2</span> &nbsp; <span class="t-high">High: 3</span> &nbsp; <span class="t-med">Medium: 2</span></div>
+
+      <div class="finding">
+        <div class="loc">pages/api/users.js:44</div>
+        <div class="desc">Prisma query by ID from request params with no user ownership filter.</div>
+        <div class="fix">→ Fix: <code>findUnique({ where: { id: params.id, userId: session.user.id } })</code></div>
+      </div>
+      <div class="finding">
+        <div class="loc">lib/auth.js:12</div>
+        <div class="desc">JWT signed without an expiry option — stolen token = permanent access.</div>
+        <div class="fix">→ Fix: <code>jwt.sign(payload, secret, { expiresIn: '24h' })</code></div>
+      </div>
+      <div class="finding" style="margin-top:18px;">
+        <span class="t-summary">…5 more findings<span class="caret"></span></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-row">
+    <a class="btn btn-primary" href="#pricing">Get QA Architect Pro — $29/mo</a>
+    <a class="btn btn-ghost" href="#coverage">See what's free <code>npx create-qa-architect@latest --audit</code></a>
+  </div>
+</div>
+
+<section id="coverage">
+  <div class="wrap">
+    <p class="kicker">Coverage</p>
+    <h2>Run the audit free. Unlock the fix.</h2>
+    <p class="lede">The scanner runs semgrep SAST plus an npm CVE audit, tuned for the mistakes AI coding assistants actually make.</p>
+
+    <div class="cov-table">
+      <div class="cov-row"><span class="cat">Secrets exposure (hardcoded keys, JWT without expiry)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Secrets in the client bundle (NEXT_PUBLIC_/VITE_ secrets, service keys)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Unscoped data access / IDOR (Prisma, Drizzle, Supabase)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Auth & authorization gaps</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Injection vectors (SQL, command, prototype pollution)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Production misconfigs (CORS-all, verbose errors, debug mode)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">XSS patterns</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Dependency CVEs (npm audit)</span><span class="badge badge-free">FREE</span></div>
+      <div class="cov-row"><span class="cat">Hallucinated packages (slopsquatting) — verifies every package.json entry exists on npm</span><span class="badge badge-pro">PRO</span></div>
+      <div class="cov-row"><span class="cat">Auto-fix — ready-to-paste Claude Code prompt per Critical/High finding</span><span class="badge badge-pro">PRO</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="wrap">
+    <p class="kicker">Pricing</p>
+    <h2>Free forever for the audit. Pro when you want it fixed.</h2>
+    <p class="lede">No seat minimums, no usage games. One repo or fifty — Pro is a flat rate.</p>
+
+    <div class="price-grid">
+      <div class="price-card">
+        <p class="price-name">Free</p>
+        <p class="price-amount">$0</p>
+        <p class="price-sub">1 private repo · 50 pre-push runs / month</p>
+        <ul class="price-list">
+          <li>Full security audit (--audit)</li>
+          <li>Quality bootstrap — ESLint, Prettier, Husky, lint-staged, CI</li>
+          <li>Basic dependency monitoring</li>
+          <li>JS / TS projects</li>
+        </ul>
+        <a class="btn btn-ghost" href="#" style="justify-content:center;">
+          <span class="install-line">npx create-qa-architect@latest</span>
+        </a>
+      </div>
+
+      <div class="price-card featured">
+        <p class="price-name">Pro</p>
+        <p class="price-amount">$29<span>/mo</span></p>
+        <p class="price-sub">or $290/yr — two months free</p>
+        <ul class="price-list">
+          <li>Everything in Free, unlimited repos and runs</li>
+          <li>Auto-fix prompts for every Critical/High finding</li>
+          <li>Hallucinated package detection (slopsquatting)</li>
+          <li>Smart Test Strategy — risk-based pre-push validation</li>
+          <li>Ship Check, PR Risk Check, CI Doctor</li>
+          <li>Full-history secrets scan (Gitleaks) + ESLint security ruleset</li>
+          <li>Multi-language: Python, Shell scripts</li>
+        </ul>
+        <!-- REPLACE_CHECKOUT_URL: swap this href for your live Polar.sh checkout link before publishing -->
+        <a class="btn btn-primary" href="https://polar.sh/REPLACE_ORG_SLUG/REPLACE_PRODUCT_SLUG" style="justify-content:center;">
+          Get Pro — Checkout via Polar
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap" style="width:100%; display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <span>© BuildProven — QA Architect is maintained by <a href="https://buildproven.ai">BuildProven</a></span>
+    <span>
+      <a href="https://github.com/buildproven-ai/qa-architect" target="_blank" rel="noopener">GitHub</a>
+      &nbsp;·&nbsp;
+      <a href="mailto:support@buildproven.ai">Support</a>
+    </span>
+  </div>
+</footer>
+
+</body>
+</html>
