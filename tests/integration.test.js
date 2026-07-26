@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Integration tests for the CLI in various environments
@@ -50,6 +51,7 @@ async function testNodeVersionCompatibility() {
     try {
       execSync(`node "${path.join(originalCwd, 'setup.js')}" --help`, {
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
       console.log('  ✅ CLI help works with current Node version')
     } catch (error) {
@@ -91,9 +93,15 @@ async function testESLintConfigVariants() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Test 1: eslint.config.js variant
     const jsConfig = `module.exports = { rules: {} }`
@@ -159,9 +167,15 @@ async function testValidationInIsolatedEnvironment() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Create minimal package.json
     const packageJson = {
@@ -239,14 +253,21 @@ async function testPackageJsonBootstrap() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Test setup without existing package.json
     try {
       execSync(`node "${path.join(originalCwd, 'setup.js')}"`, {
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
 
       // Verify package.json was created
@@ -284,9 +305,15 @@ async function testToolAvailabilityHandling() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Create basic README with proper markdown formatting
     const readme = `# Test Project
@@ -311,6 +338,7 @@ Run the project.
     try {
       execSync(`node "${path.join(originalCwd, 'setup.js')}" --validate-docs`, {
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
       console.log('  ✅ Tool availability handling works correctly')
     } catch (error) {
@@ -338,9 +366,15 @@ async function testCustomTemplateIntegration() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Create custom template directory with special characters in name
     const customTemplateDir = path.join(testDir, 'templates-acme-&-co')
