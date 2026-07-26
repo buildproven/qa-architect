@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Landing page source:** self-contained checkout/marketing page for
+  `buildproven.ai/qa-architect` at `docs/landing/`, replacing the previously
+  dead purchase link.
+
+### Fixed
+
+- **Quality gate actually gates:** the `summary` job — the required status
+  check in branch protection — ran with `if: always()` and never exited
+  non-zero, so a failing security or test job still reported a green required
+  check. It now fails when any upstream job fails or is cancelled (`skipped`
+  still passes, since jobs are deliberately conditional). qa-architect-only;
+  consumer workflows are unaffected.
+
+### Security
+
+- **Dependency CVEs:** bumped `brace-expansion` (5.0.7 → 5.0.8, GHSA-mh99-v99m-4gvg,
+  high) and `tar` (7.5.19 → 7.5.22, GHSA-r292-9mhp-454m, moderate) — both
+  transitive, both flagged by the production audit gate.
+
 ## [5.14.2] - 2026-07-22
 
 ### Fixed
