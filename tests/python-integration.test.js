@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Integration tests for Python project setup
@@ -30,18 +31,28 @@ async function testPythonIntegration() {
     )
 
     // Initialize git
-    execSync('git init', { cwd: pythonDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: pythonDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: pythonDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: pythonDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Run setup
-    execSync(`node "${setupPath}"`, { cwd: pythonDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: pythonDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify Python files were created
     const expectedPythonFiles = [
@@ -85,17 +96,27 @@ async function testPythonIntegration() {
       'requests==2.31.0'
     )
 
-    execSync('git init', { cwd: mixedDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: mixedDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: mixedDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: mixedDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
-    execSync(`node "${setupPath}"`, { cwd: mixedDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: mixedDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify both JS and Python files created
     const expectedFiles = [
@@ -140,17 +161,27 @@ async function testPythonIntegration() {
       JSON.stringify({ name: 'test', version: '1.0.0' }, null, 2)
     )
 
-    execSync('git init', { cwd: configDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: configDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: configDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: configDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
-    execSync(`node "${setupPath}"`, { cwd: configDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: configDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Check pyproject.toml contains expected tools
 

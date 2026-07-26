@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Edge case tests for monorepos and workspaces
@@ -38,14 +39,20 @@ async function testNpmWorkspaces() {
 
   try {
     // Initialize git
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create workspace root package.json
@@ -81,7 +88,11 @@ async function testNpmWorkspaces() {
     fs.writeFileSync(path.join(packagesDir, 'index.js'), 'module.exports = {}')
 
     // Run setup in workspace root
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify configs were created at root level (not in workspace packages)
     const expectedRootFiles = [
@@ -123,14 +134,20 @@ async function testPnpmWorkspaces() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create pnpm-workspace.yaml
@@ -168,7 +185,11 @@ async function testPnpmWorkspaces() {
     fs.writeFileSync(path.join(packagesDir, 'index.js'), 'module.exports = {}')
 
     // Run setup
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify pnpm-workspace.yaml still exists and wasn't modified
     const workspaceYamlPath = path.join(testDir, 'pnpm-workspace.yaml')
@@ -200,14 +221,20 @@ async function testYarnWorkspaces() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create Yarn workspace config (similar to npm workspaces)
@@ -236,7 +263,11 @@ async function testYarnWorkspaces() {
     fs.writeFileSync(path.join(packagesDir, 'index.js'), 'module.exports = {}')
 
     // Run setup
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify root configs exist
     const eslintConfigPath = path.join(testDir, 'eslint.config.cjs')
@@ -261,14 +292,20 @@ async function testLernaMonorepo() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create lerna.json
@@ -311,7 +348,11 @@ async function testLernaMonorepo() {
     fs.writeFileSync(path.join(packagesDir, 'index.js'), 'module.exports = {}')
 
     // Run setup
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify lerna.json still exists
     const lernaJsonPath = path.join(testDir, 'lerna.json')
@@ -549,14 +590,20 @@ async function testNestedPackageJson() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create root package.json
@@ -588,7 +635,11 @@ async function testNestedPackageJson() {
     fs.writeFileSync(path.join(nestedDir, 'index.js'), 'module.exports = {}')
 
     // Run setup at root
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify configs at root
     const rootPrettierPath = path.join(testDir, '.prettierrc')
@@ -622,14 +673,20 @@ async function testWorkspacePackageSetup() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create workspace structure
@@ -657,7 +714,11 @@ async function testWorkspacePackageSetup() {
     fs.writeFileSync(path.join(workspaceDir, 'index.js'), 'module.exports = {}')
 
     // Run setup FROM workspace package directory (not root)
-    execSync(`node "${setupPath}"`, { cwd: workspaceDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: workspaceDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify configs were created at workspace package level
     // (Since we're in a git repo but in a subdirectory with package.json,
@@ -686,14 +747,20 @@ async function testMixedLanguageMonorepo() {
   const setupPath = path.join(__dirname, '..', 'setup.js')
 
   try {
-    execSync('git init', { cwd: testDir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: testDir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
     execSync('git config user.email "test@example.com"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
     execSync('git config user.name "Test User"', {
       cwd: testDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     // Create workspace structure
@@ -746,7 +813,11 @@ async function testMixedLanguageMonorepo() {
     }
 
     // Run setup
-    execSync(`node "${setupPath}"`, { cwd: testDir, stdio: 'pipe' })
+    execSync(`node "${setupPath}"`, {
+      cwd: testDir,
+      stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Verify both JS and Python configs at root
     const expectedFiles = [

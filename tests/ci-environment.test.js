@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Tests for CI environment handling
@@ -203,14 +204,20 @@ function createTempProject() {
   const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cqa-ci-test-'))
 
   // Initialize git repo (required for Husky)
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
 
   return testDir

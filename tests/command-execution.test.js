@@ -10,6 +10,7 @@
  */
 
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
@@ -21,7 +22,11 @@ function setupTestProject(name) {
 
   try {
     // Initialize git (required by setup.js)
-    execSync('git init', { cwd: dir, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: dir,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Create minimal package.json
     const packageJson = {
@@ -36,7 +41,11 @@ function setupTestProject(name) {
     )
 
     // Run setup
-    execSync(`node "${setupScript}"`, { cwd: dir, stdio: 'inherit' })
+    execSync(`node "${setupScript}"`, {
+      cwd: dir,
+      stdio: 'inherit',
+      env: sanitizedGitEnvironment(),
+    })
 
     // Install dependencies
     console.log(`  Installing dependencies in ${name}...`)
@@ -126,7 +135,11 @@ try {
   )
 
   // Re-run setup to detect TypeScript
-  execSync(`node "${setupScript}"`, { cwd: tsDir, stdio: 'inherit' })
+  execSync(`node "${setupScript}"`, {
+    cwd: tsDir,
+    stdio: 'inherit',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('npm install', { cwd: tsDir, stdio: 'pipe' })
 
   // Format files first

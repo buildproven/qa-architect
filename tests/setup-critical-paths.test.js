@@ -18,6 +18,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync, spawnSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 console.log('🧪 Testing setup.js critical paths...\n')
 
@@ -36,7 +37,11 @@ function setupTest() {
 
   // Initialize git repository (required by setup.js)
   try {
-    execSync('git init', { cwd: TEST_DIR, stdio: 'ignore' })
+    execSync('git init', {
+      cwd: TEST_DIR,
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
   } catch {
     // Ignore if git already initialized
   }
@@ -61,6 +66,7 @@ function testTelemetryStatus() {
   const result = spawnSync(NODE_BIN, [SETUP_PATH, '--telemetry-status'], {
     cwd: TEST_DIR,
     encoding: 'utf8',
+    env: sanitizedGitEnvironment(),
   })
 
   const output = result.stdout + result.stderr
@@ -96,6 +102,7 @@ function testErrorReportingStatus() {
   const result = spawnSync(NODE_BIN, [SETUP_PATH, '--error-reporting-status'], {
     cwd: TEST_DIR,
     encoding: 'utf8',
+    env: sanitizedGitEnvironment(),
   })
 
   const output = result.stdout + result.stderr
@@ -143,6 +150,7 @@ function testDryRunMode() {
     {
       cwd: TEST_DIR,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     }
   )
 
@@ -207,6 +215,7 @@ function testTypeScriptDetectionViaDependency() {
     {
       cwd: TEST_DIR,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     }
   )
 
@@ -257,6 +266,7 @@ function testTypeScriptDetectionViaConfig() {
     {
       cwd: TEST_DIR,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     }
   )
 
@@ -305,6 +315,7 @@ version = "1.0.0"
   const result = spawnSync(NODE_BIN, [SETUP_PATH, '--yes', '--skip-install'], {
     cwd: TEST_DIR,
     encoding: 'utf8',
+    env: sanitizedGitEnvironment(),
   })
 
   const output = result.stdout + result.stderr
@@ -366,6 +377,7 @@ function testCustomTemplatePath() {
     {
       cwd: TEST_DIR,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     }
   )
 
@@ -417,6 +429,7 @@ function testGlobalErrorHandler() {
     {
       cwd: TEST_DIR,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     }
   )
 

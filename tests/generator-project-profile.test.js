@@ -10,6 +10,7 @@ const {
   addGitlink,
   initializeFixtureRepository,
   runFixtureGit,
+  sanitizedGitEnvironment,
 } = require('./git-fixture-helpers')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
@@ -29,11 +30,12 @@ function runSetup(directory, options = {}) {
   const licenseDirectory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'qaa-profile-license-')
   )
-  const env = /** @type {NodeJS.ProcessEnv} */ ({
-    ...process.env,
-    NODE_ENV: 'test',
-    QAA_LICENSE_DIR: licenseDirectory,
-  })
+  const env = /** @type {NodeJS.ProcessEnv} */ (
+    sanitizedGitEnvironment({
+      NODE_ENV: 'test',
+      QAA_LICENSE_DIR: licenseDirectory,
+    })
+  )
   if (developer) {
     env.QAA_DEVELOPER = 'true'
   } else {
@@ -63,12 +65,11 @@ function runGeneratedPrePush(directory, licenseDirectory) {
   execFileSync('sh', [path.join(directory, '.husky', 'pre-push')], {
     cwd: directory,
     stdio: 'pipe',
-    env: {
-      ...process.env,
+    env: sanitizedGitEnvironment({
       NODE_ENV: 'test',
       QAA_DEVELOPER: 'true',
       QAA_LICENSE_DIR: licenseDirectory,
-    },
+    }),
   })
 }
 

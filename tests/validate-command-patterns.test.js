@@ -4,6 +4,7 @@ const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 const projectRoot = path.join(__dirname, '..')
 const validateScript = path.join(
@@ -62,6 +63,7 @@ const runValidation = shouldSucceed => {
       cwd: projectRoot,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     if (!shouldSucceed) {
       throw new Error(

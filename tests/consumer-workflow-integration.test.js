@@ -15,6 +15,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 const yaml = require(path.join(__dirname, '../node_modules/js-yaml'))
 
 console.log('🧪 Testing consumer workflow integration...\n')
@@ -27,14 +28,20 @@ function createTempGitRepo() {
     path.join(os.tmpdir(), 'cqa-consumer-license-')
   )
   process.env.NODE_ENV = 'test'
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   fs.writeFileSync(
     path.join(testDir, 'package.json'),
@@ -147,6 +154,7 @@ const setupPath = path.join(__dirname, '../setup.js')
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     const content = fs.readFileSync(
       path.join(testDir, '.github', 'workflows', 'quality.yml'),
@@ -210,6 +218,7 @@ const setupPath = path.join(__dirname, '../setup.js')
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     const content = fs.readFileSync(
       path.join(testDir, '.github', 'workflows', 'quality.yml'),
@@ -262,6 +271,7 @@ const setupPath = path.join(__dirname, '../setup.js')
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-comprehensive`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     const content = fs.readFileSync(
       path.join(testDir, '.github', 'workflows', 'quality.yml'),
@@ -369,6 +379,7 @@ c`
       execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-${tier}`, {
         cwd: testDir,
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
       workflows[tier] = fs.readFileSync(path.join(wfDir, 'quality.yml'), 'utf8')
     }
@@ -506,6 +517,7 @@ bbb
       execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-${tier}`, {
         cwd: testDir,
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
       const content = fs.readFileSync(path.join(wfDir, 'quality.yml'), 'utf8')
 

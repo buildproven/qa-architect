@@ -5,6 +5,7 @@ const path = require('path')
 const os = require('os')
 const assert = require('assert')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Regression test for deploy-consumers.sh push/commit-failure rollback.
@@ -39,6 +40,7 @@ function git(cwd, cmd) {
     cwd,
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
+    env: sanitizedGitEnvironment(),
   }).trim()
 }
 
@@ -97,7 +99,11 @@ async function testRollbackContract() {
       '  echo ROLLED_BACK',
       'fi',
     ].join('\n')
-    const out = execSync(sim, { shell: '/bin/bash', encoding: 'utf8' }).trim()
+    const out = execSync(sim, {
+      shell: '/bin/bash',
+      encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
+    }).trim()
 
     // 4. Assert the rollback contract.
     assert.ok(

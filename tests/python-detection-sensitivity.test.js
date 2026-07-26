@@ -12,6 +12,7 @@
 
 const assert = require('node:assert')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
@@ -26,14 +27,20 @@ function createTestDir(name) {
   fs.mkdirSync(testDir, { recursive: true })
 
   // Initialize git (required by setup.js)
-  execSync('git init', { cwd: testDir, stdio: 'pipe' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
 
   return testDir
@@ -63,6 +70,7 @@ function testSinglePyFileNoDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // Should NOT detect Python
@@ -105,6 +113,7 @@ function testFewPyFilesNoDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // Should NOT detect Python (below 5-file threshold)
@@ -147,6 +156,7 @@ function testManyPyFilesDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const hasPythonSetup = fs.existsSync(
@@ -179,6 +189,7 @@ function testMainPatternNoDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const hasPythonSetup = fs.existsSync(
@@ -221,6 +232,7 @@ function testBoilerplateFilesIgnored() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // 4 meaningful files < 5 threshold, should NOT detect
@@ -257,6 +269,7 @@ function testConfigFileAloneNoDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const hasPythonSetup = fs.existsSync(
@@ -293,6 +306,7 @@ function testConfigFilePlusPyDetection() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const hasPythonSetup = fs.existsSync(
@@ -337,6 +351,7 @@ function testSubdirectorySinglePy() {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // Should NOT detect as Python project

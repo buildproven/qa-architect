@@ -78,7 +78,7 @@ try {
       cwd: project,
       encoding: 'utf8',
       env: {
-        ...process.env,
+        ...withoutGitRepositoryEnvironment(),
         NODE_ENV: 'test',
         QAA_DEVELOPER: 'true',
         QAA_LICENSE_DIR: licenseDirectory,

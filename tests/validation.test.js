@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Test the enhanced validation functionality
@@ -19,9 +20,15 @@ async function testValidation() {
     process.chdir(testDir)
 
     // Initialize git repository
-    execSync('git init', { stdio: 'ignore' })
-    execSync('git config user.email "test@example.com"', { stdio: 'ignore' })
-    execSync('git config user.name "Test User"', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
+    execSync('git config user.email "test@example.com"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
+    execSync('git config user.name "Test User"', {
+      stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
+    })
 
     await testConfigSecurityScanner(testDir, originalCwd)
     await testDocumentationValidator(testDir, originalCwd)
@@ -86,7 +93,7 @@ module.exports = nextConfig
   try {
     execSync(
       `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: sanitizedGitEnvironment() }
     )
     console.log('  ✅ Valid Next.js config passed security check')
   } catch (error) {
@@ -114,7 +121,7 @@ module.exports = nextConfig
   try {
     execSync(
       `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: sanitizedGitEnvironment() }
     )
     throw new Error('Insecure Next.js config should have failed but passed')
   } catch (error) {
@@ -140,7 +147,7 @@ export default defineConfig({
   try {
     execSync(
       `node "${path.join(originalCwd, 'setup.js')}" ${securityConfigFlags}`,
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: sanitizedGitEnvironment() }
     )
     throw new Error('Insecure Vite config should have failed but passed')
   } catch (error) {
@@ -202,6 +209,7 @@ npm run format
   try {
     execSync(`node "${path.join(originalCwd, 'setup.js')}" --validate-docs`, {
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     console.log('  ✅ Valid README passed documentation validation')
   } catch (error) {
@@ -222,6 +230,7 @@ npm run format
   try {
     execSync(`node "${path.join(originalCwd, 'setup.js')}" --validate-docs`, {
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     throw new Error('README with missing file should have failed but passed')
   } catch (error) {
@@ -245,6 +254,7 @@ npm run format
   try {
     execSync(`node "${path.join(originalCwd, 'setup.js')}" --validate-docs`, {
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
     throw new Error('README with missing script should have failed but passed')
   } catch (error) {
@@ -314,7 +324,7 @@ jobs:
   try {
     execSync(
       `node "${path.join(originalCwd, 'setup.js')}" --comprehensive --no-markdownlint --no-npm-audit --no-gitleaks`,
-      { stdio: 'pipe' }
+      { stdio: 'pipe', env: sanitizedGitEnvironment() }
     )
     console.log('  ✅ Comprehensive validation passed for valid project')
   } catch (error) {

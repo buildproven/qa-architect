@@ -17,6 +17,7 @@
  */
 
 const { execSync } = require('node:child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
@@ -41,14 +42,20 @@ function createTestDir(name) {
   fs.mkdirSync(testDir, { recursive: true })
 
   // Initialize git repository (required by setup.js)
-  execSync('git init', { cwd: testDir, stdio: 'pipe' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
 
   const cleanup = () => {
@@ -67,11 +74,10 @@ function runDepsCommand(testDir, expectSuccess = true) {
   const setupPath = path.resolve(__dirname, '..', 'setup.js')
 
   // Disable developer mode to test real license behavior
-  const env = {
-    ...process.env,
+  const env = sanitizedGitEnvironment({
     QAA_DEVELOPER: 'false',
     QAA_LICENSE_DIR: path.join(testDir, '.cqa-license'), // Use temp dir for license
-  }
+  })
 
   try {
     const output = execSync(`node "${setupPath}" --deps`, {

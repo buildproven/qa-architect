@@ -12,6 +12,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { spawnSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 const {
   runPrCheck,
@@ -31,6 +32,7 @@ function git(dir, args) {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
     shell: false,
+    env: sanitizedGitEnvironment(),
   })
   if (r.status !== 0) {
     throw new Error(`git ${args.join(' ')} failed: ${r.stderr || r.stdout}`)

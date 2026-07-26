@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * TEST-003: Comprehensive error path testing
@@ -61,7 +62,7 @@ async function testESLintNotInstalled() {
     )
 
     // Initialize git
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run security validation - should handle gracefully whether ESLint is available or not
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -69,6 +70,7 @@ async function testESLintNotInstalled() {
       execSync(`node "${setupPath}" --security-config`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
       // If it succeeds, ESLint might be globally installed - that's OK
       // The key is that it doesn't crash
@@ -116,7 +118,7 @@ async function testMalformedPackageJson() {
     fs.writeFileSync('package.json', '{ "name": "test", invalid json }')
 
     // Initialize git
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run setup - should fail gracefully with clear error
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -124,6 +126,7 @@ async function testMalformedPackageJson() {
       execSync(`node "${setupPath}"`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
       throw new Error('Should have failed with malformed package.json')
     } catch (error) {
@@ -176,7 +179,7 @@ async function testPermissionErrors() {
     fs.chmodSync('package.json', 0o444)
 
     // Initialize git
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run setup - should detect permission issue
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -184,6 +187,7 @@ async function testPermissionErrors() {
       execSync(`node "${setupPath}"`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
       // If it succeeds, it might be reading-only (which is fine)
       console.log('  ✅ Handled read-only package.json gracefully')
@@ -239,7 +243,7 @@ async function testMissingDependencies() {
     fs.writeFileSync('package.json', JSON.stringify(packageJson, null, 2))
 
     // Initialize git
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run setup without installing deps - should handle gracefully
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -247,6 +251,7 @@ async function testMissingDependencies() {
       execSync(`node "${setupPath}" --validate-docs`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
       console.log('  ✅ Handled missing dependencies gracefully')
     } catch {
@@ -290,7 +295,7 @@ async function testInvalidESLintConfig() {
     )
 
     // Initialize git
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run security validation - should handle syntax error
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -298,6 +303,7 @@ async function testInvalidESLintConfig() {
       execSync(`node "${setupPath}" --security-config`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
       console.log('  ✅ Handled invalid ESLint config gracefully')
     } catch (error) {
@@ -333,7 +339,7 @@ async function testMissingPackageJson() {
     process.chdir(testDir)
 
     // Don't create package.json - should bootstrap one
-    execSync('git init', { stdio: 'ignore' })
+    execSync('git init', { stdio: 'ignore', env: sanitizedGitEnvironment() })
 
     // Run setup - should bootstrap or fail gracefully
     const setupPath = path.join(originalCwd, 'setup.js')
@@ -341,6 +347,7 @@ async function testMissingPackageJson() {
       execSync(`node "${setupPath}"`, {
         stdio: 'pipe',
         encoding: 'utf8',
+        env: sanitizedGitEnvironment(),
       })
 
       // Check if package.json was created

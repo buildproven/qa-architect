@@ -9,6 +9,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 console.log('🧪 Testing workflow tier system...\n')
 
@@ -19,14 +20,20 @@ function createTempGitRepo() {
     path.join(os.tmpdir(), 'cqa-workflow-license-')
   )
   process.env.NODE_ENV = 'test'
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
 
   // Create minimal package.json
@@ -57,6 +64,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath}`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -127,6 +135,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -190,6 +199,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-comprehensive`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -241,6 +251,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -259,6 +270,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     workflowContent = fs.readFileSync(workflowPath, 'utf8')
@@ -284,6 +296,7 @@ function createTempGitRepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-comprehensive`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -308,6 +321,7 @@ function createTempGitRepo() {
       {
         cwd: testDir,
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       }
     )
 
@@ -374,6 +388,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowContent = fs.readFileSync(
@@ -406,6 +421,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -481,6 +497,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath}`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -560,6 +577,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -654,6 +672,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -707,6 +726,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-minimal`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowDir = path.join(testDir, '.github', 'workflows')
@@ -730,6 +750,7 @@ jobs:
       {
         cwd: testDir,
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       }
     )
 
@@ -764,6 +785,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --workflow-standard`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const workflowPath = path.join(
@@ -782,6 +804,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const refreshedWorkflow = fs.readFileSync(workflowPath, 'utf8')
@@ -814,6 +837,7 @@ jobs:
       {
         cwd: testDir,
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       }
     )
 
@@ -827,6 +851,7 @@ jobs:
     execSync(`QAA_DEVELOPER=true node ${setupPath} --update`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     const refreshedWorkflow = fs.readFileSync(workflowPath, 'utf8')

@@ -12,6 +12,7 @@
 
 const assert = require('node:assert')
 const { execSync, spawnSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
@@ -29,14 +30,20 @@ function createTestDir(name) {
   fs.mkdirSync(testDir, { recursive: true })
 
   // Initialize git (required by setup.js)
-  execSync('git init', { cwd: testDir, stdio: 'pipe' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'pipe',
+    env: sanitizedGitEnvironment(),
   })
 
   return testDir
@@ -68,6 +75,7 @@ async function testPythonPackageJsonError() {
         cwd: testDir,
         encoding: 'utf8',
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
 
       // Check if Python files were created despite package.json error
@@ -115,6 +123,7 @@ async function testGlobalErrorCatch() {
         encoding: 'utf8',
         stdio: 'pipe',
         timeout: 10000,
+        env: sanitizedGitEnvironment(),
       }
     )
 
@@ -173,6 +182,7 @@ async function testPythonOnlyNextSteps() {
       encoding: 'utf8',
       stdio: 'pipe',
       timeout: 30000,
+      env: sanitizedGitEnvironment(),
     })
 
     const output = result.stdout || ''
@@ -238,6 +248,7 @@ async function testMixedProjectScriptError() {
           encoding: 'utf8',
           stdio: 'pipe',
           timeout: 30000,
+          env: sanitizedGitEnvironment(),
         })
 
         // Should have warning about not being able to add Python scripts

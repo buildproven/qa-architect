@@ -4,6 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Tests for Turborepo detection and workflow integration
@@ -82,6 +83,7 @@ async function testWorkflowDetectsTurborepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath}`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // Read generated workflow
@@ -198,6 +200,7 @@ async function testWorkflowWithoutTurborepo() {
     execSync(`QAA_DEVELOPER=true node ${setupPath}`, {
       cwd: testDir,
       stdio: 'pipe',
+      env: sanitizedGitEnvironment(),
     })
 
     // Read generated workflow
@@ -233,14 +236,20 @@ function createTempProject() {
   const testDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cqa-turbo-test-'))
 
   // Initialize git repo
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
 
   return testDir

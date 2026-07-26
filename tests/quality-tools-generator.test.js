@@ -10,6 +10,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 const {
   generateLighthouseConfig,
@@ -144,7 +145,11 @@ console.log('  ✅ Lighthouse config written to file correctly\n')
 // Test 12: File writing - commitlint + hook
 console.log('Test 12: File writing - commitlint + hook')
 const tempDir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'qta-test-'))
-execSync('git init', { cwd: tempDir2, stdio: 'ignore' })
+execSync('git init', {
+  cwd: tempDir2,
+  stdio: 'ignore',
+  env: sanitizedGitEnvironment(),
+})
 writeCommitlintConfig(tempDir2)
 writeCommitMsgHook(tempDir2)
 const commitlintPath = path.join(tempDir2, 'commitlint.config.js')

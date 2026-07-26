@@ -125,6 +125,7 @@ console.log(
   const { execSync } = require('child_process')
   const fs = require('fs')
   const path = require('path')
+  const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
   // Create temporary test directory
   const testDir = path.join(__dirname, 'fixtures', 'deps-message-test')
@@ -143,6 +144,7 @@ console.log(
         cwd: testDir,
         encoding: 'utf8',
         stdio: 'pipe',
+        env: sanitizedGitEnvironment(),
       })
 
       // Verify auto-merge message is NOT present

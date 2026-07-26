@@ -10,6 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 console.log('🧪 Testing --analyze-ci CLI integration...\n')
 
@@ -24,14 +25,20 @@ function createTestRepo(workflowContent) {
   fs.mkdirSync(testDir, { recursive: true })
 
   // Init git repo (safe: hardcoded command, no user input)
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
 
   // Create workflow
@@ -44,8 +51,16 @@ function createTestRepo(workflowContent) {
 
   // Create some commits for frequency analysis
   fs.writeFileSync(path.join(testDir, 'test.txt'), 'test')
-  execSync('git add .', { cwd: testDir, stdio: 'ignore' })
-  execSync('git commit -m "Initial commit"', { cwd: testDir, stdio: 'ignore' })
+  execSync('git add .', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
+  execSync('git commit -m "Initial commit"', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
 
   return testDir
 }
@@ -121,7 +136,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -147,14 +162,18 @@ jobs:
   fs.mkdirSync(testDir, { recursive: true })
 
   // Init git but no workflows
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
 
   try {
     execSync(`node "${path.join(originalCwd, 'setup.js')}" --analyze-ci`, {
       cwd: testDir,
       encoding: 'utf8',
       stdio: 'pipe',
-      env: { ...process.env, QAA_DEVELOPER: 'true' },
+      env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
     })
     assert.fail('Should have exited with error')
   } catch (error) {
@@ -184,7 +203,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -215,7 +234,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -253,7 +272,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -289,7 +308,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -318,7 +337,7 @@ jobs:
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 

@@ -13,6 +13,7 @@ const {
 const {
   addGitlink,
   initializeFixtureRepository,
+  sanitizedGitEnvironment,
 } = require('./git-fixture-helpers')
 
 const setupPath = path.join(__dirname, '..', 'setup.js')
@@ -35,12 +36,11 @@ function runSetup(directory) {
     return execFileSync(process.execPath, [setupPath, '--workflow-minimal'], {
       cwd: directory,
       stdio: 'pipe',
-      env: {
-        ...process.env,
+      env: sanitizedGitEnvironment({
         NODE_ENV: 'test',
         QAA_DEVELOPER: 'true',
         QAA_LICENSE_DIR: licenseDirectory,
-      },
+      }),
     })
   } finally {
     fs.rmSync(licenseDirectory, { recursive: true, force: true })

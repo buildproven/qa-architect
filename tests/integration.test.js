@@ -112,6 +112,7 @@ async function testESLintConfigVariants() {
         `node "${path.join(originalCwd, 'setup.js')}" --security-config`,
         {
           stdio: 'pipe',
+          env: sanitizedGitEnvironment(),
         }
       )
       console.log('  ✅ eslint.config.js detected correctly')
@@ -139,6 +140,7 @@ async function testESLintConfigVariants() {
         `node "${path.join(originalCwd, 'setup.js')}" --security-config`,
         {
           stdio: 'pipe',
+          env: sanitizedGitEnvironment(),
         }
       )
       console.log('  ✅ eslint.config.cjs detected correctly')
@@ -226,6 +228,7 @@ jobs:
         `node "${path.join(originalCwd, 'setup.js')}" --comprehensive --no-npm-audit --no-gitleaks --no-actionlint --no-markdownlint`,
         {
           stdio: 'pipe',
+          env: sanitizedGitEnvironment(),
         }
       )
       console.log('  ✅ Validation runs successfully in minimal environment')
@@ -404,6 +407,7 @@ async function testCustomTemplateIntegration() {
         `node "${path.join(originalCwd, 'setup.js')}" --template "${customTemplateDir}"`,
         {
           stdio: 'pipe',
+          env: sanitizedGitEnvironment(),
         }
       )
     } catch (error) {

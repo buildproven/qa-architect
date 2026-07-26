@@ -5,6 +5,7 @@ const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 /**
  * Test suite for ProjectMaturityDetector CLI
@@ -74,6 +75,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript}`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     assert.ok(
@@ -112,6 +114,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript} --verbose`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     assert.ok(
@@ -144,6 +147,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript} --github-actions`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     // Check for GitHub Actions output format (key=value pairs)
@@ -193,6 +197,7 @@ const cleanupTempProject = tempDir => {
     execSync(`node ${maturityScript}`, {
       cwd: tempDir,
       stdio: 'ignore',
+      env: sanitizedGitEnvironment(),
     })
 
     console.log('✅ Test 4 passed: CLI exit code (0 for success)')
@@ -215,6 +220,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript} -v`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     assert.ok(
@@ -239,6 +245,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript}`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     assert.ok(output.includes('Minimal'), 'Should detect minimal maturity')
@@ -276,6 +283,7 @@ const cleanupTempProject = tempDir => {
     const output = execSync(`node ${maturityScript}`, {
       cwd: tempDir,
       encoding: 'utf8',
+      env: sanitizedGitEnvironment(),
     })
 
     assert.ok(

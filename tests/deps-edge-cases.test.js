@@ -10,6 +10,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { sanitizedGitEnvironment } = require('./git-fixture-helpers')
 
 console.log('🧪 Testing deps.js edge cases...\n')
 
@@ -24,14 +25,20 @@ function createTestDir(name) {
   fs.mkdirSync(testDir, { recursive: true })
 
   // Init git repo (safe: hardcoded command, no user input)
-  execSync('git init', { cwd: testDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: testDir,
+    stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
+  })
   execSync('git config user.email "test@example.com"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
   execSync('git config user.name "Test User"', {
     cwd: testDir,
     stdio: 'ignore',
+    env: sanitizedGitEnvironment(),
   })
 
   return testDir
@@ -83,7 +90,7 @@ function createTestDir(name) {
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_LICENSE_DIR: licenseDir },
+        env: sanitizedGitEnvironment({ QAA_LICENSE_DIR: licenseDir }),
       }
     )
 
@@ -140,7 +147,7 @@ function createTestDir(name) {
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       }
     )
 
@@ -180,11 +187,10 @@ gem "pg", "~> 1.5"
         cwd: testDir,
         encoding: 'utf8',
         stdio: 'pipe',
-        env: {
-          ...process.env,
+        env: sanitizedGitEnvironment({
           QAA_DEVELOPER: 'false',
           QAA_LICENSE_DIR: TEST_LICENSE_DIR,
-        },
+        }),
       })
       assert.fail('Should have failed for Ruby-only in free tier')
     } catch (error) {
@@ -217,7 +223,7 @@ gem "pg", "~> 1.5"
         cwd: testDir,
         encoding: 'utf8',
         stdio: 'pipe',
-        env: { ...process.env, QAA_DEVELOPER: 'true' },
+        env: sanitizedGitEnvironment({ QAA_DEVELOPER: 'true' }),
       })
       assert.fail('Should have failed with no dependency files')
     } catch (error) {
@@ -256,11 +262,10 @@ gem "pg", "~> 1.5"
       {
         cwd: testDir,
         encoding: 'utf8',
-        env: {
-          ...process.env,
+        env: sanitizedGitEnvironment({
           QAA_DEVELOPER: 'true',
           GITHUB_TOKEN: '', // No token
-        },
+        }),
       }
     )
 
