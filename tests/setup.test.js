@@ -517,7 +517,11 @@ try {
   }
 
   // Initialize git (required by setup script)
-  execSync('git init', { cwd: pythonProjectDir, stdio: 'ignore' })
+  execSync('git init', {
+    cwd: pythonProjectDir,
+    stdio: 'ignore',
+    env: withoutGitRepositoryEnvironment(process.env),
+  })
 
   // Run setup script
   const pythonFreeLicense = createLicenseEnv()
