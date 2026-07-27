@@ -197,6 +197,7 @@ const {
 
 // Telemetry (opt-in usage tracking)
 const { TelemetrySession, showTelemetryStatus } = require('./lib/telemetry')
+const { isESMProject } = require('./lib/project-module-type')
 
 // Error reporting (opt-in crash analytics)
 const {
@@ -2095,8 +2096,16 @@ HELP:
         )
       }
 
-      // Copy Lighthouse CI config if it doesn't exist
-      const lighthousercPath = path.join(process.cwd(), '.lighthouserc.js')
+      // Copy Lighthouse CI config if it doesn't exist. The template is
+      // CommonJS (module.exports); ESM projects ("type": "module" in
+      // package.json) need the .cjs extension so Node doesn't try to parse
+      // it as ESM and throw "module is not defined in ES module scope".
+      // @lhci/cli's own RC_FILE_NAMES list checks .lighthouserc.cjs before
+      // .lighthouserc.js, so no lhci/script changes are needed to pick it up.
+      const lighthousercFilename = isESMProject(process.cwd())
+        ? '.lighthouserc.cjs'
+        : '.lighthouserc.js'
+      const lighthousercPath = path.join(process.cwd(), lighthousercFilename)
       if (!fs.existsSync(lighthousercPath)) {
         const templateLighthouserc =
           templateLoader.getTemplate(

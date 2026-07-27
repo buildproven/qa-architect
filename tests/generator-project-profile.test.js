@@ -904,4 +904,54 @@ try {
   console.log('✅ node-version matches pnpm major version compatibility')
 }
 
+// setup.js's Lighthouse config copy always wrote .lighthouserc.js — a
+// CommonJS template (`module.exports = {...}`) — even into ESM projects
+// ("type": "module" in package.json), where Node treats a plain .js file as
+// ESM and throws "module is not defined in ES module scope" the moment
+// `lhci autorun` tries to require() it. @lhci/cli's own RC_FILE_NAMES list
+// checks .lighthouserc.cjs before .lighthouserc.js, so writing the .cjs
+// extension for ESM projects needs no lhci/script changes to be picked up.
+{
+  console.log('Generator: Lighthouse config extension matches module type')
+
+  for (const [label, isESM, expectedFile] of [
+    ['ESM project', true, '.lighthouserc.cjs'],
+    ['CJS project', false, '.lighthouserc.js'],
+  ]) {
+    const repo = createRepo({
+      name: `lighthouserc-${label.replace(/[^a-z0-9]/gi, '-')}`,
+      ...(isESM ? { type: 'module' } : {}),
+    })
+    try {
+      runSetup(repo)
+      assert(
+        fs.existsSync(path.join(repo, expectedFile)),
+        `${label}: expected ${expectedFile} to exist`
+      )
+      const otherFile =
+        expectedFile === '.lighthouserc.cjs'
+          ? '.lighthouserc.js'
+          : '.lighthouserc.cjs'
+      assert(
+        !fs.existsSync(path.join(repo, otherFile)),
+        `${label}: did not expect ${otherFile} to exist`
+      )
+      // Must actually load without throwing in a fresh process — the real
+      // bug was a module-system mismatch (Node treating the file as ESM),
+      // not a missing file. A dynamic require() in-process would trip
+      // eslint's non-literal-require rule and doesn't reproduce how lhci
+      // actually loads it (its own subprocess), so shell out instead.
+      execFileSync(
+        process.execPath,
+        ['-e', `require(${JSON.stringify(path.join(repo, expectedFile))})`],
+        { stdio: 'pipe' }
+      )
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true })
+    }
+  }
+
+  console.log('✅ Lighthouse config extension matches project module type')
+}
+
 console.log('✅ Generator project profile regression tests passed')
