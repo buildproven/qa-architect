@@ -450,10 +450,99 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
 }
 
 // ============================================================
+// Test 16: test:fast and test:medium actually run under real vitest
+//
+// Regression test for a real bug: the generated scripts used
+// `--reporter=basic` (removed in vitest 4 — valid names are default,
+// agent, minimal, blob, verbose, dot, json, tap, tap-flat, junit, tree,
+// hanging-process, github-actions) and a Jest-style
+// `--testPathIgnorePatterns` flag vitest has never supported (it uses
+// `--exclude` with glob patterns). Both were syntactically valid
+// strings that passed every prior assertion here while crashing on
+// first real invocation — string-content checks alone can't catch a
+// runtime CLI-flag mismatch, so this actually executes them.
+// ============================================================
+{
+  console.log('Test 16: test:fast/test:medium execute under real vitest')
+  const { execFileSync } = require('child_process')
+
+  // Placed under tests/ (not os.tmpdir()) so `import 'vitest'` resolves
+  // through qa-architect's own node_modules without a separate install.
+  // A fixture-local vitest.config.mjs overrides qa-architect's own
+  // vitest.config.ts, which vitest would otherwise discover by walking up
+  // from the fixture directory and use instead (its include patterns don't
+  // match plain *.test.js files, silently reporting "no test files found"
+  // rather than exercising the fixture).
+  const vitestBin = path.join(__dirname, '..', 'node_modules', '.bin', 'vitest')
+  const scripts = getTestTierScripts()
+
+  const makeFixture = () => {
+    const dir = fs.mkdtempSync(path.join(__dirname, 'qaa-test-tier-exec-'))
+    fs.writeFileSync(
+      path.join(dir, 'vitest.config.mjs'),
+      "export default { test: { include: ['**/*.test.js'] } }\n"
+    )
+    return dir
+  }
+
+  const runVitestScript = (script, dir) => {
+    // Scripts are `vitest run ...`; execute the arg list directly against
+    // the local vitest binary rather than through `npm run`, so this test
+    // has no dependency on a package.json existing in the fixture.
+    const args = [
+      ...script.split(' ').slice(1),
+      '--config',
+      path.join(dir, 'vitest.config.mjs'),
+    ]
+    execFileSync(vitestBin, args, { cwd: dir, stdio: 'pipe' })
+  }
+
+  // test:fast: a plain passing unit test is enough to prove the CLI flags
+  // (--reporter=dot --coverage=false) don't crash the run.
+  const fastDir = makeFixture()
+  try {
+    fs.writeFileSync(
+      path.join(fastDir, 'unit.test.js'),
+      "import { test, expect } from 'vitest'\ntest('unit', () => expect(1).toBe(1))\n"
+    )
+    runVitestScript(scripts['test:fast'], fastDir)
+    console.log('  ✅ test:fast executes without a CLI error')
+  } finally {
+    fs.rmSync(fastDir, { recursive: true, force: true })
+  }
+
+  // test:medium: e2e/integration tests deliberately throw, so this only
+  // passes if --exclude actually excludes them from the run.
+  const mediumDir = makeFixture()
+  try {
+    fs.mkdirSync(path.join(mediumDir, 'tests', 'e2e'), { recursive: true })
+    fs.mkdirSync(path.join(mediumDir, 'tests', 'integration'), {
+      recursive: true,
+    })
+    fs.writeFileSync(
+      path.join(mediumDir, 'unit.test.js'),
+      "import { test, expect } from 'vitest'\ntest('unit', () => expect(1).toBe(1))\n"
+    )
+    fs.writeFileSync(
+      path.join(mediumDir, 'tests', 'e2e', 'e2e.test.js'),
+      "import { test } from 'vitest'\ntest('e2e', () => { throw new Error('e2e must not run under test:medium') })\n"
+    )
+    fs.writeFileSync(
+      path.join(mediumDir, 'tests', 'integration', 'integration.test.js'),
+      "import { test } from 'vitest'\ntest('integration', () => { throw new Error('integration must not run under test:medium') })\n"
+    )
+    runVitestScript(scripts['test:medium'], mediumDir)
+    console.log('  ✅ test:medium executes and excludes e2e/integration')
+  } finally {
+    fs.rmSync(mediumDir, { recursive: true, force: true })
+  }
+}
+
+// ============================================================
 // Test 16: PROJECT_CONFIGS has all expected types
 // ============================================================
 {
-  console.log('Test 16: PROJECT_CONFIGS completeness')
+  console.log('Test 17: PROJECT_CONFIGS completeness')
   const expectedTypes = [
     'cli',
     'webapp',
@@ -503,7 +592,7 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
 // Test 17: High risk regex patterns are valid strings
 // ============================================================
 {
-  console.log('Test 17: High risk regex patterns are valid')
+  console.log('Test 18: High risk regex patterns are valid')
   const types = ['cli', 'webapp', 'saas', 'api', 'library', 'docs', 'default']
 
   for (const type of types) {
@@ -518,7 +607,7 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
 // Test 18: Each project type has unique risk patterns
 // ============================================================
 {
-  console.log('Test 18: Risk patterns match expected domains')
+  console.log('Test 19: Risk patterns match expected domains')
 
   // CLI should match setup files (regex contains 'setup\\.js')
   assert(
