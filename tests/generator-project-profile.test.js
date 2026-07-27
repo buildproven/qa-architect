@@ -858,4 +858,50 @@ try {
   console.log('✅ Generated audit gates scope to production dependencies')
 }
 
+// pnpm 11 dropped support for Node <22 (requires the node:sqlite built-in,
+// added in Node 22). The generated workflow hardcodes node-version: '20' on
+// several non-matrix jobs (detect-maturity, security, audit-report,
+// documentation) that run `corepack prepare pnpm@<version> --activate` with
+// the consumer's exact pinned version — activating a pinned pnpm@11.x under
+// Node 20 crashes those jobs outright with ERR_UNKNOWN_BUILTIN_MODULE.
+{
+  console.log('Generator: node-version bumped for pnpm 11+, untouched below')
+
+  for (const [label, packageManagerVersion, expectedNodeVersion] of [
+    ['pnpm 11.x', 'pnpm@11.13.1', "'22'"],
+    ['pnpm 10.x', 'pnpm@10.12.1', "'20'"],
+  ]) {
+    const repo = createRepo({
+      name: `node-version-${label.replace(/[^a-z0-9]/gi, '-')}`,
+      packageManager: packageManagerVersion,
+    })
+    try {
+      fs.writeFileSync(path.join(repo, 'pnpm-lock.yaml'), '')
+      runSetup(repo)
+      const workflow = fs.readFileSync(
+        path.join(repo, '.github/workflows/quality.yml'),
+        'utf8'
+      )
+      const hardcodedNodeVersions = [
+        ...workflow.matchAll(/^ {10}node-version: ('20'|'22')$/gm),
+      ].map(match => match[1])
+      assert(
+        hardcodedNodeVersions.length > 0,
+        `${label}: expected to find hardcoded node-version lines`
+      )
+      for (const found of hardcodedNodeVersions) {
+        assert.strictEqual(
+          found,
+          expectedNodeVersion,
+          `${label}: hardcoded node-version should be ${expectedNodeVersion}, found ${found}`
+        )
+      }
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true })
+    }
+  }
+
+  console.log('✅ node-version matches pnpm major version compatibility')
+}
+
 console.log('✅ Generator project profile regression tests passed')
