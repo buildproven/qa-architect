@@ -486,15 +486,14 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
   }
 
   const runVitestScript = (script, dir) => {
-    // Scripts are `vitest run ...`; execute the arg list directly against
-    // the local vitest binary rather than through `npm run`, so this test
-    // has no dependency on a package.json existing in the fixture.
-    const args = [
-      ...script.split(' ').slice(1),
-      '--config',
-      path.join(dir, 'vitest.config.mjs'),
-    ]
-    execFileSync(vitestBin, args, { cwd: dir, stdio: 'pipe' })
+    // Run through an actual shell (`sh -c`), not execFileSync against the
+    // vitest binary directly — an unquoted glob in the script string (e.g.
+    // `--exclude tests/e2e/**`) is silently expanded by the shell into
+    // literal matching filenames before vitest ever sees it, turning an
+    // exclude flag into a positional include filter. execFileSync bypasses
+    // the shell entirely and would never surface that class of bug.
+    const command = `${script.replace(/^vitest /, `${vitestBin} `)} --config '${path.join(dir, 'vitest.config.mjs')}'`
+    execFileSync('sh', ['-c', command], { cwd: dir, stdio: 'pipe' })
   }
 
   // test:fast: a plain passing unit test is enough to prove the CLI flags
@@ -523,13 +522,31 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
       path.join(mediumDir, 'unit.test.js'),
       "import { test, expect } from 'vitest'\ntest('unit', () => expect(1).toBe(1))\n"
     )
+    // Two files per directory: the shell glob-expansion bug this guards
+    // against (an unquoted `--exclude tests/e2e/**` in the script string)
+    // only surfaces when the glob matches more than one file. With a single
+    // match, the shell expands it to one literal path and `--exclude` still
+    // works by coincidence; with two, the shell expands to two space-
+    // separated paths, the first consumed by --exclude and the second
+    // landing as a bare positional argument that vitest treats as an
+    // *include* filter instead — silently narrowing the run rather than
+    // excluding anything. A single-file fixture passed both before and
+    // after the fix and would never have caught this.
     fs.writeFileSync(
-      path.join(mediumDir, 'tests', 'e2e', 'e2e.test.js'),
-      "import { test } from 'vitest'\ntest('e2e', () => { throw new Error('e2e must not run under test:medium') })\n"
+      path.join(mediumDir, 'tests', 'e2e', 'e2e-a.test.js'),
+      "import { test } from 'vitest'\ntest('e2e-a', () => { throw new Error('e2e must not run under test:medium') })\n"
     )
     fs.writeFileSync(
-      path.join(mediumDir, 'tests', 'integration', 'integration.test.js'),
-      "import { test } from 'vitest'\ntest('integration', () => { throw new Error('integration must not run under test:medium') })\n"
+      path.join(mediumDir, 'tests', 'e2e', 'e2e-b.test.js'),
+      "import { test } from 'vitest'\ntest('e2e-b', () => { throw new Error('e2e must not run under test:medium') })\n"
+    )
+    fs.writeFileSync(
+      path.join(mediumDir, 'tests', 'integration', 'integration-a.test.js'),
+      "import { test } from 'vitest'\ntest('integration-a', () => { throw new Error('integration must not run under test:medium') })\n"
+    )
+    fs.writeFileSync(
+      path.join(mediumDir, 'tests', 'integration', 'integration-b.test.js'),
+      "import { test } from 'vitest'\ntest('integration-b', () => { throw new Error('integration must not run under test:medium') })\n"
     )
     runVitestScript(scripts['test:medium'], mediumDir)
     console.log('  ✅ test:medium executes and excludes e2e/integration')
