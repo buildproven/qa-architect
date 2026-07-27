@@ -242,7 +242,7 @@ try {
 
   // Include enhanced scripts in expected results (matching setup.js behavior)
   const defaultScripts = getDefaultScripts({ typescript: false })
-  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['security:audit'] = 'npm audit --audit-level high --omit=dev'
   defaultScripts['validate:pre-push'] = 'npm run lint'
   const enhancedScripts = {}
   const smartStrategyScripts = {}
@@ -326,7 +326,7 @@ try {
   const pkg = readJson(path.join(jsProjectDirPro, 'package.json'))
 
   const defaultScripts = getDefaultScripts({ typescript: false })
-  defaultScripts['security:audit'] = 'npm audit --audit-level high'
+  defaultScripts['security:audit'] = 'npm audit --audit-level high --omit=dev'
   defaultScripts['validate:pre-push'] = 'npm run lint'
   const enhancedScripts = {}
   const smartStrategyScripts = getTestTierScripts()
