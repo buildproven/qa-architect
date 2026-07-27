@@ -2195,7 +2195,7 @@ coverage/
         console.log('✅ Added .gitignore with essential entries')
       }
 
-      // Ensure Husky pre-commit hook runs lint-staged
+      // Ensure Husky pre-commit hook runs staged-file checks and full TypeScript validation.
       const huskySpinner = showProgress('Setting up Husky git hooks...')
       try {
         const huskyDir = path.join(process.cwd(), '.husky')
@@ -2204,9 +2204,15 @@ coverage/
         }
         const preCommitPath = path.join(huskyDir, 'pre-commit')
         if (!fs.existsSync(preCommitPath)) {
-          const hook = `# Run lint-staged on staged files
-${projectProfile.exec('lint-staged')}
+          let hook = `# Run lint-staged on staged files
+${projectProfile.exec('lint-staged')} || exit $?
 `
+          if (usesTypeScript) {
+            hook += `
+# TypeScript project commands must run without lint-staged-appended filenames.
+${projectProfile.runScript('type-check:all')}
+`
+          }
           fs.writeFileSync(preCommitPath, hook)
           fs.chmodSync(preCommitPath, 0o755)
           console.log('✅ Added Husky pre-commit hook (lint-staged)')

@@ -168,10 +168,15 @@ try {
   assert(
     generatedPackage.scripts['type-check:tests'].includes('tests/tsconfig.json')
   )
-  assert(
-    generatedPackage['lint-staged']['tests/**/*.{ts,tsx,js,jsx}'].includes(
-      'tsc --noEmit --project tests/tsconfig.json'
-    )
+  assert.deepStrictEqual(
+    generatedPackage['lint-staged']['**/*.{ts,tsx}'],
+    ['eslint --fix', 'prettier --write'],
+    'lint-staged must not append staged filenames to project-wide TypeScript checks'
+  )
+  assert.deepStrictEqual(
+    generatedPackage['lint-staged']['tests/**/*.{ts,tsx,js,jsx}'],
+    ['eslint --fix', 'prettier --write'],
+    'Test TypeScript checks must run through type-check:all rather than lint-staged'
   )
   runGeneratedScript(pnpmRepo, 'type-check:tests')
   assert(!generatedPackage.devDependencies.vitest)
@@ -200,7 +205,14 @@ try {
   assert(
     fs
       .readFileSync(path.join(pnpmRepo, '.husky/pre-commit'), 'utf8')
-      .includes('pnpm exec lint-staged')
+      .includes('pnpm exec lint-staged || exit $?'),
+    'The pre-commit hook must preserve lint-staged failures'
+  )
+  assert(
+    fs
+      .readFileSync(path.join(pnpmRepo, '.husky/pre-commit'), 'utf8')
+      .includes('pnpm run type-check:all'),
+    'The pre-commit hook must run TypeScript checks project-wide'
   )
   assert(
     fs
