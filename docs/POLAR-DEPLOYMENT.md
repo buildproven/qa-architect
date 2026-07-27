@@ -17,7 +17,7 @@ The payment flow:
 - A [Polar.sh](https://polar.sh) organization
 - A [Vercel](https://vercel.com) account (for Blob storage and hosting the webhook)
 - Node.js >= 20
-- The Ed25519 private key used to sign licenses (paired with the `public-key.pem` bundled in the npm package)
+- The RSA private key used to sign licenses (paired with the `public-key.pem` bundled in the npm package)
 
 ---
 
@@ -52,8 +52,9 @@ In the Polar Dashboard → Settings → Webhooks → New Webhook:
 ```bash
 npm install -g vercel
 vercel link
-# Dashboard → Storage → Create → Blob → name it "qa-architect-licenses"
-# Copy the BLOB_READ_WRITE_TOKEN
+# Dashboard → Storage → Create → Blob → name it "qa-architect-license-private"
+# Set access to Private and copy its read/write token.
+# Create a separate Public Blob store for the signed public registry.
 ```
 
 ## Step 4: Deploy `webhook-handler.js` to Vercel
@@ -72,14 +73,15 @@ Create `vercel.json` in the repo root:
 
 Set environment variables in the Vercel dashboard (Project → Settings → Environment Variables):
 
-| Variable                       | Value                                                                |
-| ------------------------------ | -------------------------------------------------------------------- |
-| `POLAR_WEBHOOK_SECRET`         | `whsec_...` from Step 2                                              |
-| `POLAR_PRO_PRODUCT_ID`         | Pro product ID from Step 1                                           |
-| `LICENSE_REGISTRY_PRIVATE_KEY` | Contents of `private-key.pem` (paired with bundled `public-key.pem`) |
-| `LICENSE_REGISTRY_KEY_ID`      | An ID for this signing key (e.g., `prod-2026-05`)                    |
-| `BLOB_READ_WRITE_TOKEN`        | From Step 3                                                          |
-| `STATUS_API_TOKEN`             | _(optional)_ Bearer token for `/status` debug endpoint               |
+| Variable                                | Value                                                                |
+| --------------------------------------- | -------------------------------------------------------------------- |
+| `POLAR_WEBHOOK_SECRET`                  | `whsec_...` from Step 2                                              |
+| `POLAR_PRO_PRODUCT_ID`                  | Pro product ID from Step 1                                           |
+| `LICENSE_REGISTRY_PRIVATE_KEY`          | Contents of `private-key.pem` (paired with bundled `public-key.pem`) |
+| `LICENSE_REGISTRY_KEY_ID`               | An ID for this signing key (e.g., `prod-2026-05`)                    |
+| `LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN` | Read/write token from the private license-database Blob store        |
+| `BLOB_READ_WRITE_TOKEN`                 | Read/write token from the public signed-registry Blob store          |
+| `STATUS_API_TOKEN`                      | _(optional)_ Bearer token for `/status` debug endpoint               |
 
 Then deploy:
 
@@ -116,7 +118,7 @@ npx create-qa-architect@latest --activate-license
 # Enter the test license key. Should report PRO tier.
 ```
 
-For a real end-to-end test, use Polar's test mode (every webhook can be replayed from the dashboard) before going live.
+For a real end-to-end test, use Polar's test mode (every webhook can be replayed from the dashboard) before going live. Verify that the private store contains the customer record, the public registry contains only signed entries and email hashes, and that the CLI can activate the issued key.
 
 ## Step 7: Verify revocation works
 

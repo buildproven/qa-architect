@@ -8,6 +8,7 @@
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const { spawnSync } = require('child_process')
 const {
   createTestKeyPair,
   setTestPublicKeyEnv,
@@ -20,6 +21,7 @@ const TEST_LICENSE_DIR = path.join(
   `cqa-security-test-${Date.now()}`
 )
 process.env.QAA_LICENSE_DIR = TEST_LICENSE_DIR
+process.env.NODE_ENV = 'test'
 
 // Disable developer mode for licensing tests
 delete process.env.QAA_DEVELOPER
@@ -374,6 +376,92 @@ function testEnvironmentVariableSecurity() {
 }
 
 /**
+ * Security Test 6: The historical customer-facing environment and marker
+ * values must not grant paid access in a normal CLI process. Test settings are
+ * not an entitlement mechanism.
+ */
+function testDeveloperBypassIsDisabled() {
+  setupSecurityTest()
+  console.log(
+    'Security Test 6: Developer bypass is disabled in distributed CLI'
+  )
+
+  const developerMarker = path.join(TEST_LICENSE_DIR, '.cqa-developer')
+  fs.mkdirSync(TEST_LICENSE_DIR, { recursive: true })
+  fs.writeFileSync(developerMarker, 'attempted entitlement bypass')
+  process.env.QAA_DEVELOPER = 'true'
+  process.env.NODE_ENV = 'development'
+
+  const license = getLicenseInfo()
+  if (license.tier !== 'FREE' || license.isDeveloper === true) {
+    console.error(
+      '  ❌ SECURITY VIOLATION: Historical developer values unlocked PRO'
+    )
+    teardownSecurityTest()
+    process.exit(1)
+  }
+
+  const bypassed = verifyLicenseSignature({ tier: 'PRO' }, 'invalid-signature')
+  if (bypassed) {
+    console.error(
+      '  ❌ SECURITY VIOLATION: Invalid signature accepted through developer bypass'
+    )
+    teardownSecurityTest()
+    process.exit(1)
+  }
+
+  console.log('  ✅ Historical developer values cannot unlock PRO normally')
+  teardownSecurityTest()
+  return true
+}
+
+/**
+ * Security Test 7: A customer process cannot unlock Pro by supplying the
+ * historical developer environment variable.
+ */
+function testCliRejectsDeveloperEnvironmentBypass() {
+  console.log('Security Test 7: CLI rejects developer environment bypass')
+  const licenseDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cqa-cli-bypass-test-')
+  )
+  try {
+    const result = spawnSync(
+      process.execPath,
+      ['setup.js', '--license-status'],
+      {
+        cwd: path.resolve(__dirname, '..'),
+        env: {
+          ...process.env,
+          NODE_ENV: 'development',
+          QAA_DEVELOPER: 'true',
+          QAA_LICENSE_DIR: licenseDir,
+          QAA_LICENSE_PUBLIC_KEY: '',
+          QAA_LICENSE_PUBLIC_KEY_PATH: '',
+        },
+        encoding: 'utf8',
+      }
+    )
+
+    const output = `${result.stdout}\n${result.stderr}`
+    if (
+      result.status !== 0 ||
+      !output.includes('Tier: FREE') ||
+      output.includes('Tier: PRO')
+    ) {
+      console.error(
+        `  ❌ SECURITY VIOLATION: CLI accepted developer bypass: ${output}`
+      )
+      process.exit(1)
+    }
+  } finally {
+    fs.rmSync(licenseDir, { recursive: true, force: true })
+  }
+
+  console.log('  ✅ CLI keeps customer process on FREE tier')
+  return true
+}
+
+/**
  * Run all security tests
  */
 async function runSecurityTests() {
@@ -387,6 +475,8 @@ async function runSecurityTests() {
     testLicenseSignatureValidation()
     testLocalLicenseFileTamperingDetection()
     testEnvironmentVariableSecurity()
+    testDeveloperBypassIsDisabled()
+    testCliRejectsDeveloperEnvironmentBypass()
 
     console.log('============================================================')
     console.log('✅ All Security Tests Passed!')
@@ -428,4 +518,6 @@ module.exports = {
   testLicenseSignatureValidation,
   testLocalLicenseFileTamperingDetection,
   testEnvironmentVariableSecurity,
+  testDeveloperBypassIsDisabled,
+  testCliRejectsDeveloperEnvironmentBypass,
 }

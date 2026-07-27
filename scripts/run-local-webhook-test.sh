@@ -8,7 +8,8 @@
 #                          $QAA_SECRET_ENV_FILE (default ~/.config/buildproven/.env
 #                          then ~/Projects/internal/claude-setup/.env) by grepping
 #                          QA_ARCHITECT_SECRET=. Set the var directly to skip the file.
-#   BLOB_READ_WRITE_TOKEN  Vercel Blob token. If unset, read from ../.env.local.
+#   LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN  Private license-database Blob token.
+#   BLOB_READ_WRITE_TOKEN  Public signed-registry Blob token.
 #   POLAR_PRO_PRODUCT_ID   defaults to the QA Architect Pro product id.
 #   LICENSE_REGISTRY_KEY_ID / LICENSE_REGISTRY_PRIVATE_KEY_PATH  signing key.
 set -euo pipefail
@@ -40,10 +41,20 @@ if [ -z "${BLOB_READ_WRITE_TOKEN:-}" ]; then
   BLOB_READ_WRITE_TOKEN=$(grep -m1 '^BLOB_READ_WRITE_TOKEN=' "$SCRIPT_DIR/../.env.local" 2>/dev/null | cut -d= -f2- | tr -d '"')
 fi
 
+if [ -z "${LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN:-}" ]; then
+  LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN=$(grep -m1 '^LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN=' "$SCRIPT_DIR/../.env.local" 2>/dev/null | cut -d= -f2- | tr -d '"')
+fi
+
+if [ -z "${LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN:-}" ]; then
+  echo "❌ LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN not set and not found in .env.local." >&2
+  exit 1
+fi
+
 POLAR_PRO_PRODUCT_ID="${POLAR_PRO_PRODUCT_ID:-cbb4408c-e7b3-4d19-a585-f9b07195adae}" \
   POLAR_WEBHOOK_SECRET="$POLAR_WEBHOOK_SECRET" \
   LICENSE_REGISTRY_KEY_ID="${LICENSE_REGISTRY_KEY_ID:-prod-2026-06}" \
   LICENSE_REGISTRY_PRIVATE_KEY_PATH="${LICENSE_REGISTRY_PRIVATE_KEY_PATH:-$SCRIPT_DIR/../private-key.pem}" \
+  LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN="$LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN" \
   BLOB_READ_WRITE_TOKEN="$BLOB_READ_WRITE_TOKEN" \
   PORT=$PORT \
   node "$SCRIPT_DIR/../webhook-handler.js" >"$LOG" 2>&1 &

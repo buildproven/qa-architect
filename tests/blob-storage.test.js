@@ -9,7 +9,7 @@ const assert = require('node:assert')
 const Module = require('module')
 
 /**
- * @typedef {{path: string, content: string, options: {ifMatch?: string, addRandomSuffix?: boolean, allowOverwrite?: boolean, access?: string, contentType?: string}}} PutCall
+ * @typedef {{path: string, content: string, options: {ifMatch?: string, addRandomSuffix?: boolean, allowOverwrite?: boolean, access?: string, contentType?: string, token?: string}}} PutCall
  * @typedef {{url: string, content?: string, etag?: string}} MockBlobEntry
  */
 
@@ -21,6 +21,8 @@ let putCallArgs = null
 let putShouldThrow = false
 /** @type {((path: string) => Promise<{url: string, etag: string}>)|null} */
 let headOverride = null
+/** @type {((path: string) => Promise<unknown>)|null} */
+let getOverride = null
 
 // Monotonic etag generator so each write produces a distinct version tag,
 // mirroring how a real object store changes the ETag on every mutation.
@@ -70,6 +72,21 @@ const mockBlob = {
     const entry = mockStore.get(path)
     return { url: entry.url, etag: entry.etag || '' }
   },
+  get: async (/** @type {string} */ path) => {
+    if (getOverride) return getOverride(path)
+    const entry = mockStore.get(path)
+    if (!entry) return null
+    return {
+      statusCode: 200,
+      blob: { etag: entry.etag || '' },
+      stream: new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(entry.content || ''))
+          controller.close()
+        },
+      }),
+    }
+  },
 }
 
 // Intercept require('@vercel/blob')
@@ -89,18 +106,9 @@ require.cache['@vercel/blob'] = mockBlobModule
 
 // Mock global fetch for blob content retrieval
 const originalFetch = global.fetch
-global.fetch = async url => {
-  const requestedUrl = String(url)
-  for (const [, entry] of mockStore) {
-    if (entry.url === requestedUrl) {
-      return new Response(entry.content || '', {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
-    }
-  }
-  return new Response(null, { status: 404 })
-}
+const originalPrivateBlobToken =
+  process.env.LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN
+process.env.LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN = 'test-private-blob-token'
 
 // Now require the module under test
 const {
@@ -113,7 +121,7 @@ const {
 async function testLoadBlobReturnsNullOnNotFound() {
   console.log('  Testing loadBlob returns null when blob not found...')
   mockStore.clear()
-  const result = await loadBlob('nonexistent/path.json')
+  const result = await loadBlob(BLOB_PATHS.public)
   assert.strictEqual(result, null, 'Should return null for missing blob')
   console.log('  ✅ loadBlob returns null on BlobNotFoundError')
 }
@@ -150,7 +158,7 @@ async function testLoadBlobReturnsNullOnNotFoundVariants() {
     headOverride = async () => {
       throw variant.makeError()
     }
-    const result = await loadBlob('missing/variant.json')
+    const result = await loadBlob(BLOB_PATHS.public)
     assert.strictEqual(
       result,
       null,
@@ -161,18 +169,18 @@ async function testLoadBlobReturnsNullOnNotFoundVariants() {
   console.log('  ✅ loadBlob returns null for all not-found error shapes')
 }
 
-async function testSaveBlobCallsPutCorrectly() {
-  console.log('  Testing saveBlob calls put with correct options...')
+async function testSaveBlobUsesPublicAccessForDerivedRegistry() {
+  console.log('  Testing public registry uses public Blob access...')
   mockStore.clear()
   putCallArgs = null
 
   const data = { foo: 'bar', count: 42 }
-  const result = await saveBlob('test/data.json', data)
+  const result = await saveBlob(BLOB_PATHS.public, data)
 
   assert.ok(result, 'saveBlob should return truthy result')
   const call = putCallArgs
   assert.ok(call, 'put should capture its arguments')
-  assert.strictEqual(call.path, 'test/data.json')
+  assert.strictEqual(call.path, BLOB_PATHS.public)
   assert.strictEqual(call.options.addRandomSuffix, false)
   assert.strictEqual(call.options.allowOverwrite, true)
   assert.strictEqual(call.options.access, 'public')
@@ -180,7 +188,26 @@ async function testSaveBlobCallsPutCorrectly() {
 
   const savedContent = JSON.parse(call.content)
   assert.deepStrictEqual(savedContent, data)
-  console.log('  ✅ saveBlob calls put with correct options')
+  console.log('  ✅ public registry uses public access')
+}
+
+async function testSaveBlobUsesPrivateAccessForCustomerDatabase() {
+  console.log('  Testing private database uses private Blob access...')
+  mockStore.clear()
+  putCallArgs = null
+
+  await saveBlob(BLOB_PATHS.private, { email: 'customer@example.com' })
+
+  const call = putCallArgs
+  assert.ok(call, 'put should capture its arguments')
+  assert.strictEqual(call.path, BLOB_PATHS.private)
+  assert.strictEqual(call.options.access, 'private')
+  assert.strictEqual(
+    call.options.token,
+    process.env.LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN,
+    'private database must use the dedicated private-store token'
+  )
+  console.log('  ✅ private database uses private access and token')
 }
 
 async function testRoundTrip() {
@@ -220,17 +247,16 @@ async function testBlobPathsExist() {
 async function testLoadBlobThrowsOnFetchFailure() {
   console.log('  Testing loadBlob throws on non-ok fetch response...')
   // Override fetch to return non-ok for this specific test
-  const prevFetch = global.fetch
-  mockStore.set('bad/fetch.json', {
-    url: 'https://blob.vercel-storage.com/bad/fetch.json',
+  mockStore.set(BLOB_PATHS.public, {
+    url: `https://blob.vercel-storage.com/${BLOB_PATHS.public}`,
   })
-  global.fetch = async () => new Response(null, { status: 503 })
+  getOverride = async () => ({ statusCode: 503 })
   await assert.rejects(
-    () => loadBlob('bad/fetch.json'),
+    () => loadBlob(BLOB_PATHS.public),
     /Blob fetch failed.*HTTP 503/,
     'Should throw on non-ok fetch'
   )
-  global.fetch = prevFetch
+  getOverride = null
   console.log('  ✅ loadBlob throws on fetch failure')
 }
 
@@ -240,7 +266,7 @@ async function testLoadBlobThrowsOnInfraError() {
     throw new Error('Network timeout')
   }
   await assert.rejects(
-    () => loadBlob('any/path.json'),
+    () => loadBlob(BLOB_PATHS.public),
     /Blob head failed.*Network timeout/,
     'Should throw on head() infra error'
   )
@@ -250,23 +276,15 @@ async function testLoadBlobThrowsOnInfraError() {
 
 async function testLoadBlobThrowsOnCorruptJson() {
   console.log('  Testing loadBlob throws on corrupt JSON...')
-  mockStore.set('corrupt/data.json', {
-    url: 'https://blob.vercel-storage.com/corrupt/data.json',
+  mockStore.set(BLOB_PATHS.public, {
+    url: `https://blob.vercel-storage.com/${BLOB_PATHS.public}`,
     content: '<html>not json</html>',
   })
-  // Need fetch to return this content
-  const prevFetch = global.fetch
-  global.fetch = async () =>
-    new Response('<html>not json</html>', {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    })
   await assert.rejects(
-    () => loadBlob('corrupt/data.json'),
+    () => loadBlob(BLOB_PATHS.public),
     /Blob JSON parse failed/,
     'Should throw on corrupt JSON'
   )
-  global.fetch = prevFetch
   console.log('  ✅ loadBlob throws on corrupt JSON')
 }
 
@@ -274,7 +292,7 @@ async function testSaveBlobThrowsOnPutError() {
   console.log('  Testing saveBlob throws when put() fails...')
   putShouldThrow = true
   await assert.rejects(
-    () => saveBlob('fail/path.json', { x: 1 }),
+    () => saveBlob(BLOB_PATHS.public, { x: 1 }),
     /Blob store unavailable/,
     'Should throw on put() failure'
   )
@@ -286,9 +304,9 @@ async function testLoadBlobWithEtagReturnsEtag() {
   console.log('  Testing loadBlobWithEtag returns data + etag...')
   mockStore.clear()
   const data = { _metadata: { version: '1.0' }, a: 1 }
-  await saveBlob('etag/data.json', data)
+  await saveBlob(BLOB_PATHS.public, data)
 
-  const result = await loadBlobWithEtag('etag/data.json')
+  const result = await loadBlobWithEtag(BLOB_PATHS.public)
   assert.ok(result, 'Should return a result object')
   assert.deepStrictEqual(result.data, data, 'data should round-trip')
   assert.ok(result.etag, 'etag should be present')
@@ -298,7 +316,7 @@ async function testLoadBlobWithEtagReturnsEtag() {
 async function testLoadBlobWithEtagNullOnMissing() {
   console.log('  Testing loadBlobWithEtag returns null when blob absent...')
   mockStore.clear()
-  const result = await loadBlobWithEtag('etag/missing.json')
+  const result = await loadBlobWithEtag(BLOB_PATHS.public)
   assert.strictEqual(result, null, 'Should return null for missing blob')
   console.log('  ✅ loadBlobWithEtag returns null on first-run')
 }
@@ -307,21 +325,21 @@ async function testIfMatchGuardRejectsStaleWrite() {
   console.log('  Testing ifMatch rejects a stale conditional write...')
   mockStore.clear()
   // Initial write establishes etag v1
-  await saveBlob('guard/data.json', { v: 1 })
-  const stale = await loadBlobWithEtag('guard/data.json')
+  await saveBlob(BLOB_PATHS.public, { v: 1 })
+  const stale = await loadBlobWithEtag(BLOB_PATHS.public)
 
   // A concurrent writer bumps the etag to v2
-  await saveBlob('guard/data.json', { v: 2 })
+  await saveBlob(BLOB_PATHS.public, { v: 2 })
 
   // Our write using the now-stale etag must be rejected
   await assert.rejects(
-    () => saveBlob('guard/data.json', { v: 3 }, { ifMatch: stale.etag }),
+    () => saveBlob(BLOB_PATHS.public, { v: 3 }, { ifMatch: stale.etag }),
     /precondition/i,
     'Stale ifMatch write should be rejected'
   )
 
   // Sanity: the store still holds v2, not v3
-  const current = await loadBlob('guard/data.json')
+  const current = await loadBlob(BLOB_PATHS.public)
   assert.deepStrictEqual(current, { v: 2 }, 'Store should retain v2')
   console.log('  ✅ ifMatch guard rejects stale write')
 }
@@ -329,12 +347,12 @@ async function testIfMatchGuardRejectsStaleWrite() {
 async function testIfMatchGuardAllowsFreshWrite() {
   console.log('  Testing ifMatch allows a write with the current etag...')
   mockStore.clear()
-  await saveBlob('fresh/data.json', { v: 1 })
-  const fresh = await loadBlobWithEtag('fresh/data.json')
+  await saveBlob(BLOB_PATHS.public, { v: 1 })
+  const fresh = await loadBlobWithEtag(BLOB_PATHS.public)
 
   // Write with the matching etag should succeed
-  await saveBlob('fresh/data.json', { v: 2 }, { ifMatch: fresh.etag })
-  const current = await loadBlob('fresh/data.json')
+  await saveBlob(BLOB_PATHS.public, { v: 2 }, { ifMatch: fresh.etag })
+  const current = await loadBlob(BLOB_PATHS.public)
   assert.deepStrictEqual(current, { v: 2 }, 'Fresh write should commit')
   console.log('  ✅ ifMatch guard allows fresh write')
 }
@@ -345,7 +363,8 @@ async function runTests() {
   try {
     await testLoadBlobReturnsNullOnNotFound()
     await testLoadBlobReturnsNullOnNotFoundVariants()
-    await testSaveBlobCallsPutCorrectly()
+    await testSaveBlobUsesPublicAccessForDerivedRegistry()
+    await testSaveBlobUsesPrivateAccessForCustomerDatabase()
     await testRoundTrip()
     await testBlobPathsExist()
     await testLoadBlobThrowsOnFetchFailure()
@@ -363,6 +382,13 @@ async function runTests() {
     Reflect.set(Module, '_resolveFilename', originalResolve)
     delete require.cache['@vercel/blob']
     global.fetch = originalFetch
+    getOverride = null
+    if (originalPrivateBlobToken === undefined) {
+      delete process.env.LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN
+    } else {
+      process.env.LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN =
+        originalPrivateBlobToken
+    }
   }
 }
 

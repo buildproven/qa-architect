@@ -468,7 +468,8 @@ npm run validate:pre-push   # Pre-push validation
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for planned features and strategic direction.
+See the [project roadmap](https://github.com/buildproven/qa-architect/blob/main/ROADMAP.md)
+for planned features and strategic direction.
 
 ## Contributing
 
@@ -479,11 +480,12 @@ Want to improve this tool?
 3. Test with a sample project
 4. Submit a pull request
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See the [contribution guidelines](https://github.com/buildproven/qa-architect/blob/main/CONTRIBUTING.md).
 
 ## Pro Tier & Billing
 
-The marketing/checkout page source lives at [`docs/landing/`](docs/landing/) — see its README for what's needed before publishing.
+The marketing/checkout page source lives in the
+[repository landing-page directory](https://github.com/buildproven/qa-architect/tree/main/docs/landing).
 
 ### Purchasing Pro
 
@@ -492,7 +494,7 @@ Pro tier ($29/mo or $290/yr) includes:
 - **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
 - Smart Test Strategy (risk-based pre-push validation)
-- Multi-language support (Python, Shell scripts)
+- Multi-language support (Python, Rust, Ruby, and Shell scripts)
 - Unlimited private repos and runs
 
 Purchase at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
@@ -505,12 +507,15 @@ The billing system uses Polar.sh webhooks to manage licenses. If you're deployin
 2. Configure Polar.sh products and webhook secret
 3. Deploy to production server (Vercel)
 
-See [docs/POLAR-DEPLOYMENT.md](docs/POLAR-DEPLOYMENT.md) for complete setup guide.
+See the [Polar deployment guide](https://github.com/buildproven/qa-architect/blob/main/docs/POLAR-DEPLOYMENT.md)
+for the complete setup guide.
 
 ## Support
 
-1. Review GitHub Actions logs
-2. Open an issue in this repository
+For Pro licensing, billing, or activation help, email
+[support@buildproven.ai](mailto:support@buildproven.ai). We aim to respond within
+24–48 hours. For reproducible product defects, include the CLI output and open
+an issue in this repository.
 
 ## License
 

@@ -108,6 +108,31 @@ test('lib/commands/audit.js is in the published tarball', () => {
   )
 })
 
+test('customer-facing legal and security documents are in the published tarball', () => {
+  const requiredFiles = ['README.md', 'LICENSE', 'COMMERCIAL.md', 'SECURITY.md']
+  for (const file of requiredFiles) {
+    assert.ok(
+      packedFiles.includes(file),
+      `${file} must be included in the published tarball`
+    )
+  }
+})
+
+test('internal planning, deployment, and archived files are excluded from the tarball', () => {
+  const forbiddenFiles = packedFiles.filter(
+    file =>
+      file.startsWith('docs/') ||
+      file.startsWith('scripts/') ||
+      file.startsWith('lib/_archive/') ||
+      (file.startsWith('.github/') && file !== '.github/workflows/quality.yml')
+  )
+  assert.deepStrictEqual(
+    forbiddenFiles,
+    [],
+    `internal files must not ship in the tarball: ${forbiddenFiles.join(', ')}`
+  )
+})
+
 test('private key and local environment files are excluded from the published tarball', () => {
   const sensitiveFiles = packedFiles.filter(file => {
     const basename = path.basename(file).toLowerCase()
