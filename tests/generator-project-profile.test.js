@@ -954,4 +954,33 @@ try {
   console.log('✅ Lighthouse config extension matches project module type')
 }
 
+// Companion to the write-side fix above: the generated workflow's own
+// Lighthouse step is gated behind `hashFiles('.lighthouserc.js', ...)`, which
+// didn't list `.lighthouserc.cjs`. Without this, an ESM project's Lighthouse
+// step wouldn't even fail loudly — hashFiles would return '' and the step's
+// `if:` would skip it entirely, silently disabling Lighthouse rather than
+// running it.
+{
+  console.log('Generator: Lighthouse hashFiles gate recognizes .cjs')
+  const repo = createRepo({ name: 'lighthouserc-hashfiles-gate' })
+  try {
+    runSetup(repo)
+    const workflow = fs.readFileSync(
+      path.join(repo, '.github/workflows/quality.yml'),
+      'utf8'
+    )
+    const hashFilesLine = workflow
+      .split('\n')
+      .find(line => line.includes("hashFiles('.lighthouserc"))
+    assert(hashFilesLine, 'Expected to find the Lighthouse hashFiles gate')
+    assert(
+      hashFilesLine.includes('.lighthouserc.cjs'),
+      `Lighthouse hashFiles gate must include .lighthouserc.cjs: ${hashFilesLine}`
+    )
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true })
+  }
+  console.log('✅ Lighthouse hashFiles gate recognizes .cjs')
+}
+
 console.log('✅ Generator project profile regression tests passed')

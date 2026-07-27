@@ -614,7 +614,7 @@ jobs:
           echo "Web app detected: $IS_WEBAPP"
 
       - name: Lighthouse CI
-        if: hashFiles('.lighthouserc.js', '.lighthouserc.json', 'lighthouserc.js') != '' && steps.detect-webapp.outputs.is-webapp == 'true'
+        if: hashFiles('.lighthouserc.cjs', '.lighthouserc.js', '.lighthouserc.json', 'lighthouserc.js') != '' && steps.detect-webapp.outputs.is-webapp == 'true'
         id: lighthouse
         run: |
           echo "Running Lighthouse CI..."
