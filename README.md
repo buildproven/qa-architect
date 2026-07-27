@@ -483,6 +483,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
 ## Pro Tier & Billing
 
+The marketing/checkout page source lives at [`docs/landing/`](docs/landing/) — see its README for what's needed before publishing.
+
 ### Purchasing Pro
 
 Pro tier ($29/mo or $290/yr) includes:

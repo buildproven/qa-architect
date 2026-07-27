@@ -705,4 +705,49 @@ jobs:
           fi
             # PR comment step not enabled (use --pr-comments to add)
 
+      # {{QA_ARCHITECT_ONLY_BEGIN}}
+      # This job is the required status check in branch protection, so it must
+      # actually gate. Without this step it runs with `if: always()` and exits
+      # 0 unconditionally — a failing security or test job would still report a
+      # green required check and merge cleanly.
+      #
+      # `skipped` is a pass: jobs are deliberately conditional (path filters,
+      # no test files, docs only on production-ready). `cancelled` is a fail —
+      # it must not read as success.
+      - name: Enforce check results
+        env:
+          DETECT_RESULT: ${{ needs.detect-maturity.result }}
+          SECURITY_RESULT: ${{ needs.security.result }}
+          AUDIT_RESULT: ${{ needs.audit-report.result }}
+          TESTS_RESULT: ${{ needs.tests.result }}
+          DOCS_RESULT: ${{ needs.documentation.result }}
+        run: |
+          failed=""
+          for check in \
+            "detect-maturity:$DETECT_RESULT" \
+            "security:$SECURITY_RESULT" \
+            "audit-report:$AUDIT_RESULT" \
+            "tests:$TESTS_RESULT" \
+            "documentation:$DOCS_RESULT"
+          do
+            name="${check%%:*}"
+            result="${check#*:}"
+            case "$result" in
+              success|skipped) ;;
+              *) failed="$failed $name($result)" ;;
+            esac
+          done
+
+          if [ -n "$failed" ]; then
+            echo "❌ Quality gate failed:$failed"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**❌ Quality gate failed:**$failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+          echo "✅ Quality gate passed"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**✅ Quality gate passed**" >> $GITHUB_STEP_SUMMARY
+      # {{QA_ARCHITECT_ONLY_END}}
+
   # Slack alerts not enabled (use --alerts-slack to add)
