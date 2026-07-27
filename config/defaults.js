@@ -20,8 +20,12 @@ const baseScripts = {
   'test:watch': 'vitest',
   'test:coverage': 'vitest run --coverage',
   'test:changed': 'vitest run --changed HEAD~1 --passWithNoTests',
+  // Production deps only. Dev-tooling CVEs don't ship to users, and gating on
+  // them blocks releases on advisories with no consumer-side fix (framework
+  // -bundled or dev-only transitives). Matches the blocking gate in the
+  // generated quality.yml and lib/commands/ship-check.js.
   'security:audit':
-    'if [ -f pnpm-lock.yaml ]; then pnpm audit --audit-level high; elif [ -f yarn.lock ]; then yarn audit; else npm audit --audit-level high; fi',
+    'if [ -f pnpm-lock.yaml ]; then pnpm audit --audit-level high --prod; elif [ -f yarn.lock ]; then yarn audit --level high --groups dependencies; else npm audit --audit-level high --omit=dev; fi',
   'security:secrets':
     "node -e \"const fs=require('fs');const content=fs.readFileSync('package.json','utf8');if(/[\\\"\\'][a-zA-Z0-9+/]{20,}[\\\"\\']/.test(content)){console.error('❌ Potential hardcoded secrets in package.json');process.exit(1)}else{console.log('✅ No secrets detected in package.json')}\"",
   'security:config': 'npx create-qa-architect@latest --security-config',

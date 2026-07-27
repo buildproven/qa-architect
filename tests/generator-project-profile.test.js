@@ -469,7 +469,10 @@ try {
   assert.strictEqual(profile.packageManager, 'bun')
   assert.strictEqual(profile.packageManagerVersion, '1.2.20')
   assert.strictEqual(profile.installCommand, 'bun install --frozen-lockfile')
-  assert.strictEqual(profile.auditCommand, 'bun audit --audit-level=high')
+  assert.strictEqual(
+    profile.auditCommand,
+    'bun audit --audit-level=high --production'
+  )
   assert.strictEqual(profile.exec('lint-staged'), 'bun x lint-staged')
   runSetup(bunRepo)
   const workflow = fs.readFileSync(
@@ -504,11 +507,14 @@ try {
   const classic = detectProjectProfile(yarnClassicRepo)
   const berry = detectProjectProfile(yarnBerryRepo)
   assert.strictEqual(classic.installCommand, 'yarn install --frozen-lockfile')
-  assert.strictEqual(classic.auditCommand, 'yarn audit --level high')
+  assert.strictEqual(
+    classic.auditCommand,
+    'yarn audit --level high --groups dependencies'
+  )
   assert.strictEqual(berry.installCommand, 'yarn install --immutable')
   assert.strictEqual(
     berry.auditCommand,
-    'yarn npm audit --severity high --all --recursive'
+    'yarn npm audit --severity high --environment production --recursive'
   )
   runSetup(yarnBerryRepo)
   const workflow = fs.readFileSync(
@@ -522,7 +528,11 @@ try {
   )
   assert(workflow.includes("cache: 'yarn'"))
   assert(workflow.includes('echo "install-cmd=yarn install --immutable"'))
-  assert(workflow.includes('yarn npm audit --severity high --all --recursive'))
+  assert(
+    workflow.includes(
+      'yarn npm audit --severity high --environment production --recursive'
+    )
+  )
   assert(!workflow.includes('yarn audit --level'))
   assert(
     (workflow.match(/yarn install --immutable/g) || []).length >= 2,
@@ -563,12 +573,15 @@ try {
   assert.strictEqual(pnpm.packageManagerVersion, '10.34.5')
   assert.strictEqual(classic.packageManagerVersion, '1.22.22')
   assert.strictEqual(classic.installCommand, 'yarn install --frozen-lockfile')
-  assert.strictEqual(classic.auditCommand, 'yarn audit --level high')
+  assert.strictEqual(
+    classic.auditCommand,
+    'yarn audit --level high --groups dependencies'
+  )
   assert.strictEqual(modern.packageManagerVersion, '4.9.2')
   assert.strictEqual(modern.installCommand, 'yarn install --immutable')
   assert.strictEqual(
     modern.auditCommand,
-    'yarn npm audit --severity high --all --recursive'
+    'yarn npm audit --severity high --environment production --recursive'
   )
 
   runSetup(pnpmLockOnlyRepo)
@@ -770,6 +783,79 @@ try {
   assert(workflow.includes('- name: Tests'))
 } finally {
   fs.rmSync(freshRepo, { recursive: true, force: true })
+}
+
+// BUI-515: every generated dependency-audit gate must scope to production
+// deps. Dev-tooling CVEs don't ship to users, and gating on them permanently
+// blocks consumer repos on advisories with no consumer-side fix (framework-
+// bundled or dev-only transitives). The severity bar stays at high — the fix
+// is narrowing scope, never lowering severity or adding `|| true`.
+{
+  const { getDefaultScripts } = require('../config/defaults')
+  const { getSecurityScripts } = require('../lib/security-enhancements')
+
+  const PROD_SCOPE_FLAGS = [
+    '--omit=dev', // npm
+    '--prod', // pnpm
+    '--production', // bun
+    '--groups dependencies', // yarn classic
+    '--environment production', // yarn berry
+  ]
+
+  const assertProdScoped = (label, command) => {
+    // Each package-manager branch inside the script must carry a prod-scope
+    // flag; a single flag anywhere isn't enough when the script branches.
+    const branches = command
+      .split(/;|\|\||&&/)
+      .map(part => part.trim())
+      .filter(part => /\b(npm|pnpm|yarn|bun) (npm )?audit\b/.test(part))
+      .filter(part => !/audit (--)?fix/.test(part))
+
+    assert(branches.length > 0, `${label}: expected at least one audit branch`)
+
+    for (const branch of branches) {
+      assert(
+        PROD_SCOPE_FLAGS.some(flag => branch.includes(flag)),
+        `${label}: audit branch must scope to production deps: "${branch}"`
+      )
+      assert(
+        !/\|\|\s*true/.test(branch),
+        `${label}: audit must not be silenced with "|| true": "${branch}"`
+      )
+    }
+  }
+
+  assertProdScoped(
+    'config/defaults.js security:audit',
+    getDefaultScripts()['security:audit']
+  )
+  assertProdScoped(
+    'security-enhancements.js security:audit',
+    getSecurityScripts()['security:audit']
+  )
+
+  // Generated per-package-manager audit commands (lib/project-profile.js)
+  for (const [manager, lockfile, packageManager] of [
+    ['npm', 'package-lock.json', undefined],
+    ['pnpm', 'pnpm-lock.yaml', 'pnpm@10.12.1'],
+    ['yarn-classic', 'yarn.lock', 'yarn@1.22.22'],
+    ['yarn-berry', 'yarn.lock', 'yarn@4.9.2'],
+    ['bun', 'bun.lock', 'bun@1.2.20'],
+  ]) {
+    const repo = createRepo({
+      name: `audit-scope-${manager}`,
+      ...(packageManager ? { packageManager } : {}),
+    })
+    try {
+      fs.writeFileSync(path.join(repo, lockfile), '')
+      const { auditCommand } = detectProjectProfile(repo)
+      assertProdScoped(`project-profile ${manager}`, auditCommand)
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true })
+    }
+  }
+
+  console.log('✅ Generated audit gates scope to production dependencies')
 }
 
 console.log('✅ Generator project profile regression tests passed')
