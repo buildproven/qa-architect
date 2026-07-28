@@ -59,6 +59,17 @@ function runGeneratedScript(directory, scriptName) {
   })
 }
 
+function runGeneratedPreCommit(directory, pathPrefix = '') {
+  execFileSync('sh', [path.join(directory, '.husky', 'pre-commit')], {
+    cwd: directory,
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      PATH: `${pathPrefix}${pathPrefix ? path.delimiter : ''}${process.env.PATH || ''}`,
+    },
+  })
+}
+
 function runGeneratedPrePush(directory, licenseDirectory) {
   execFileSync('sh', [path.join(directory, '.husky', 'pre-push')], {
     cwd: directory,
@@ -169,9 +180,18 @@ try {
     generatedPackage.scripts['type-check:tests'].includes('tests/tsconfig.json')
   )
   assert(
-    generatedPackage['lint-staged']['tests/**/*.{ts,tsx,js,jsx}'].includes(
-      'tsc --noEmit --project tests/tsconfig.json'
-    )
+    generatedPackage.scripts['type-check:all'].includes('type-check:tests'),
+    'type-check:all must include the separate test TypeScript project'
+  )
+  assert.deepStrictEqual(
+    generatedPackage['lint-staged']['**/*.{ts,tsx}'],
+    ['eslint --fix', 'prettier --write'],
+    'lint-staged must not append staged filenames to project-wide TypeScript checks'
+  )
+  assert.deepStrictEqual(
+    generatedPackage['lint-staged']['tests/**/*.{ts,tsx,js,jsx}'],
+    ['eslint --fix', 'prettier --write'],
+    'Test TypeScript checks must run through type-check:all rather than lint-staged'
   )
   runGeneratedScript(pnpmRepo, 'type-check:tests')
   assert(!generatedPackage.devDependencies.vitest)
@@ -200,7 +220,14 @@ try {
   assert(
     fs
       .readFileSync(path.join(pnpmRepo, '.husky/pre-commit'), 'utf8')
-      .includes('pnpm exec lint-staged')
+      .includes('pnpm exec lint-staged || exit $?'),
+    'The pre-commit hook must preserve lint-staged failures'
+  )
+  assert(
+    fs
+      .readFileSync(path.join(pnpmRepo, '.husky/pre-commit'), 'utf8')
+      .includes('pnpm run type-check:all'),
+    'The pre-commit hook must run TypeScript checks project-wide'
   )
   assert(
     fs
@@ -213,7 +240,37 @@ try {
     )
   )
 
+  const preCommitPath = path.join(pnpmRepo, '.husky', 'pre-commit')
+  fs.writeFileSync(
+    preCommitPath,
+    '# Run lint-staged on staged files\npnpm exec lint-staged\n'
+  )
   runSetup(pnpmRepo)
+  const upgradedPreCommit = fs.readFileSync(preCommitPath, 'utf8')
+  assert(
+    upgradedPreCommit.includes('pnpm exec lint-staged || exit $?'),
+    'A legacy generated hook must preserve lint-staged failures after upgrade'
+  )
+  assert(
+    upgradedPreCommit.includes('pnpm run type-check:all'),
+    'A legacy generated hook must gain project-wide TypeScript validation'
+  )
+  const failingTypeCheckBin = path.join(pnpmRepo, 'failing-type-check-bin')
+  fs.mkdirSync(failingTypeCheckBin)
+  fs.writeFileSync(
+    path.join(failingTypeCheckBin, 'pnpm'),
+    `#!/bin/sh
+if [ "$1" = "exec" ] && [ "$2" = "lint-staged" ]; then exit 0; fi
+if [ "$1" = "run" ] && [ "$2" = "type-check:all" ]; then exit 1; fi
+exit 64
+`
+  )
+  fs.chmodSync(path.join(failingTypeCheckBin, 'pnpm'), 0o755)
+  assert.throws(
+    () => runGeneratedPreCommit(pnpmRepo, failingTypeCheckBin),
+    /Command failed/,
+    'A failing project-wide TypeScript check must block the generated pre-commit hook'
+  )
   runGeneratedScript(pnpmRepo, 'type-check:tests')
   assert.strictEqual(
     fs.readFileSync(path.join(pnpmRepo, 'package.json'), 'utf8'),
@@ -914,10 +971,12 @@ try {
 {
   console.log('Generator: Lighthouse config extension matches module type')
 
-  for (const [label, isESM, expectedFile] of [
-    ['ESM project', true, '.lighthouserc.cjs'],
-    ['CJS project', false, '.lighthouserc.js'],
-  ]) {
+  const lighthouseFixtures = [
+    { label: 'ESM project', isESM: true, expectedFile: '.lighthouserc.cjs' },
+    { label: 'CJS project', isESM: false, expectedFile: '.lighthouserc.js' },
+  ]
+
+  for (const { label, isESM, expectedFile } of lighthouseFixtures) {
     const repo = createRepo({
       name: `lighthouserc-${label.replace(/[^a-z0-9]/gi, '-')}`,
       ...(isESM ? { type: 'module' } : {}),

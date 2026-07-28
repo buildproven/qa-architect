@@ -2195,7 +2195,7 @@ coverage/
         console.log('✅ Added .gitignore with essential entries')
       }
 
-      // Ensure Husky pre-commit hook runs lint-staged
+      // Ensure Husky pre-commit hook runs staged-file checks and full TypeScript validation.
       const huskySpinner = showProgress('Setting up Husky git hooks...')
       try {
         const huskyDir = path.join(process.cwd(), '.husky')
@@ -2203,13 +2203,45 @@ coverage/
           fs.mkdirSync(huskyDir, { recursive: true })
         }
         const preCommitPath = path.join(huskyDir, 'pre-commit')
+        const lintStagedCommand = projectProfile.exec('lint-staged')
+        const typeCheckHook = usesTypeScript
+          ? `
+# TypeScript project commands must run without lint-staged-appended filenames.
+${projectProfile.runScript('type-check:all')}
+`
+          : ''
         if (!fs.existsSync(preCommitPath)) {
           const hook = `# Run lint-staged on staged files
-${projectProfile.exec('lint-staged')}
-`
+${lintStagedCommand} || exit $?
+${typeCheckHook}`
           fs.writeFileSync(preCommitPath, hook)
           fs.chmodSync(preCommitPath, 0o755)
           console.log('✅ Added Husky pre-commit hook (lint-staged)')
+        } else if (usesTypeScript) {
+          const existingHook = fs.readFileSync(preCommitPath, 'utf8')
+          const isLegacyGeneratedHook =
+            existingHook.includes('# Run lint-staged on staged files') &&
+            existingHook.includes(lintStagedCommand) &&
+            !existingHook.includes('type-check:all')
+
+          if (isLegacyGeneratedHook) {
+            const upgradedHook = existingHook.includes(
+              `${lintStagedCommand} || exit $?`
+            )
+              ? existingHook
+              : existingHook.replace(
+                  lintStagedCommand,
+                  `${lintStagedCommand} || exit $?`
+                )
+            fs.writeFileSync(
+              preCommitPath,
+              `${upgradedHook.trimEnd()}${typeCheckHook}`
+            )
+            fs.chmodSync(preCommitPath, 0o755)
+            console.log(
+              '✅ Upgraded Husky pre-commit hook with project-wide TypeScript validation'
+            )
+          }
         }
       } catch (e) {
         huskySpinner.warn('Could not create Husky pre-commit hook')
@@ -2308,9 +2340,9 @@ fs.writeFileSync(usageFile, JSON.stringify(usage, null, 2))
 console.log('🧮 Usage: ' + usage.prePushRuns + '/' + CAP + ' pre-push runs used this month')
 EOF
 
-# Best Practice: Pre-push runs checks NOT done in pre-commit
-# Pre-commit handles: lint, format (on staged files)
-# Pre-push handles: type check, tests on changed files
+# Best Practice: Pre-push repeats the checks most valuable before sharing work.
+# Pre-commit handles: lint and format on staged files, full TypeScript projects.
+# Pre-push handles: type check and tests on changed files.
 
 # Validate command patterns (fast - catches deprecated patterns)
 if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:patterns']?0:1)" 2>/dev/null; then
@@ -2321,7 +2353,7 @@ if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:p
   }
 fi
 
-# Type check (if TypeScript - not done in pre-commit because it's slow)
+# Repeat the root TypeScript check before push as defense in depth.
 if [ -f tsconfig.json ]; then
   echo "📐 Type checking..."
   npx tsc --noEmit || {
