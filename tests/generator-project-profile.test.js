@@ -926,10 +926,12 @@ try {
 {
   console.log('Generator: Lighthouse config extension matches module type')
 
-  for (const [label, isESM, expectedFile] of [
-    ['ESM project', true, '.lighthouserc.cjs'],
-    ['CJS project', false, '.lighthouserc.js'],
-  ]) {
+  const lighthouseFixtures = [
+    { label: 'ESM project', isESM: true, expectedFile: '.lighthouserc.cjs' },
+    { label: 'CJS project', isESM: false, expectedFile: '.lighthouserc.js' },
+  ]
+
+  for (const { label, isESM, expectedFile } of lighthouseFixtures) {
     const repo = createRepo({
       name: `lighthouserc-${label.replace(/[^a-z0-9]/gi, '-')}`,
       ...(isESM ? { type: 'module' } : {}),
