@@ -20,7 +20,7 @@ Apache-2.0 lets you read, modify, and redistribute the source. It does **not** g
 - **Free** — $0. Works without a license key. Includes the free CLI features above.
 - **Pro** — $29/month or $290/year. Unlocks Pro features via a signed license key issued at purchase.
 
-Purchase at the URL printed by `create-qa-architect --activate-license` (currently Polar.sh checkout).
+Purchase Pro at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect).
 
 ## Your license-key grant
 

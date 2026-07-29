@@ -1254,7 +1254,7 @@ HELP:
           console.error('   Stack:', error.stack)
         }
         console.error(
-          '   Please report this issue at https://github.com/your-repo/issues'
+          '   Please report this issue at https://github.com/buildproven/qa-architect/issues'
         )
         throw error // Re-throw to prevent silent continuation
       }

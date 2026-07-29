@@ -9,6 +9,7 @@
     "dev": "node webhook-handler.js"
   },
   "dependencies": {
+    "@vercel/blob": "^2.6.1",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
     "standardwebhooks": "^1.0.0"

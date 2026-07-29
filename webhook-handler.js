@@ -334,7 +334,7 @@ function buildPublicRegistry(database) {
       version: '1.0',
       created: database._metadata?.created || issuedAt,
       lastSave: issuedAt,
-      algorithm: 'ed25519',
+      algorithm: 'rsa-sha256',
       keyId: LICENSE_REGISTRY_KEY_ID,
       registrySignature,
       hash: crypto
