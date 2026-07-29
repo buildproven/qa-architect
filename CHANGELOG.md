@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.14.3] - 2026-07-29
+
 ### Added
 
 - **Landing page source:** self-contained checkout/marketing page for
   `buildproven.ai/qa-architect` at `docs/landing/`, replacing the previously
   dead purchase link.
+
+### Changed
+
+- **Commercial delivery hardening:** license validation now has explicit
+  entitlement-path coverage, and customer records are kept private in Blob
+  storage rather than being exposed through the signed public license registry.
+- **Consumer deployment controls:** consumer discovery, canary selection, and
+  the deployment allowlist now operate deterministically.
 
 ### Fixed
 
@@ -21,12 +31,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   check. It now fails when any upstream job fails or is cancelled (`skipped`
   still passes, since jobs are deliberately conditional). qa-architect-only;
   consumer workflows are unaffected.
+- **Generated project compatibility:** generated workflows now recognize ESM
+  Lighthouse configuration, use current Vitest 4 CLI flags, honor pnpm 11's
+  Node requirements, and run TypeScript checks outside lint-staged.
 
 ### Security
 
 - **Dependency CVEs:** bumped `brace-expansion` (5.0.7 → 5.0.8, GHSA-mh99-v99m-4gvg,
   high) and `tar` (7.5.19 → 7.5.22, GHSA-r292-9mhp-454m, moderate) — both
   transitive, both flagged by the production audit gate.
+- **Published package hygiene:** production dependency auditing and package
+  contents checks now cover the commercial runtime path.
 
 ## [5.14.2] - 2026-07-22
 
