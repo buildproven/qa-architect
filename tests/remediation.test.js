@@ -15,6 +15,7 @@ const {
   evidenceFresh,
   exportRemediationPackets,
   orchestrateRemediation,
+  parsePorcelainV1Z,
   redactContext,
   renderAgentInstructions,
 } = require('../lib/commands/remediation')
@@ -178,6 +179,16 @@ test('adapter contract supports Codex and Claude without changing the packet', (
   assert.throws(() => adapterFor('unknown', '/tmp/worktree', prompt))
 })
 
+test('NUL porcelain parsing preserves both paths for renames', () => {
+  assert.deepStrictEqual(
+    parsePorcelainV1Z(
+      'R  tests/new-name.test.js\0tests/old-name.test.js\0 M app.js\0'
+    ),
+    ['tests/new-name.test.js', 'tests/old-name.test.js', 'app.js']
+  )
+  assert.throws(() => parsePorcelainV1Z('R  tests/new-name.test.js\0'))
+})
+
 test('export writes inspectable mode-0600 packets and sends nothing', () => {
   const { root } = fixture()
   const output = path.join(root, 'packets')
@@ -274,12 +285,63 @@ test('fixture repair proves fail-before, pass-after, regression test, and exact 
   assert.ok(evidenceFresh(evidence.worktree, evidence))
   const validate = schemaValidator('remediation-evidence-v1.schema.json')
   assert.strictEqual(validate(evidence), true, JSON.stringify(validate.errors))
+  fs.writeFileSync(path.join(evidence.worktree, 'uncommitted.txt'), 'dirty\n')
+  assert.ok(!evidenceFresh(evidence.worktree, evidence))
+  fs.unlinkSync(path.join(evidence.worktree, 'uncommitted.txt'))
+  const forgedEvidence = { ...evidence, diffSha256: '0'.repeat(64) }
+  assert.ok(!evidenceFresh(evidence.worktree, forgedEvidence))
   run(
     'git',
     ['commit', '--allow-empty', '-m', 'test: stale evidence'],
     evidence.worktree
   )
   assert.ok(!evidenceFresh(evidence.worktree, evidence))
+})
+
+test('agent-created symlink paths fail closed before regression execution', () => {
+  const { root, rule } = fixture()
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  const container = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
+  )
+  let focusedCommandRan = false
+  const runner = (executable, args, options) => {
+    if (executable === 'codex') {
+      fs.writeFileSync(
+        path.join(options.cwd, 'app.js'),
+        'module.exports = {}\n'
+      )
+      fs.symlinkSync(
+        path.join(root, 'tests', 'smoke.test.js'),
+        path.join(options.cwd, 'tests', 'linked.test.js')
+      )
+      return {
+        executable,
+        args,
+        status: 0,
+        signal: null,
+        error: null,
+        stdout: '',
+        stderr: '',
+      }
+    }
+    focusedCommandRan = true
+    return commandResult(executable, args, options.cwd, options.timeout)
+  }
+  const evidence = orchestrateRemediation({
+    projectPath: root,
+    packet,
+    adapterName: 'codex',
+    ruleFiles: [rule],
+    commandRunner: runner,
+    worktreeRoot: container,
+  })
+  assert.strictEqual(evidence.status, 'INCOMPLETE')
+  assert.strictEqual(evidence.reason, 'unsafe-agent-paths')
+  assert.strictEqual(focusedCommandRan, false)
 })
 
 test('partial repair without a regression test is never labeled fixed', () => {
