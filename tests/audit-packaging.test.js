@@ -108,6 +108,15 @@ test('lib/commands/audit.js is in the published tarball', () => {
   )
 })
 
+test('package provenance engine and schema are in the published tarball', () => {
+  for (const file of [
+    'lib/package-provenance.js',
+    'config/package-provenance-v1.schema.json',
+  ]) {
+    assert.ok(packedFiles.includes(file), `${file} missing from tarball`)
+  }
+})
+
 test('customer-facing legal and security documents are in the published tarball', () => {
   const requiredFiles = ['README.md', 'LICENSE', 'COMMERCIAL.md', 'SECURITY.md']
   for (const file of requiredFiles) {
