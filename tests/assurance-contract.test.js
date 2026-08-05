@@ -515,4 +515,29 @@ test('catalog generation fails visibly when a rule omits language coverage', () 
   }
 })
 
+test('catalog generation rejects missing or unrecognized engine severity', () => {
+  const dir = tempDir('catalog-invalid-severity')
+  try {
+    fs.mkdirSync(path.join(dir, '.semgrep'))
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'defensive-patterns.yaml'),
+      'rules:\n  - id: quoted-severity\n    severity: "ERROR"\n    languages: [javascript]\n    pattern: danger(...)\n'
+    )
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'vibe-audit-rules.yaml'),
+      'rules:\n'
+    )
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'vibe-moat-rules.yaml'),
+      'rules:\n'
+    )
+    assert.throws(
+      () => loadRuleCatalog(dir),
+      /Missing or unrecognized severity for rule: quoted-severity/
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 console.log('\n✅ Assurance contract tests passed')
