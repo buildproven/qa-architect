@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/assurance-policy-v1.schema.json",
+  "title": "QA Architect assurance policy v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprintVersion",
+    "baseline",
+    "waivers",
+    "blockingSeverities",
+    "requiredChecks"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "fingerprintVersion": { "const": 1 },
+    "baseline": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-f0-9]{64}$": { "$ref": "#/definitions/baseline" }
+      },
+      "additionalProperties": false
+    },
+    "waivers": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-f0-9]{64}$": { "$ref": "#/definitions/waiver" }
+      },
+      "additionalProperties": false
+    },
+    "blockingSeverities": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["critical", "high", "medium", "low", "info"] }
+    },
+    "requiredChecks": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sast": { "type": "boolean" },
+        "format": { "type": "boolean" },
+        "lint": { "type": "boolean" },
+        "eslint": { "type": "boolean" },
+        "stylelint": { "type": "boolean" },
+        "typecheck": { "type": "boolean" },
+        "tests": { "type": "boolean" },
+        "build": { "type": "boolean" },
+        "coverage": { "type": "boolean" },
+        "dependency-audit": { "type": "boolean" },
+        "package-registry": { "type": "boolean" },
+        "secrets": { "type": "boolean" },
+        "documentation": { "type": "boolean" },
+        "lighthouse": { "type": "boolean" },
+        "bundle": { "type": "boolean" },
+        "environment": { "type": "boolean" },
+        "ci-cost": { "type": "boolean" }
+      }
+    }
+  },
+  "definitions": {
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprintVersion",
+        "identityVersion",
+        "count",
+        "severity",
+        "ruleVersion"
+      ],
+      "properties": {
+        "fingerprintVersion": { "const": 1 },
+        "identityVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "count": { "const": 1 },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "ruleVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        }
+      }
+    },
+    "waiver": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprintVersion",
+        "identityVersion",
+        "count",
+        "severity",
+        "ruleVersion",
+        "reason",
+        "owner",
+        "createdAt"
+      ],
+      "properties": {
+        "fingerprintVersion": { "const": 1 },
+        "identityVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "count": { "const": 1 },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "ruleVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "owner": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": ["string", "null"], "format": "date-time" }
+      }
+    }
+  }
+}

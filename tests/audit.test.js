@@ -211,15 +211,16 @@ test('produces markdown with verdict', () => {
     },
   ]
   const md = buildMarkdownReport(findings)
-  assert.ok(md.includes('NOT SAFE TO SHIP'))
+  assert.ok(md.includes('BLOCKING FINDINGS DETECTED'))
   assert.ok(md.includes('app.js'))
   assert.ok(md.includes('SQL injection'))
   assert.ok(md.includes('CWE-89'))
 })
 
-test('shows safe verdict when no findings', () => {
+test('states the supported boundary when no findings are detected', () => {
   const md = buildMarkdownReport([])
-  assert.ok(md.includes('SAFE TO SHIP'))
+  assert.ok(md.includes('NO SUPPORTED FINDINGS DETECTED'))
+  assert.ok(!md.includes('SAFE TO SHIP'))
 })
 
 test('includes fix prompts when fix option set', () => {
@@ -265,10 +266,11 @@ console.log('\nbuildHumanReport')
 
 test('shows no issues message for empty findings', () => {
   const report = buildHumanReport([])
-  assert.ok(report.includes('No security issues found'))
+  assert.ok(report.includes('No supported security findings detected'))
+  assert.ok(report.includes('not proof'))
 })
 
-test('shows NOT SAFE TO SHIP for critical findings', () => {
+test('shows blocking findings for critical findings', () => {
   const findings = [
     {
       severity: 'critical',
@@ -281,11 +283,11 @@ test('shows NOT SAFE TO SHIP for critical findings', () => {
     },
   ]
   const report = buildHumanReport(findings)
-  assert.ok(report.includes('NOT SAFE TO SHIP'))
+  assert.ok(report.includes('BLOCKING FINDINGS DETECTED'))
   assert.ok(report.includes('db.js:44'))
 })
 
-test('shows REVIEW BEFORE SHIPPING for high findings only', () => {
+test('shows blocking findings for high findings only', () => {
   const findings = [
     {
       severity: 'high',
@@ -298,7 +300,7 @@ test('shows REVIEW BEFORE SHIPPING for high findings only', () => {
     },
   ]
   const report = buildHumanReport(findings)
-  assert.ok(report.includes('REVIEW BEFORE SHIPPING'))
+  assert.ok(report.includes('BLOCKING FINDINGS DETECTED'))
 })
 
 test('shows count summary', () => {
