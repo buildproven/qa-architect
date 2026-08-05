@@ -549,6 +549,18 @@ bbb
     'SARIF upload needs only security-events write'
   )
   assert(
+    pro.includes('manifest.headSha !== process.env.EXPECTED_HEAD'),
+    'Pro assurance must validate evidence against the exact head'
+  )
+  assert(
+    pro.includes('EVIDENCE_AVAILABLE: ${{ steps.evidence.outputs.available }}'),
+    'Required check must fail when the evidence bundle is absent'
+  )
+  assert(
+    pro.includes('EVIDENCE_VERDICT: ${{ steps.evidence.outputs.verdict }}'),
+    'Required check must cross-check the persisted verdict'
+  )
+  assert(
     !pro.includes(
       'pull-requests: write\n    steps:\n      - name: Checkout exact pull request head'
     )

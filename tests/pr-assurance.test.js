@@ -13,6 +13,7 @@ const {
   exitCode,
   parseChangedLines,
   parseNameStatus,
+  parseSemgrepResult,
   resolvePrRange,
   runPrAssurance,
   writeEvidenceBundle,
@@ -105,6 +106,26 @@ async function main() {
     parseChangedLines('+++ b/src/app.js\n@@ -1,0 +2,3 @@\n').get('src/app.js'),
     [{ start: 2, end: 4 }]
   )
+  const semgrepJson = paths => ({
+    status: 0,
+    stdout: JSON.stringify({
+      results: [],
+      errors: [],
+      paths: { scanned: paths },
+    }),
+  })
+  assert.strictEqual(
+    parseSemgrepResult(semgrepJson(['src/app.js']), '1.100.0', ['src/app.js'])
+      .outcome,
+    'passed'
+  )
+  const partialScan = parseSemgrepResult(
+    semgrepJson(['src/app.js']),
+    '1.100.0',
+    ['src/app.js', 'src/missed.js']
+  )
+  assert.strictEqual(partialScan.outcome, 'partial')
+  assert.match(partialScan.error, /src\/missed\.js/)
 
   const { directory, initialSha, baseSha, headSha } = fixture()
   try {
