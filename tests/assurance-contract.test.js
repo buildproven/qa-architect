@@ -244,6 +244,83 @@ test('expired waivers reactivate findings and make policy evidence incomplete', 
   )
 })
 
+test('raw malformed policies fail closed instead of disabling finding blocks', () => {
+  const result = evaluate({
+    findings: [finding({ severity: 'critical' })],
+    policy: {
+      schemaVersion: '1.0.0',
+      fingerprintVersion: 1,
+      baseline: {},
+      waivers: {},
+      requiredChecks: {},
+    },
+  })
+  assert.strictEqual(result.verdict, 'INCOMPLETE')
+  assert.strictEqual(result.findings[0].blocksMerge, true)
+  assert.ok(result.reasons.some(reason => reason.code === 'policy.malformed'))
+  assert.ok(result.reasons.some(reason => reason.code === 'finding.active'))
+})
+
+test('unsupported policy fingerprint versions are incomplete and never suppress', () => {
+  const normalized = createFingerprint(projectRoot, finding())
+  const result = evaluate({
+    findings: [finding()],
+    policy: {
+      schemaVersion: '1.0.0',
+      fingerprintVersion: 2,
+      baseline: {
+        [normalized.fingerprint]: {
+          fingerprintVersion: 2,
+          identityVersion: '1.0.0',
+          count: 1,
+          severity: 'high',
+          ruleVersion: '1.0.0',
+        },
+      },
+      waivers: {},
+      blockingSeverities: ['critical', 'high'],
+      requiredChecks: {},
+    },
+  })
+  assert.strictEqual(result.verdict, 'INCOMPLETE')
+  assert.strictEqual(result.findings[0].disposition, 'active')
+  assert.ok(
+    result.reasons.some(
+      reason => reason.code === 'policy.fingerprint-version-mismatch'
+    )
+  )
+})
+
+test('unknown policy-required checks are rejected explicitly', () => {
+  const result = evaluate({
+    policy: {
+      schemaVersion: '1.0.0',
+      fingerprintVersion: 1,
+      baseline: {},
+      waivers: {},
+      blockingSeverities: ['critical', 'high'],
+      requiredChecks: { 'eslint-legacy': true },
+    },
+  })
+  assert.strictEqual(result.verdict, 'INCOMPLETE')
+  assert.ok(
+    result.reasons.some(
+      reason => reason.code === 'execution-config.unknown-required-check'
+    )
+  )
+})
+
+test('contradictory applicability cannot become a passing required check', () => {
+  const result = evaluate({
+    supportedChecks: ['tests'],
+    requiredChecks: ['tests'],
+    checks: [check('tests', { applicable: false, outcome: 'passed' })],
+  })
+  assert.strictEqual(result.verdict, 'INCOMPLETE')
+  assert.strictEqual(result.checks[0].outcome, 'partial')
+  assert.ok(result.reasons.some(reason => reason.code === 'check.partial'))
+})
+
 test('invalid coverage and contradictory aggregate members are incomplete', () => {
   const result = evaluate({
     supportedChecks: ['package-registry', 'tests'],
