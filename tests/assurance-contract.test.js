@@ -413,4 +413,29 @@ test('generated catalog agrees with shipped Semgrep IDs and severities', () => {
   assert.ok(markdown.includes('`sql-injection-template-string`'))
 })
 
+test('catalog generation fails visibly when a rule omits language coverage', () => {
+  const dir = tempDir('catalog-missing-languages')
+  try {
+    fs.mkdirSync(path.join(dir, '.semgrep'))
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'defensive-patterns.yaml'),
+      'rules:\n  - id: missing-language\n    severity: ERROR\n    pattern: danger(...)\n'
+    )
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'vibe-audit-rules.yaml'),
+      'rules:\n'
+    )
+    fs.writeFileSync(
+      path.join(dir, '.semgrep', 'vibe-moat-rules.yaml'),
+      'rules:\n'
+    )
+    assert.throws(
+      () => loadRuleCatalog(dir),
+      /Missing languages for rule: missing-language/
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 console.log('\n✅ Assurance contract tests passed')
