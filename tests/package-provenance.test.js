@@ -19,6 +19,7 @@ const {
   analyzePackageProvenance,
   classifyDependency,
   readNpmRegistryConfig,
+  resolveNpmRegistryConfig,
 } = require('../lib/package-provenance')
 const { buildAuditJson, buildAuditSarif } = require('../lib/commands/audit')
 
@@ -89,6 +90,81 @@ test('classifies aliases, local sources, VCS, and private registries', () => {
     )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('honors user and environment registry precedence without public lookups', async () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-provenance-home-'))
+  const userConfig = path.join(home, '.npmrc')
+  fs.writeFileSync(
+    userConfig,
+    '@internal:registry=https://npm.internal.example.com/\n'
+  )
+  const userProject = tempProject({
+    dependencies: { '@internal/api': '^1' },
+  })
+  const envProject = tempProject({ dependencies: { external: '^1' } })
+  let lookups = 0
+  try {
+    const userEnv = /** @type {NodeJS.ProcessEnv} */ ({
+      ...process.env,
+      HOME: home,
+      npm_config_userconfig: userConfig,
+    })
+    delete userEnv.NPM_CONFIG_REGISTRY
+    delete userEnv.npm_config_registry
+    const userRegistry = resolveNpmRegistryConfig(
+      userProject,
+      ['@internal/api'],
+      { env: userEnv }
+    )
+    assert.strictEqual(
+      userRegistry.scopes['@internal'],
+      'https://npm.internal.example.com/'
+    )
+    const userResult = await analyzePackageProvenance(userProject, {
+      now,
+      registryConfig: userRegistry,
+      lookup: async () => {
+        lookups++
+        return response('registry-present')
+      },
+    })
+    assert.strictEqual(
+      userResult.packages[0].state,
+      'allowed-non-public-registry'
+    )
+
+    const envRegistry = resolveNpmRegistryConfig(envProject, ['external'], {
+      env: {
+        ...process.env,
+        npm_config_registry: 'https://npm.proxy.example.com/',
+        npm_config_userconfig: path.join(home, 'missing-npmrc'),
+      },
+    })
+    assert.strictEqual(
+      envRegistry.defaultRegistry,
+      'https://npm.proxy.example.com/'
+    )
+    const envResult = await analyzePackageProvenance(envProject, {
+      now,
+      registryConfig: envRegistry,
+      lookup: async () => {
+        lookups++
+        return response('registry-present')
+      },
+    })
+    assert.strictEqual(
+      envResult.packages[0].state,
+      'allowed-non-public-registry'
+    )
+    assert.strictEqual(lookups, 0)
+    assert.ok(userResult.coverage.limitations.length > 0)
+    assert.ok(envResult.coverage.limitations.length > 0)
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true })
+    fs.rmSync(userProject, { recursive: true, force: true })
+    fs.rmSync(envProject, { recursive: true, force: true })
   }
 })
 
