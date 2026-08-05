@@ -58,9 +58,9 @@ Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase 
 | Dependency CVEs                                                               | ✅ Free (npm audit) |
 | Hallucinated packages (slopsquatting)                                         | 🔒 Pro              |
 
-**Pro tier — `--audit --fix`:**
+**Pro tier — verified remediation:**
 
-Generates a ready-to-paste Claude Code prompt for each Critical/High finding. Copy it into Claude Code and it fixes the issue for you. Also adds hallucinated package detection (verifies every package in `package.json` exists on npm).
+`--audit --fix` exports an inspectable, agent-neutral packet for each Critical/High finding; nothing is sent to a provider. `--repair-with codex|claude --finding <id>` can explicitly run one local adapter in a dedicated branch/worktree. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit. Also adds hallucinated package detection (verifies every package in `package.json` exists on npm).
 
 **Also included:**
 
@@ -81,8 +81,11 @@ npx create-qa-architect@latest --audit
 # 3. Write report to file (for docs or PR comments)
 npx create-qa-architect@latest --audit --out audit-report.md
 
-# 4. Get Claude Code fix prompts for Critical/High findings (Pro)
-npx create-qa-architect@latest --audit --fix
+# 4. Export inspectable remediation packets (Pro; no provider transmission)
+npx create-qa-architect@latest --audit --fix --remediation-out ./qaa-remediation
+
+# 5. Explicitly repair one finding with a local adapter and verify the result
+npx create-qa-architect@latest --audit --repair-with codex --finding <rule-id>
 ```
 
 **Suppressing a false positive:** if a finding is a confirmed false positive (or
@@ -113,21 +116,22 @@ npx create-qa-architect@latest
 | Tier     | Price             | What You Get                                                                                                                                                                                        |
 | -------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Free** | $0                | Security audit (`--audit`), linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                                                      |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + `--audit --fix` (Claude Code prompts), hallucination check, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, hallucination check, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
 ### Security Audit by Tier
 
-| Feature                                           | Free | Pro |
-| ------------------------------------------------- | ---- | --- |
-| SAST (semgrep — auth, injection, XSS, misconfigs) | ✅   | ✅  |
-| npm CVE audit                                     | ✅   | ✅  |
-| Gitleaks secret scanning (working tree)           | ✅   | ✅  |
-| Full-history secret scan (`--history-scan`)       | ❌   | ✅  |
-| ESLint security ruleset                           | ❌   | ✅  |
-| Hallucinated package detection                    | ❌   | ✅  |
-| `--fix` Claude Code prompts per finding           | ❌   | ✅  |
+| Feature                                             | Free | Pro |
+| --------------------------------------------------- | ---- | --- |
+| SAST (semgrep — auth, injection, XSS, misconfigs)   | ✅   | ✅  |
+| npm CVE audit                                       | ✅   | ✅  |
+| Gitleaks secret scanning (working tree)             | ✅   | ✅  |
+| Full-history secret scan (`--history-scan`)         | ❌   | ✅  |
+| ESLint security ruleset                             | ❌   | ✅  |
+| Hallucinated package detection                      | ❌   | ✅  |
+| Inspectable remediation packets                     | ❌   | ✅  |
+| Codex/Claude isolated verified-remediation adapters | ❌   | ✅  |
 
 ### Release Confidence by Tier
 

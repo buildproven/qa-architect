@@ -108,6 +108,17 @@ test('lib/commands/audit.js is in the published tarball', () => {
   )
 })
 
+test('verified-remediation runtime and schemas are in the published tarball', () => {
+  const requiredFiles = [
+    'lib/commands/remediation.js',
+    'config/remediation-packet-v1.schema.json',
+    'config/remediation-evidence-v1.schema.json',
+  ]
+  for (const file of requiredFiles) {
+    assert.ok(packedFiles.includes(file), `${file} missing from tarball`)
+  }
+})
+
 test('customer-facing legal and security documents are in the published tarball', () => {
   const requiredFiles = ['README.md', 'LICENSE', 'COMMERCIAL.md', 'SECURITY.md']
   for (const file of requiredFiles) {

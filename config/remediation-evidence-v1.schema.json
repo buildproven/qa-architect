@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qa-architect.dev/schemas/remediation-evidence-v1.schema.json",
+  "title": "QA Architect verified-remediation evidence v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "status",
+    "reason",
+    "packetId",
+    "packetSha256",
+    "adapter",
+    "baseHead",
+    "resultHead",
+    "rulePackVersion",
+    "commands"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "status": { "enum": ["VERIFIED", "INCOMPLETE"] },
+    "reason": { "type": ["string", "null"] },
+    "packetId": {
+      "type": "string",
+      "pattern": "^qaa-remediation-[a-f0-9]{16}$"
+    },
+    "packetSha256": { "$ref": "#/$defs/sha256" },
+    "adapter": { "enum": ["codex", "claude"] },
+    "baseHead": { "$ref": "#/$defs/commit" },
+    "resultHead": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/commit" }]
+    },
+    "rulePackVersion": { "type": "string", "minLength": 1 },
+    "branch": { "type": "string" },
+    "worktree": { "type": "string" },
+    "changedPaths": { "type": "array", "items": { "type": "string" } },
+    "diffSha256": { "$ref": "#/$defs/sha256" },
+    "commands": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/commandEvidence" }
+    },
+    "newBlockingFindings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ruleId", "path", "line"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "path": { "type": "string" },
+          "line": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "status": { "const": "VERIFIED" } } },
+      "then": {
+        "required": ["branch", "worktree", "changedPaths", "diffSha256"],
+        "properties": {
+          "reason": { "type": "null" },
+          "resultHead": { "$ref": "#/$defs/commit" },
+          "branch": { "type": "string" },
+          "worktree": { "type": "string" },
+          "changedPaths": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "diffSha256": { "$ref": "#/$defs/sha256" }
+        }
+      },
+      "else": {
+        "properties": {
+          "reason": { "type": "string", "minLength": 1 },
+          "resultHead": { "type": "null" }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "commit": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" },
+    "commandEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable",
+        "args",
+        "status",
+        "signal",
+        "error",
+        "stdoutSha256",
+        "stderrSha256"
+      ],
+      "properties": {
+        "executable": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": ["integer", "null"] },
+        "signal": { "type": ["string", "null"] },
+        "error": { "type": ["string", "null"] },
+        "stdoutSha256": { "$ref": "#/$defs/sha256" },
+        "stderrSha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
