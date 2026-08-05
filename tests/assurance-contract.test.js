@@ -399,6 +399,10 @@ test('generated catalog agrees with shipped Semgrep IDs and severities', () => {
     catalog.rules.length
   )
   assert.ok(catalog.rules.every(rule => rule.severity))
+  assert.ok(
+    catalog.rules.every(rule => rule.languages.length > 0),
+    'every shipped Semgrep rule must publish its language scope'
+  )
   assert.strictEqual(
     catalog.rules.find(rule => rule.id === 'sql-injection-template-string')
       .severity,
