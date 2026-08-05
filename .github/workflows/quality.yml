@@ -308,6 +308,105 @@ jobs:
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
 
+  # {{PRO_ASSURANCE_BEGIN}}
+  # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,
+  # then require the `pr-assurance` check in branch protection.
+  pr-assurance:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 100
+          persist-credentials: false
+
+      - name: Configure QA Architect entitlement
+        if: github.repository != 'buildproven/qa-architect'
+        env:
+          QAA_LICENSE_JSON: ${{ secrets.QAA_LICENSE_JSON }}
+          QAA_LICENSE_DIR: ${{ runner.temp }}/qa-architect-license
+        run: |
+          if [ -z "$QAA_LICENSE_JSON" ]; then
+            echo "::error::QAA_LICENSE_JSON is required for the Pro PR assurance gate"
+            exit 1
+          fi
+          install -d -m 700 "$QAA_LICENSE_DIR"
+          printf '%s' "$QAA_LICENSE_JSON" > "$QAA_LICENSE_DIR/license.json"
+          chmod 600 "$QAA_LICENSE_DIR/license.json"
+
+      - name: Install pinned Semgrep engine
+        run: pipx install 'semgrep==1.85.0'
+
+      # {{QA_ARCHITECT_ONLY_BEGIN}}
+      - name: Evaluate QA Architect's own changed-code assurance
+        id: assurance_own
+        continue-on-error: true
+        env:
+          NODE_ENV: test
+          QAA_DEVELOPER: 'true'
+        run: |
+          node setup.js --pr-check \
+            --base-sha '${{ github.event.pull_request.base.sha }}' \
+            --head '${{ github.event.pull_request.head.sha }}' \
+            --artifact-dir '${{ runner.temp }}/qa-architect-assurance'
+      # {{QA_ARCHITECT_ONLY_END}}
+      - name: Evaluate changed-code assurance
+        id: assurance_consumer
+        if: github.repository != 'buildproven/qa-architect'
+        continue-on-error: true
+        env:
+          QAA_LICENSE_DIR: ${{ runner.temp }}/qa-architect-license
+        run: |
+          npx create-qa-architect@latest --pr-check \
+            --base-sha '${{ github.event.pull_request.base.sha }}' \
+            --head '${{ github.event.pull_request.head.sha }}' \
+            --artifact-dir '${{ runner.temp }}/qa-architect-assurance'
+
+      - name: Detect assurance evidence
+        id: evidence
+        if: always()
+        run: |
+          if [ -f '${{ runner.temp }}/qa-architect-assurance/assurance.sarif' ]; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'available=false' >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish assurance summary
+        if: always() && steps.evidence.outputs.available == 'true'
+        run: cat '${{ runner.temp }}/qa-architect-assurance/summary.md' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SARIF annotations
+        if: always() && steps.evidence.outputs.available == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
+        with:
+          sarif_file: ${{ runner.temp }}/qa-architect-assurance/assurance.sarif
+
+      - name: Upload revision-bound evidence
+        if: always() && steps.evidence.outputs.available == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-architect-assurance-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/qa-architect-assurance
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce assurance verdict
+        if: always()
+        env:
+          ASSURANCE_OUTCOME: ${{ steps.assurance_own.outcome || steps.assurance_consumer.outcome }}
+        run: |
+          if [ "$ASSURANCE_OUTCOME" != 'success' ]; then
+            echo 'PR assurance did not produce a PASS verdict for this exact head.'
+            exit 1
+          fi
+  # {{PRO_ASSURANCE_END}}
   # Step 2b: Advisory audit report (NON-BLOCKING). Runs in parallel with the
   # security gate (needs detect-maturity, NOT security) so a gate failure can
   # never suppress this report. Surfaces qa-architect's own vibe-code audit (the

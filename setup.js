@@ -518,7 +518,7 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
  *
  * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
  * @param {string[]} rawArgs - Original args (for path values that may include `..`)
- * @returns {{json:boolean, skipTests:boolean, noFail:boolean, fix:boolean, base:string|null, depth:string|null, outPath:string|null, projectPath:string}}
+ * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, projectPath:string}}
  */
 function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const pickValue = (flag, source) => {
@@ -530,15 +530,26 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const baseValue = pickValue('--base', sanitizedArgs)
   const depthValue = pickValue('--depth', sanitizedArgs)
   const outValue = pickValue('--out', rawArgs)
+  const artifactValue = pickValue('--artifact-dir', rawArgs)
+  const assurancePolicyValue = pickValue('--assurance-policy', rawArgs)
+  const prPolicyValue = pickValue('--pr-policy', rawArgs)
 
   return {
     json: sanitizedArgs.includes('--json'),
+    sarif: sanitizedArgs.includes('--sarif'),
     skipTests: sanitizedArgs.includes('--skip-tests'),
     noFail: sanitizedArgs.includes('--no-fail'),
     fix: sanitizedArgs.includes('--fix'),
     base: baseValue,
+    baseSha: pickValue('--base-sha', sanitizedArgs),
+    head: pickValue('--head', sanitizedArgs),
     depth: depthValue,
     outPath: outValue ? path.resolve(outValue) : null,
+    artifactDir: artifactValue ? path.resolve(artifactValue) : null,
+    assurancePolicyPath: assurancePolicyValue
+      ? path.resolve(assurancePolicyValue)
+      : null,
+    prPolicyPath: prPolicyValue ? path.resolve(prPolicyValue) : null,
     projectPath: process.cwd(),
   }
 }
@@ -819,15 +830,21 @@ AUDIT PRO (Pro):
 RELEASE CONFIDENCE (Pro):
   --ship-check             Unified release-readiness report (lint, tests, security,
                            coverage, bundle, env, CI cost, docs) with SHIP/REVIEW/BLOCK verdict
-  --pr-check               Diff-aware risk classifier — flags high-risk file changes and
-                           missing tests, emits PR-comment-ready markdown
+  --pr-check               Revision-bound changed-code assurance gate (Semgrep, baselines,
+                           SARIF, annotations, evidence bundle; Pro)
   --history-scan           Full git-history secrets audit (gitleaks --log-opts=--all)
   --base <branch>          Base branch for --pr-check (default: main, falls back to master)
+  --base-sha <commit>      Exact PR base commit (preferred in CI)
+  --head <commit>          Expected checked-out head; stale evidence is INCOMPLETE
+  --artifact-dir <path>    Write JSON, SARIF, summary, annotations, and manifest evidence
+  --assurance-policy <p>   BUI-672 baseline and waiver policy JSON
+  --pr-policy <path>       Engine, timeout, and path-exclusion policy JSON
+  --sarif                  Emit SARIF for --pr-check
   --depth <N>              Limit --history-scan to last N commits (default: full history)
   --skip-tests             Skip running tests in --ship-check (e.g. when slow)
   --json                   Emit JSON output for --ship-check/--pr-check/--history-scan
   --out <path>             Write markdown report to <path> (PR-comment-ready)
-  --no-fail                Always exit 0 from --pr-check (report-only mode)
+  --no-fail                Report-only mode for legacy commands (rejected by --pr-check)
 
 VALIDATION OPTIONS:
   --validate        Run comprehensive validation (same as --comprehensive)
@@ -1932,7 +1949,13 @@ HELP:
             )
 
           // Inject workflow mode configuration
-          templateWorkflow = injectWorkflowMode(templateWorkflow, workflowMode)
+          templateWorkflow = injectWorkflowMode(
+            templateWorkflow,
+            workflowMode,
+            {
+              prAssurance: hasFeature('prCheck'),
+            }
+          )
 
           // Inject matrix testing if enabled (for library authors)
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)
@@ -1962,7 +1985,13 @@ HELP:
             )
 
           // Inject workflow mode configuration
-          templateWorkflow = injectWorkflowMode(templateWorkflow, workflowMode)
+          templateWorkflow = injectWorkflowMode(
+            templateWorkflow,
+            workflowMode,
+            {
+              prAssurance: hasFeature('prCheck'),
+            }
+          )
 
           // Inject matrix testing if enabled (for library authors)
           templateWorkflow = injectMatrix(templateWorkflow, matrixEnabled)

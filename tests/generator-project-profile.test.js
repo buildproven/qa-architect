@@ -210,10 +210,17 @@ try {
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run test'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run build'))
   assert(!workflowAfterFirstRun.includes("test-count: '0'"))
-  assert(!workflowAfterFirstRun.includes('create-qa-architect@latest'))
+  assert.strictEqual(
+    [...workflowAfterFirstRun.matchAll(/create-qa-architect@latest/g)].length,
+    1,
+    'Only the licensed PR assurance job may execute the published CLI'
+  )
+  assert(
+    workflowAfterFirstRun.includes('npx create-qa-architect@latest --pr-check')
+  )
   assert(workflowAfterFirstRun.includes('permissions:\n  contents: read'))
   assert(
-    [...workflowAfterFirstRun.matchAll(/uses: actions\/checkout@v5/g)]
+    [...workflowAfterFirstRun.matchAll(/uses: actions\/checkout@[^\s]+/g)]
       .length ===
       [...workflowAfterFirstRun.matchAll(/persist-credentials: false/g)].length
   )
