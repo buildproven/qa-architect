@@ -184,4 +184,4 @@ The assurance module is additive and command adapters remain separate. A rollbac
 
 ## Review record
 
-The first high-effort review found four blocking contract gaps: count-unbounded waivers, undefined required-check failures, missing SARIF acceptance, and catalog/CLI severity drift. This revision addresses all four. A clean follow-up review is required before implementation.
+The first high-effort architecture review found four blocking contract gaps: count-unbounded waivers, undefined required-check failures, missing SARIF acceptance, and catalog/CLI severity drift. A follow-up architecture review found no remaining actionable defect before implementation. The post-implementation cross-provider review found that block-style Semgrep language lists were absent from the generated catalog; the parser and regression coverage were corrected before delivery.
