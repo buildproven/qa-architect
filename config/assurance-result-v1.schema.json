@@ -1,0 +1,2240 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/assurance-result-v1.schema.json",
+  "title": "QA Architect assurance result v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "fingerprintVersion",
+    "evaluatedAt",
+    "revision",
+    "supportedChecks",
+    "requiredChecks",
+    "verdict",
+    "findings",
+    "groups",
+    "checks",
+    "reasons"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "fingerprintVersion": { "const": 1 },
+    "evaluatedAt": { "type": "string", "format": "date-time" },
+    "revision": { "$ref": "#/definitions/revision" },
+    "supportedChecks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/canonicalCheckId" }
+    },
+    "requiredChecks": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "$ref": "#/definitions/canonicalCheckId" }
+    },
+    "verdict": { "enum": ["PASS", "BLOCK", "INCOMPLETE"] },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/finding" }
+    },
+    "groups": { "type": "array", "items": { "$ref": "#/definitions/group" } },
+    "checks": { "type": "array", "items": { "$ref": "#/definitions/check" } },
+    "reasons": { "type": "array", "items": { "$ref": "#/definitions/reason" } }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "sast" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "sast" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "format" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "format" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lint" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "lint" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "eslint" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "eslint" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "stylelint" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "stylelint" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "typecheck" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "typecheck" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "tests" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "tests" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "build" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "build" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "coverage" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "coverage" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "dependency-audit" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "dependency-audit" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "package-registry" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "package-registry" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "secrets" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "secrets" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "documentation" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "documentation" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lighthouse" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "lighthouse" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "bundle" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "bundle" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "environment" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "environment" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "ci-cost" }
+          }
+        },
+        "required": ["supportedChecks"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "ci-cost" }
+              },
+              "required": ["id"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "sast" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "sast" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "format" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "format" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "lint" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lint" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "eslint" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "eslint" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "stylelint" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "stylelint" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "typecheck" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "typecheck" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "tests" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "tests" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "build" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "build" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "coverage" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "coverage" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "dependency-audit" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "dependency-audit" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "package-registry" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "package-registry" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "secrets" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "secrets" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "documentation" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "documentation" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "lighthouse" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lighthouse" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "bundle" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "bundle" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "environment" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "environment" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "id": { "const": "ci-cost" } },
+              "required": ["id"]
+            }
+          }
+        },
+        "required": ["checks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "ci-cost" }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "sast" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "sast" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "sast" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "format" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "format" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "format" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "lint" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lint" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "lint" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "eslint" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "eslint" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "eslint" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "stylelint" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "stylelint" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "stylelint" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "typecheck" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "typecheck" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "typecheck" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "tests" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "tests" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "tests" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "build" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "build" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "build" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "coverage" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "coverage" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "coverage" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "dependency-audit" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "dependency-audit" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "dependency-audit" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "package-registry" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "package-registry" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "package-registry" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "secrets" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "secrets" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "secrets" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "documentation" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "documentation" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "documentation" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "lighthouse" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "lighthouse" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "lighthouse" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "bundle" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "bundle" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "bundle" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "environment" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "environment" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "environment" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "requiredChecks": {
+            "type": "array",
+            "contains": { "const": "ci-cost" }
+          }
+        },
+        "required": ["requiredChecks"]
+      },
+      "then": {
+        "properties": {
+          "supportedChecks": {
+            "type": "array",
+            "contains": { "const": "ci-cost" }
+          },
+          "checks": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": {
+                "id": { "const": "ci-cost" },
+                "required": { "const": true }
+              },
+              "required": ["id", "required"]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "verdict": { "const": "PASS" } },
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "findings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "blocksMerge": { "const": false } }
+            }
+          },
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "if": {
+                "properties": { "required": { "const": true } },
+                "required": ["required"]
+              },
+              "then": { "properties": { "outcome": { "const": "passed" } } }
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "kind": { "const": "advisory" } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "verdict": { "const": "BLOCK" } },
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "if": {
+                "properties": { "required": { "const": true } },
+                "required": ["required"]
+              },
+              "then": {
+                "properties": {
+                  "outcome": { "enum": ["passed", "failed"] },
+                  "coverage": {
+                    "oneOf": [
+                      { "type": "null" },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "completion": { "const": "complete" }
+                        },
+                        "required": ["completion"]
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "kind": { "const": "block" } }
+            },
+            "items": {
+              "type": "object",
+              "properties": { "kind": { "enum": ["block", "advisory"] } }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": { "verdict": { "const": "INCOMPLETE" } },
+        "required": ["verdict"]
+      },
+      "then": {
+        "properties": {
+          "reasons": {
+            "type": "array",
+            "contains": {
+              "type": "object",
+              "properties": { "kind": { "const": "incomplete" } }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "revision": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "git-commit" },
+            "value": {
+              "type": "string",
+              "pattern": "^(?:[a-f0-9]{40}|[a-f0-9]{64})$"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "algorithm", "manifestVersion", "value"],
+          "properties": {
+            "kind": { "const": "content-digest" },
+            "algorithm": { "const": "sha256" },
+            "manifestVersion": { "const": 1 },
+            "value": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          }
+        }
+      ]
+    },
+    "canonicalCheckId": {
+      "enum": [
+        "sast",
+        "format",
+        "lint",
+        "eslint",
+        "stylelint",
+        "typecheck",
+        "tests",
+        "build",
+        "coverage",
+        "dependency-audit",
+        "package-registry",
+        "secrets",
+        "documentation",
+        "lighthouse",
+        "bundle",
+        "environment",
+        "ci-cost"
+      ]
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "rulePackVersion"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+        },
+        "rulePackVersion": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+        }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "line", "endLine"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "line": { "type": ["integer", "null"], "minimum": 1 },
+        "endLine": { "type": ["integer", "null"], "minimum": 1 }
+      }
+    },
+    "mapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["standard", "control", "confidence", "limitation"],
+      "properties": {
+        "standard": { "type": "string", "minLength": 1 },
+        "control": { "type": "string", "minLength": 1 },
+        "confidence": { "enum": ["low", "medium", "high"] },
+        "limitation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "fingerprintVersion",
+        "fingerprint",
+        "identityVersion",
+        "ruleId",
+        "ruleVersion",
+        "severity",
+        "blocksMerge",
+        "message",
+        "source",
+        "engine",
+        "location",
+        "remediation",
+        "assuranceMappings",
+        "disposition",
+        "continuity",
+        "policyEvaluation"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "fingerprintVersion": { "const": 1 },
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "identityVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "ruleId": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        },
+        "ruleVersion": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "blocksMerge": { "type": "boolean" },
+        "message": { "type": "string", "minLength": 1 },
+        "source": { "type": "string", "minLength": 1 },
+        "engine": { "$ref": "#/definitions/engine" },
+        "location": { "$ref": "#/definitions/location" },
+        "remediation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["guidance"],
+          "properties": { "guidance": { "type": "string", "minLength": 1 } }
+        },
+        "assuranceMappings": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/mapping" }
+        },
+        "disposition": { "enum": ["active", "baseline", "waived"] },
+        "continuity": { "enum": ["stable", "ambiguous"] },
+        "policyEvaluation": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "kind",
+                "state",
+                "reason",
+                "owner",
+                "createdAt",
+                "expiresAt"
+              ],
+              "properties": {
+                "kind": { "enum": ["baseline", "waiver"] },
+                "state": {
+                  "enum": ["applied", "expired", "invalid", "ambiguous"]
+                },
+                "reason": { "type": ["string", "null"] },
+                "owner": { "type": ["string", "null"] },
+                "createdAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
+                },
+                "expiresAt": {
+                  "type": ["string", "null"],
+                  "format": "date-time"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "disposition": { "const": "waived" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "policyEvaluation": {
+                "type": "object",
+                "properties": {
+                  "kind": { "const": "waiver" },
+                  "state": { "const": "applied" },
+                  "reason": { "type": "string", "minLength": 1 },
+                  "owner": { "type": "string", "minLength": 1 },
+                  "createdAt": { "type": "string", "format": "date-time" }
+                },
+                "required": ["kind", "state", "reason", "owner", "createdAt"]
+              },
+              "blocksMerge": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "disposition": { "const": "baseline" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "policyEvaluation": {
+                "type": "object",
+                "properties": {
+                  "kind": { "const": "baseline" },
+                  "state": { "const": "applied" },
+                  "reason": { "type": "null" },
+                  "owner": { "type": "null" },
+                  "createdAt": { "type": "null" },
+                  "expiresAt": { "type": "null" }
+                },
+                "required": [
+                  "kind",
+                  "state",
+                  "reason",
+                  "owner",
+                  "createdAt",
+                  "expiresAt"
+                ]
+              },
+              "blocksMerge": { "const": false }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "disposition": { "const": "active" } },
+            "required": ["disposition"]
+          },
+          "then": {
+            "properties": {
+              "policyEvaluation": {
+                "oneOf": [
+                  { "type": "null" },
+                  {
+                    "type": "object",
+                    "oneOf": [
+                      {
+                        "properties": {
+                          "kind": { "const": "waiver" },
+                          "state": { "const": "expired" },
+                          "reason": { "type": "string", "minLength": 1 },
+                          "owner": { "type": "string", "minLength": 1 },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "expiresAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "kind",
+                          "state",
+                          "reason",
+                          "owner",
+                          "createdAt",
+                          "expiresAt"
+                        ]
+                      },
+                      {
+                        "properties": {
+                          "state": { "enum": ["invalid", "ambiguous"] }
+                        },
+                        "required": ["state"]
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "continuity": { "const": "ambiguous" } },
+            "required": ["continuity"]
+          },
+          "then": { "properties": { "disposition": { "const": "active" } } }
+        }
+      ]
+    },
+    "group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprint",
+        "policyState",
+        "totalCount",
+        "activeCount",
+        "baselineCount",
+        "waivedCount"
+      ],
+      "properties": {
+        "fingerprint": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "policyState": {
+          "enum": [
+            "active",
+            "baseline",
+            "waived",
+            "expired",
+            "ambiguous",
+            "invalid"
+          ]
+        },
+        "totalCount": { "type": "integer", "minimum": 1 },
+        "activeCount": { "type": "integer", "minimum": 0 },
+        "baselineCount": { "type": "integer", "minimum": 0 },
+        "waivedCount": { "type": "integer", "minimum": 0 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "policyState": {
+                "enum": ["active", "expired", "ambiguous", "invalid"]
+              }
+            },
+            "required": ["policyState"]
+          },
+          "then": {
+            "properties": {
+              "baselineCount": { "const": 0 },
+              "waivedCount": { "const": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "policyState": { "const": "baseline" } },
+            "required": ["policyState"]
+          },
+          "then": {
+            "properties": {
+              "activeCount": { "const": 0 },
+              "waivedCount": { "const": 0 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "policyState": { "const": "waived" } },
+            "required": ["policyState"]
+          },
+          "then": {
+            "properties": {
+              "activeCount": { "const": 0 },
+              "baselineCount": { "const": 0 }
+            }
+          }
+        }
+      ]
+    },
+    "check": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaVersion",
+        "id",
+        "applicable",
+        "applicabilityReason",
+        "required",
+        "requiredReason",
+        "outcome",
+        "engine",
+        "members",
+        "summary",
+        "details",
+        "coverage"
+      ],
+      "properties": {
+        "schemaVersion": { "const": "1.0.0" },
+        "id": { "$ref": "#/definitions/canonicalCheckId" },
+        "applicable": { "type": "boolean" },
+        "applicabilityReason": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "requiredReason": { "type": "string", "minLength": 1 },
+        "outcome": {
+          "enum": [
+            "passed",
+            "failed",
+            "unavailable",
+            "partial",
+            "skipped",
+            "missing",
+            "not-applicable"
+          ]
+        },
+        "engine": { "$ref": "#/definitions/engine" },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/checkMember" }
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "details": { "type": ["string", "null"] },
+        "coverage": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "eligible",
+                "attempted",
+                "completed",
+                "excluded",
+                "completion",
+                "limitations"
+              ],
+              "properties": {
+                "eligible": { "type": "integer", "minimum": 0 },
+                "attempted": { "type": "integer", "minimum": 0 },
+                "completed": { "type": "integer", "minimum": 0 },
+                "excluded": { "type": "integer", "minimum": 0 },
+                "completion": {
+                  "enum": ["complete", "partial", "capped", "abandoned"]
+                },
+                "limitations": {
+                  "type": "array",
+                  "items": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "outcome": { "const": "passed" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "members": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "object",
+                  "properties": { "outcome": { "const": "passed" } },
+                  "required": ["outcome"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "failed" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "members": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": { "outcome": { "const": "failed" } },
+                  "required": ["outcome"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "id": { "const": "package-registry" },
+              "applicable": { "const": true }
+            },
+            "required": ["id", "applicable"]
+          },
+          "then": {
+            "properties": { "coverage": { "type": "object" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "applicable": { "const": false } },
+            "required": ["applicable"]
+          },
+          "then": {
+            "properties": {
+              "required": { "const": false },
+              "outcome": { "const": "not-applicable" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "applicable": { "const": true } },
+            "required": ["applicable"]
+          },
+          "then": {
+            "properties": {
+              "outcome": { "not": { "const": "not-applicable" } }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "required": { "const": true } },
+            "required": ["required"]
+          },
+          "then": { "properties": { "applicable": { "const": true } } }
+        },
+        {
+          "if": {
+            "properties": { "outcome": { "const": "missing" } },
+            "required": ["outcome"]
+          },
+          "then": {
+            "properties": {
+              "applicable": { "const": true },
+              "required": { "const": true }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "coverage": {
+                "type": "object",
+                "properties": {
+                  "completion": {
+                    "enum": ["partial", "capped", "abandoned"]
+                  }
+                },
+                "required": ["completion"]
+              }
+            },
+            "required": ["coverage"]
+          },
+          "then": {
+            "properties": {
+              "outcome": { "enum": ["failed", "unavailable", "partial"] }
+            }
+          }
+        }
+      ]
+    },
+    "checkMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["key", "engine", "command", "outcome", "summary", "details"],
+      "properties": {
+        "key": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+(?:[.:/-][a-z0-9]+)*$"
+        },
+        "engine": { "$ref": "#/definitions/engine" },
+        "command": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["executable", "args"],
+              "properties": {
+                "executable": { "type": "string", "minLength": 1 },
+                "args": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "passed",
+            "failed",
+            "unavailable",
+            "partial",
+            "skipped",
+            "missing",
+            "not-applicable"
+          ]
+        },
+        "summary": { "type": "string", "minLength": 1 },
+        "details": { "type": ["string", "null"] }
+      }
+    },
+    "reason": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "code", "message", "checkId", "fingerprint"],
+      "properties": {
+        "kind": { "enum": ["block", "incomplete", "advisory"] },
+        "code": {
+          "enum": [
+            "finding.active",
+            "check.failed",
+            "check.unavailable",
+            "check.partial",
+            "check.skipped",
+            "check.missing",
+            "policy.malformed",
+            "policy.fingerprint-overlap",
+            "policy.waiver-expired",
+            "policy.entry-invalid",
+            "policy.ambiguous-finding",
+            "policy.fingerprint-version-mismatch",
+            "policy.identity-version-mismatch",
+            "execution-config.malformed",
+            "execution-config.unknown-required-check",
+            "evidence.duplicate-check",
+            "evidence.unknown-check",
+            "evidence.invalid-coverage",
+            "advisory.check-failed",
+            "advisory.check-unavailable",
+            "advisory.coverage-limitation"
+          ]
+        },
+        "message": { "type": "string", "minLength": 1 },
+        "checkId": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/definitions/canonicalCheckId" }
+          ]
+        },
+        "fingerprint": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "code": { "const": "finding.active" } },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "checkId": { "type": "null" },
+              "fingerprint": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "check.failed",
+                  "check.unavailable",
+                  "check.partial",
+                  "check.skipped",
+                  "check.missing",
+                  "evidence.duplicate-check",
+                  "evidence.invalid-coverage",
+                  "advisory.check-failed",
+                  "advisory.check-unavailable",
+                  "advisory.coverage-limitation"
+                ]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "checkId": { "$ref": "#/definitions/canonicalCheckId" },
+              "fingerprint": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "code": { "const": "evidence.unknown-check" } },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "checkId": { "type": "null" },
+              "fingerprint": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "policy.fingerprint-overlap",
+                  "policy.waiver-expired",
+                  "policy.entry-invalid",
+                  "policy.ambiguous-finding",
+                  "policy.fingerprint-version-mismatch",
+                  "policy.identity-version-mismatch"
+                ]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "checkId": { "type": "null" },
+              "fingerprint": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": { "enum": ["finding.active", "check.failed"] }
+            },
+            "required": ["code"]
+          },
+          "then": { "properties": { "kind": { "const": "block" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "check.unavailable",
+                  "check.partial",
+                  "check.skipped",
+                  "check.missing",
+                  "policy.malformed",
+                  "policy.fingerprint-overlap",
+                  "policy.waiver-expired",
+                  "policy.entry-invalid",
+                  "policy.ambiguous-finding",
+                  "policy.fingerprint-version-mismatch",
+                  "policy.identity-version-mismatch",
+                  "execution-config.malformed",
+                  "execution-config.unknown-required-check",
+                  "evidence.duplicate-check",
+                  "evidence.unknown-check",
+                  "evidence.invalid-coverage"
+                ]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": { "properties": { "kind": { "const": "incomplete" } } }
+        },
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": [
+                  "advisory.check-failed",
+                  "advisory.check-unavailable",
+                  "advisory.coverage-limitation"
+                ]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": { "properties": { "kind": { "const": "advisory" } } }
+        }
+      ]
+    }
+  }
+}

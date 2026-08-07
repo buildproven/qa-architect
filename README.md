@@ -12,7 +12,7 @@ npx create-qa-architect@latest --audit
   QA Architect — Vibe-Code Security Audit
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-  🚨 NOT SAFE TO SHIP
+  🚨 BLOCKING FINDINGS DETECTED
 
   Total findings: 7
   🚨 Critical: 2
@@ -30,7 +30,7 @@ npx create-qa-architect@latest --audit
   → Fix: jwt.sign(payload, secret, { expiresIn: '24h' })
 ```
 
-> 45% of AI-generated code contains OWASP Top-10 vulnerabilities (Veracode, 100+ LLMs). QA Architect catches them before someone else does.
+QA Architect reports supported patterns and evidence boundaries. A clean scan is not proof that an application is vulnerability-free.
 
 ---
 
