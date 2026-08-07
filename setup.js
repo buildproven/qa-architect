@@ -814,9 +814,10 @@ WORKFLOW TIERS (GitHub Actions optimization):
 
 VIBE-CODE SECURITY AUDIT (Free):
   --audit                  Scan codebase for security vulnerabilities in AI-generated code
-                           Runs semgrep SAST (injection, auth, XSS, misconfigs) + npm CVE audit
+                           Runs semgrep SAST + npm CVE audit + direct dependency provenance
                            Output: Critical/High/Medium/Low findings with file:line + fix guidance
   --audit --json           Emit JSON output (for CI integration)
+  --audit --sarif          Emit SARIF 2.1.0 with provenance evidence for code scanning
   --audit --out <path>     Write markdown report to file (PR-comment-ready)
   --audit --no-fail        Always exit 0 (report-only, don't block CI)
 
@@ -825,7 +826,7 @@ AUDIT PRO (Pro):
                            (paste directly into Claude Code to fix issues one by one)
 
   Requires: semgrep (pip install semgrep / brew install semgrep)
-  Pro also adds: hallucinated package detection (npm registry check)
+  Pro also adds: package-age and advanced provenance heuristics
 
 RELEASE CONFIDENCE (Pro):
   --ship-check             Unified release-readiness report (lint, tests, security,
@@ -931,6 +932,9 @@ EXAMPLES:
 
   npx create-qa-architect@latest --audit --json
     → Emit JSON output for CI integration or tooling
+
+  npx create-qa-architect@latest --audit --sarif
+    → Emit SARIF 2.1.0 with package provenance evidence
 
   npx create-qa-architect@latest --audit --fix
     → Run audit + generate Claude Code prompts for each finding (Pro)

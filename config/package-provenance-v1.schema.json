@@ -1,0 +1,220 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/package-provenance-v1.schema.json",
+  "title": "QA Architect package provenance v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "analyzedAt",
+    "packages",
+    "findings",
+    "coverage"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "analyzedAt": { "type": "string", "format": "date-time" },
+    "packages": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/package" }
+    },
+    "findings": {
+      "type": "array",
+      "items": { "$ref": "#/definitions/finding" }
+    },
+    "coverage": { "$ref": "#/definitions/coverage" }
+  },
+  "definitions": {
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "confidence", "policyVersion"],
+      "properties": {
+        "kind": {
+          "enum": ["low-provenance-new-package", "name-confusion-candidate"]
+        },
+        "confidence": { "const": "low" },
+        "policyVersion": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "comparedTo": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "low-provenance-new-package" } }
+          },
+          "then": {
+            "required": ["createdAt"],
+            "properties": {
+              "createdAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "name-confusion-candidate" } }
+          },
+          "then": {
+            "required": ["comparedTo"],
+            "properties": {
+              "comparedTo": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      ]
+    },
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "declaredSpec",
+        "resolvedName",
+        "resolvedSpec",
+        "registry",
+        "state",
+        "confidence",
+        "evidence",
+        "signals",
+        "advisoryStatus"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "declaredSpec": { "type": "string" },
+        "resolvedName": { "type": "string", "minLength": 1 },
+        "resolvedSpec": { "type": "string" },
+        "registry": { "type": ["string", "null"], "format": "uri" },
+        "state": {
+          "enum": [
+            "registry-present",
+            "registry-not-found",
+            "registry-auth-required",
+            "registry-rate-limited",
+            "registry-timeout",
+            "registry-unavailable",
+            "allowed-local-source",
+            "allowed-vcs-source",
+            "allowed-remote-artifact",
+            "allowed-non-public-registry",
+            "invalid-spec",
+            "registry-config-unresolved"
+          ]
+        },
+        "confidence": { "const": "high" },
+        "lookedUpAt": { "type": "string", "format": "date-time" },
+        "statusCode": {
+          "type": ["integer", "null"],
+          "minimum": 100,
+          "maximum": 599
+        },
+        "retryAfter": { "type": ["string", "null"] },
+        "failure": { "type": ["string", "null"] },
+        "metadataState": {
+          "type": ["string", "null"],
+          "enum": ["parsed", "malformed", "too-large", null]
+        },
+        "createdAt": { "type": ["string", "null"], "format": "date-time" },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind"],
+          "properties": {
+            "kind": {
+              "enum": [
+                "registry-response",
+                "local",
+                "vcs",
+                "remote-artifact",
+                "non-public-registry",
+                "invalid-spec",
+                "registry-config-unresolved"
+              ]
+            }
+          }
+        },
+        "signals": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/signal" }
+        },
+        "advisoryStatus": {
+          "enum": ["covered-by-npm-audit-separately", "not-assessed"]
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "severity",
+        "file",
+        "line",
+        "message",
+        "fix",
+        "cwe",
+        "owasp",
+        "source",
+        "confidence",
+        "evidence"
+      ],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "severity": { "const": "medium" },
+        "file": { "const": "package.json" },
+        "line": { "const": 0 },
+        "message": { "type": "string", "minLength": 1 },
+        "fix": { "type": "string", "minLength": 1 },
+        "cwe": { "const": "CWE-1104" },
+        "owasp": { "const": "A06:2021" },
+        "source": {
+          "enum": ["package-provenance", "package-provenance-heuristic"]
+        },
+        "confidence": { "enum": ["high", "low"] },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["classification", "registry", "lookedUpAt"],
+          "properties": {
+            "classification": {
+              "enum": [
+                "registry-not-found",
+                "low-provenance-new-package",
+                "name-confusion-candidate"
+              ]
+            },
+            "registryState": { "type": "string" },
+            "registry": { "type": "string", "format": "uri" },
+            "lookedUpAt": { "type": "string", "format": "date-time" },
+            "statusCode": { "type": "integer", "minimum": 100, "maximum": 599 },
+            "createdAt": { "type": ["string", "null"], "format": "date-time" },
+            "comparedTo": { "type": ["string", "null"] },
+            "policyVersion": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "eligible",
+        "attempted",
+        "completed",
+        "excluded",
+        "completion",
+        "limitations"
+      ],
+      "properties": {
+        "eligible": { "type": "integer", "minimum": 0 },
+        "attempted": { "type": "integer", "minimum": 0 },
+        "completed": { "type": "integer", "minimum": 0 },
+        "excluded": { "type": "integer", "minimum": 0 },
+        "completion": { "enum": ["complete", "partial", "abandoned"] },
+        "limitations": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

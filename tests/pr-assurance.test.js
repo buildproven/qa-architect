@@ -134,6 +134,47 @@ async function main() {
     assert.strictEqual(range.baseSha, baseSha)
     assert.strictEqual(range.mergeBase, initialSha)
 
+    const scalarPolicyPath = path.join(directory, 'scalar-pr-policy.json')
+    fs.writeFileSync(scalarPolicyPath, '5\n')
+    const scalarPolicy = await runPrAssurance(directory, {
+      baseSha,
+      fetch: false,
+      allowDirty: true,
+      prPolicyPath: scalarPolicyPath,
+    })
+    assert.strictEqual(scalarPolicy.result.verdict, 'INCOMPLETE')
+    assert.match(scalarPolicy.result.checks[0].summary, /JSON object/)
+    fs.unlinkSync(scalarPolicyPath)
+
+    const missingPrPolicy = await runPrAssurance(directory, {
+      baseSha,
+      fetch: false,
+      allowDirty: true,
+      prPolicyPath: path.join(directory, 'missing-pr-policy.json'),
+    })
+    assert.strictEqual(missingPrPolicy.result.verdict, 'INCOMPLETE')
+    assert.match(missingPrPolicy.result.checks[0].summary, /does not exist/)
+
+    const missingAssurancePolicy = await runPrAssurance(directory, {
+      baseSha,
+      fetch: false,
+      allowDirty: true,
+      assurancePolicyPath: path.join(
+        directory,
+        'missing-assurance-policy.json'
+      ),
+      scanner: async () => ({
+        outcome: 'passed',
+        version: '1.100.0',
+        findings: [],
+      }),
+    })
+    assert.strictEqual(missingAssurancePolicy.result.verdict, 'INCOMPLETE')
+    assert.match(
+      missingAssurancePolicy.result.checks[0].summary,
+      /does not exist/
+    )
+
     const blocked = await runPrAssurance(directory, {
       baseSha,
       fetch: false,

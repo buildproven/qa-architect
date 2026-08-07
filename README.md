@@ -44,7 +44,7 @@ QA Architect reports supported patterns and evidence boundaries. A clean scan is
 
 **Free tier — `--audit`:**
 
-Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase and produces a prioritized security report. Covers the most common vibe-coding vulnerability categories — including AI-native classes generic SAST misses, like secrets shipped in the client bundle and unscoped data access (IDOR) across Prisma, Drizzle, and Supabase:
+Runs [semgrep](https://semgrep.dev/) SAST, npm CVE audit, and direct production dependency provenance analysis against your codebase and produces a prioritized security report. Covers the most common vibe-coding vulnerability categories — including AI-native classes generic SAST misses, like secrets shipped in the client bundle and unscoped data access (IDOR) across Prisma, Drizzle, and Supabase:
 
 | Category                                                                      | Coverage            |
 | ----------------------------------------------------------------------------- | ------------------- |
@@ -56,11 +56,14 @@ Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase 
 | Production misconfigs (CORS-all, verbose errors, debug mode, missing headers) | ✅ Free             |
 | XSS patterns (unsafe HTML, dynamic hrefs)                                     | ✅ Free             |
 | Dependency CVEs                                                               | ✅ Free (npm audit) |
-| Hallucinated packages (slopsquatting)                                         | 🔒 Pro              |
+| Direct production dependency source + npm registry evidence                   | ✅ Free             |
+| Package-age and name-confusion review signals                                 | 🔒 Pro              |
 
 **Pro tier — `--audit --fix`:**
 
-Generates a ready-to-paste Claude Code prompt for each Critical/High finding. Copy it into Claude Code and it fixes the issue for you. Also adds hallucinated package detection (verifies every package in `package.json` exists on npm).
+Generates a ready-to-paste Claude Code prompt for each Critical/High finding. Pro also adds explicitly labeled, low-confidence package-age and name-confusion signals. Registry 404s remain registry facts—not claims that a package is malicious, hallucinated, or typo-squatting.
+
+The current Pro provenance policy flags packages first published within 30 days and names one insertion, deletion, substitution, or adjacent transposition from a versioned built-in protected-name list. JSON and SARIF output include the policy version, confidence, registry, lookup time, response state, and coverage limitations so automation can distinguish facts from heuristics.
 
 **Also included:**
 
@@ -127,10 +130,10 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                                                                        |
-| -------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Free** | $0                | Security audit (`--audit`), linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                                                      |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + `--audit --fix` (Claude Code prompts), hallucination check, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| Tier     | Price             | What You Get                                                                                                                                                                                     |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Free** | $0                | Security audit (`--audit`), direct dependency registry/source evidence, linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                       |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + `--audit --fix` (Claude Code prompts), advanced provenance signals, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
@@ -143,7 +146,8 @@ npx create-qa-architect@latest
 | Gitleaks secret scanning (working tree)           | ✅   | ✅  |
 | Full-history secret scan (`--history-scan`)       | ❌   | ✅  |
 | ESLint security ruleset                           | ❌   | ✅  |
-| Hallucinated package detection                    | ❌   | ✅  |
+| Direct dependency registry/source evidence        | ✅   | ✅  |
+| Package-age and name-confusion review signals     | ❌   | ✅  |
 | `--fix` Claude Code prompts per finding           | ❌   | ✅  |
 
 ### Release Confidence by Tier

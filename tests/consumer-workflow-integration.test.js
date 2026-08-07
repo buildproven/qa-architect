@@ -539,6 +539,10 @@ bbb
   )
   assert(pro.includes('  pr-assurance:'), 'Pro workflow must include assurance')
   assert(pro.includes('--base-sha'), 'Pro assurance must bind the exact base')
+  assert(
+    pro.includes('fetch-depth: 0'),
+    'Pro assurance must resolve an advanced exact base without persisted credentials'
+  )
   assert(pro.includes('--head'), 'Pro assurance must bind the exact head')
   assert(
     pro.includes('create-qa-architect@latest'),
