@@ -261,6 +261,14 @@ test('raw malformed policies fail closed instead of disabling finding blocks', (
   assert.ok(result.reasons.some(reason => reason.code === 'finding.active'))
 })
 
+test('invalid policy wrappers with no errors still fail closed', () => {
+  const result = evaluate({
+    policy: { valid: false, policy: null, errors: [] },
+  })
+  assert.strictEqual(result.verdict, 'INCOMPLETE')
+  assert.ok(result.reasons.some(reason => reason.code === 'policy.malformed'))
+})
+
 test('unsupported policy fingerprint versions are incomplete and never suppress', () => {
   const normalized = createFingerprint(projectRoot, finding())
   const result = evaluate({
