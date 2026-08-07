@@ -15,6 +15,7 @@ const {
 const REVISION = 'a'.repeat(40)
 const USER_A = 'preview-user-a-secret-token'
 const USER_B = 'preview-user-b-secret-token'
+const BODY_LIMIT = 65_536
 let passed = 0
 let failed = 0
 
@@ -99,9 +100,15 @@ function setFixtureHeaders(response) {
   response.setHeader('x-qaa-deployment-id', 'deploy-private-123')
 }
 
+function publicFixtureBody(mode) {
+  if (mode === 'large-exact') return Buffer.alloc(BODY_LIMIT, 'a')
+  if (mode === 'large-over') return Buffer.alloc(BODY_LIMIT + 1, 'a')
+  return 'public email: person@example.com'
+}
+
 function handleSurfaceRoute(url, response, mode) {
   if (url.pathname === '/' || url.pathname === '/public') {
-    response.end('public email: person@example.com')
+    response.end(publicFixtureBody(mode))
     return true
   }
   if (url.pathname === '/private') {
@@ -202,7 +209,7 @@ async function run(mode, options = {}) {
     return {
       evidence: await runPreviewVerification({
         previewUrl: server.origin,
-        configPath: writeConfig(root),
+        configPath: writeConfig(root, options.configValue),
         expectedRevision: options.expectedRevision || REVISION,
         allowMutations: options.allowMutations ?? true,
         env: options.env || {
@@ -390,6 +397,18 @@ async function main() {
       assert.ok(!serialized.includes(secret), `evidence leaked ${secret}`)
     }
     assert.match(evidence.environment.deploymentIdSha256, /^[a-f0-9]{64}$/)
+  })
+
+  await test('response evidence is capped without mislabeling exact-limit bodies', async () => {
+    const exact = await run('large-exact')
+    const over = await run('large-over')
+    const rootObservation = result =>
+      result.evidence.checks.find(item => item.id === 'preview-reachable')
+        .observations[0].response
+    assert.strictEqual(rootObservation(exact).bodyBytes, BODY_LIMIT)
+    assert.strictEqual(rootObservation(exact).truncated, false)
+    assert.strictEqual(rootObservation(over).bodyBytes, BODY_LIMIT)
+    assert.strictEqual(rootObservation(over).truncated, true)
   })
 
   console.log(
