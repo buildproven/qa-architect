@@ -60,7 +60,6 @@ const QA_ARCHITECT_ONLY_CONTENT = [
 const CONSUMER_FORBIDDEN_CONTENT = [
   ...QA_ARCHITECT_ONLY_CONTENT,
   'node_modules/create-qa-architect',
-  'create-qa-architect@latest',
   'npx --yes create-qa-architect',
 ]
 
@@ -71,6 +70,8 @@ const SECTION_MARKERS = [
   '{{FULL_DETECTION_END}}',
   '{{FULL_REPORT_BEGIN}}',
   '{{FULL_REPORT_END}}',
+  '{{PRO_ASSURANCE_BEGIN}}',
+  '{{PRO_ASSURANCE_END}}',
 ]
 
 function assertNoConsumerForbiddenContent(content, tier) {
@@ -520,6 +521,88 @@ bbb
   } finally {
     fs.rmSync(testDir, { recursive: true, force: true })
   }
+})()
+
+// Test 8: Pro assurance is licensed, exact-head, pinned, and least-privilege
+;(() => {
+  console.log('Test 8: Pro PR assurance workflow contract')
+  const { injectWorkflowMode } = require('../lib/workflow-config')
+  const template = fs.readFileSync(
+    path.join(__dirname, '..', '.github', 'workflows', 'quality.yml'),
+    'utf8'
+  )
+  const free = injectWorkflowMode(template, 'minimal', { prAssurance: false })
+  const pro = injectWorkflowMode(template, 'minimal', { prAssurance: true })
+  assert(
+    !free.includes('  pr-assurance:'),
+    'Free workflow must omit Pro assurance'
+  )
+  assert(pro.includes('  pr-assurance:'), 'Pro workflow must include assurance')
+  assert(pro.includes('--base-sha'), 'Pro assurance must bind the exact base')
+  assert(
+    pro.includes('fetch-depth: 0'),
+    'Pro assurance must resolve an advanced exact base without persisted credentials'
+  )
+  assert(
+    pro.includes('PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin') &&
+      pro.includes('echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"') &&
+      pro.includes(
+        "pipx runpip semgrep install --force-reinstall 'setuptools==80.9.0'"
+      ) &&
+      pro.includes('"$PIPX_BIN_DIR/semgrep" --version') &&
+      pro.includes('export PATH="$PIPX_BIN_DIR:$PATH"') &&
+      pro.includes('semgrep --version'),
+    'Pro assurance must expose its pinned Semgrep executable to later steps'
+  )
+  assert(
+    pro.includes('set -euo pipefail'),
+    'Pro assurance evidence validation must fail closed explicitly'
+  )
+  assert(
+    !pro.includes("echo 'available=false'"),
+    'Pro assurance must publish evidence availability only after validation'
+  )
+  assert(pro.includes('--head'), 'Pro assurance must bind the exact head')
+  assert(
+    pro.includes('create-qa-architect@latest'),
+    'Consumer must use the published CLI'
+  )
+  assert(
+    pro.includes('security-events: write'),
+    'SARIF upload needs only security-events write'
+  )
+  assert(
+    pro.includes('manifest.headSha !== process.env.EXPECTED_HEAD'),
+    'Pro assurance must validate evidence against the exact head'
+  )
+  assert(
+    pro.includes('EVIDENCE_AVAILABLE: ${{ steps.evidence.outputs.available }}'),
+    'Required check must fail when the evidence bundle is absent'
+  )
+  assert(
+    pro.includes('EVIDENCE_VERDICT: ${{ steps.evidence.outputs.verdict }}'),
+    'Required check must cross-check the persisted verdict'
+  )
+  assert(
+    !pro.includes(
+      'pull-requests: write\n    steps:\n      - name: Checkout exact pull request head'
+    )
+  )
+  for (const action of [
+    'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1',
+    'github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd',
+    'actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a',
+  ]) {
+    assert(
+      pro.includes(action),
+      `Pro assurance action must be pinned: ${action}`
+    )
+  }
+  assert.doesNotThrow(
+    () => yaml.load(pro),
+    'Pro assurance workflow must be valid YAML'
+  )
+  console.log('✅ PASS\n')
 })()
 
 console.log('✅ All consumer workflow integration tests passed!')

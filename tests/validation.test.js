@@ -196,6 +196,8 @@ npm run format
 ## Files
 
 - \`package.json\` - Package configuration
+- \`.qa-architect-pr-assurance.json\` - Optional changed-code policy
+- \`.qa-architect-assurance.json\` - Optional baseline and waiver policy
 `
   fs.writeFileSync('README.md', validReadme)
 

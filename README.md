@@ -68,9 +68,26 @@ The current Pro provenance policy flags packages first published within 30 days 
 **Also included:**
 
 - **Shipping gates** (`--ship-check`) — SHIP/REVIEW/BLOCK verdict across lint, tests, coverage, bundle, env vars, and CI cost
-- **PR risk classifier** (`--pr-check`) — flags high-risk changes before merge
+- **Changed-code PR assurance** (`--pr-check`) — exact-head Semgrep gate with baselines, SARIF annotations, and revision-bound evidence
 - **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
 - **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
+
+Reproduce the required PR check locally against an exact revision:
+
+```bash
+npx create-qa-architect@latest --pr-check \
+  --base-sha <40-character-base-commit> \
+  --head "$(git rev-parse HEAD)" \
+  --artifact-dir /tmp/qa-architect-assurance
+```
+
+The command exits `0` only for `PASS`, `1` for `BLOCK`, and `2` for
+`INCOMPLETE`. Optional checked-in `.qa-architect-pr-assurance.json` policy can
+set the Semgrep timeout and project-relative path exclusions. Baselines,
+waivers, blocking severities, and required checks remain in the separate
+`.qa-architect-assurance.json` contract. Pro workflow generation adds a
+least-privilege `pr-assurance` job; configure the repository secret
+`QAA_LICENSE_JSON`, then require that check in branch protection.
 
 ## Quick Start
 
