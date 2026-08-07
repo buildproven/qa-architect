@@ -348,6 +348,7 @@ jobs:
           PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
         run: |
           pipx install 'semgrep==1.85.0'
+          pipx inject semgrep 'setuptools==80.9.0'
           echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"
 
       # {{QA_ARCHITECT_ONLY_BEGIN}}
