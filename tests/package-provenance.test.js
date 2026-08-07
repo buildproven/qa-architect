@@ -6,6 +6,7 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { EventEmitter } = require('events')
 const AjvImport = require('ajv')
 const addFormatsImport = require('ajv-formats')
 
@@ -18,8 +19,12 @@ const {
   PUBLIC_NPM_REGISTRY,
   analyzePackageProvenance,
   classifyDependency,
+  lookupPublicPackage,
   readNpmRegistryConfig,
+  readYarnRegistryConfig,
+  redactDependencySpec,
   resolveNpmRegistryConfig,
+  resolveRegistryConfig,
 } = require('../lib/package-provenance')
 const { buildAuditJson, buildAuditSarif } = require('../lib/commands/audit')
 
@@ -165,6 +170,126 @@ test('honors user and environment registry precedence without public lookups', a
     fs.rmSync(home, { recursive: true, force: true })
     fs.rmSync(userProject, { recursive: true, force: true })
     fs.rmSync(envProject, { recursive: true, force: true })
+  }
+})
+
+test('honors Yarn classic and modern registry configuration', () => {
+  const modern = tempProject({
+    packageManager: 'yarn@4.9.2',
+    dependencies: { '@internal/api': '^1' },
+  })
+  const classic = tempProject({ dependencies: { '@legacy/api': '^1' } })
+  try {
+    fs.writeFileSync(path.join(modern, 'yarn.lock'), '')
+    fs.writeFileSync(
+      path.join(modern, '.yarnrc.yml'),
+      [
+        'npmRegistryServer: "https://npm.proxy.example.com"',
+        'npmScopes:',
+        '  internal:',
+        '    npmRegistryServer: "https://npm.internal.example.com"',
+        '',
+      ].join('\n')
+    )
+    assert.deepStrictEqual(readYarnRegistryConfig(modern), {
+      defaultRegistry: 'https://npm.proxy.example.com/',
+      scopes: { '@internal': 'https://npm.internal.example.com/' },
+    })
+    assert.strictEqual(
+      resolveRegistryConfig(modern, ['@internal/api']).scopes['@internal'],
+      'https://npm.internal.example.com/'
+    )
+
+    fs.writeFileSync(path.join(classic, 'yarn.lock'), '')
+    fs.writeFileSync(
+      path.join(classic, '.yarnrc'),
+      'registry "https://registry.example.com"\n"@legacy:registry" "https://legacy.example.com"\n'
+    )
+    assert.deepStrictEqual(readYarnRegistryConfig(classic), {
+      defaultRegistry: 'https://registry.example.com/',
+      scopes: { '@legacy': 'https://legacy.example.com/' },
+    })
+  } finally {
+    fs.rmSync(modern, { recursive: true, force: true })
+    fs.rmSync(classic, { recursive: true, force: true })
+  }
+})
+
+test('requests full npm metadata only for advanced provenance', async () => {
+  const accepts = []
+  const get = (_url, requestOptions, callback) => {
+    accepts.push(requestOptions.headers.Accept)
+    const request = Object.assign(new EventEmitter(), { destroy() {} })
+    process.nextTick(() => {
+      const responseStream = Object.assign(new EventEmitter(), {
+        statusCode: 200,
+        headers: {},
+        resume() {},
+      })
+      callback(responseStream)
+      responseStream.emit(
+        'data',
+        Buffer.from('{"time":{"created":"2026-08-01T00:00:00.000Z"}}')
+      )
+      responseStream.emit('end')
+    })
+    return request
+  }
+  const basic = await lookupPublicPackage('basic', { now, get })
+  const advanced = await lookupPublicPackage('advanced', {
+    now,
+    get,
+    advanced: true,
+  })
+  assert.deepStrictEqual(accepts, [
+    'application/vnd.npm.install-v1+json',
+    'application/json',
+  ])
+  assert.strictEqual(basic.metadataState, 'parsed')
+  assert.strictEqual(advanced.createdAt, '2026-08-01T00:00:00.000Z')
+})
+
+test('redacts credential-bearing specs and safely normalizes invalid values', async () => {
+  const dir = tempProject({
+    dependencies: {
+      vcs: 'git+https://user:token@example.com/repo.git',
+      artifact: 'https://example.com/pkg.tgz?token=secret&signature=signed',
+      malformed: 123,
+    },
+  })
+  try {
+    const result = await analyzePackageProvenance(dir, {
+      now,
+      registryConfig: { defaultRegistry: PUBLIC_NPM_REGISTRY, scopes: {} },
+    })
+    const serialized = JSON.stringify(result)
+    assert.ok(!serialized.includes('token@example.com'))
+    assert.ok(!serialized.includes('token=secret'))
+    assert.ok(!serialized.includes('signature=signed'))
+    assert.ok(serialized.includes('REDACTED'))
+    assert.strictEqual(
+      result.packages.find(item => item.name === 'malformed').declaredSpec,
+      '[invalid number]'
+    )
+    assert.strictEqual(redactDependencySpec(null), '[invalid null]')
+
+    const schema = JSON.parse(
+      fs.readFileSync(
+        path.join(
+          __dirname,
+          '..',
+          'config',
+          'package-provenance-v1.schema.json'
+        ),
+        'utf8'
+      )
+    )
+    const ajv = new Ajv({ allErrors: true, strict: true })
+    addFormats(ajv)
+    const validate = ajv.compile(schema)
+    assert.strictEqual(validate(result), true, ajv.errorsText(validate.errors))
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
   }
 })
 
