@@ -318,6 +318,45 @@ test('unknown policy-required checks are rejected explicitly', () => {
   )
 })
 
+test('requirements cannot widen the command-supported scope', () => {
+  const policyResult = evaluate({
+    supportedChecks: ['sast'],
+    policy: {
+      schemaVersion: '1.0.0',
+      fingerprintVersion: 1,
+      baseline: {},
+      waivers: {},
+      blockingSeverities: ['critical', 'high'],
+      requiredChecks: { lighthouse: true },
+    },
+  })
+  assert.strictEqual(policyResult.verdict, 'INCOMPLETE')
+  assert.deepStrictEqual(policyResult.supportedChecks, ['sast'])
+  assert.deepStrictEqual(policyResult.requiredChecks, [])
+  assert.ok(
+    policyResult.reasons.some(
+      reason =>
+        reason.code === 'execution-config.unknown-required-check' &&
+        reason.message.includes('lighthouse')
+    )
+  )
+
+  const commandResult = evaluate({
+    supportedChecks: ['sast'],
+    requiredChecks: ['tests'],
+  })
+  assert.strictEqual(commandResult.verdict, 'INCOMPLETE')
+  assert.deepStrictEqual(commandResult.supportedChecks, ['sast'])
+  assert.deepStrictEqual(commandResult.requiredChecks, [])
+  assert.ok(
+    commandResult.reasons.some(
+      reason =>
+        reason.code === 'execution-config.unknown-required-check' &&
+        reason.message.includes('tests')
+    )
+  )
+})
+
 test('contradictory applicability cannot become a passing required check', () => {
   const result = evaluate({
     supportedChecks: ['tests'],
@@ -411,6 +450,45 @@ test('evaluations conform to the shipped strict result schema', () => {
     checks: [check('tests')],
   })
   assert.strictEqual(validate(result), true, ajv.errorsText(validate.errors))
+})
+
+test('result schema requires a fingerprint for policy.entry-invalid', () => {
+  const ajv = new Ajv({ allErrors: true, strict: true })
+  addFormats(ajv)
+  const schema = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, '..', 'config', 'assurance-result-v1.schema.json'),
+      'utf8'
+    )
+  )
+  const validate = ajv.compile(schema)
+  const raw = finding()
+  const fingerprint = createFingerprint(projectRoot, raw).fingerprint
+  const result = evaluate({
+    findings: [raw],
+    policy: {
+      schemaVersion: '1.0.0',
+      fingerprintVersion: 1,
+      baseline: {
+        [fingerprint]: {
+          fingerprintVersion: 1,
+          identityVersion: '1.0.0',
+          count: 1,
+          severity: 'high',
+          ruleVersion: '2.0.0',
+        },
+      },
+      waivers: {},
+      blockingSeverities: ['critical', 'high'],
+      requiredChecks: {},
+    },
+  })
+  const entryInvalid = result.reasons.find(
+    reason => reason.code === 'policy.entry-invalid'
+  )
+  assert.ok(entryInvalid)
+  entryInvalid.fingerprint = null
+  assert.strictEqual(validate(result), false)
 })
 
 test('terminal, JSON, Markdown, and SARIF preserve one verdict and disposition', () => {
