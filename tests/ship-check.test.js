@@ -141,6 +141,28 @@ function runFixture(target, options = {}) {
   return { report, calls }
 }
 
+function verifyViaCli(target, report, filename) {
+  const output = path.join(target.root, '.qa-architect', filename)
+  fs.mkdirSync(path.dirname(output), { recursive: true })
+  fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
+  return spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, '..', 'setup.js'),
+      '--ship-check',
+      '--verify-ship-manifest',
+      output,
+      '--json',
+    ],
+    {
+      cwd: target.root,
+      encoding: 'utf8',
+      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+}
+
 function manifestValidator() {
   const ajv = new Ajv({ allErrors: true, strict: true })
   addFormats(ajv)
@@ -233,7 +255,7 @@ test('a malformed risk policy produces INCOMPLETE', () => {
   fs.writeFileSync(malformed, '{"riskTierRules": {}}\n')
   const { report } = runFixture(target, { riskPolicyPath: malformed })
   assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
-  assert.strictEqual(report.risk.tier, 'unknown')
+  assert.strictEqual(report.risk.tier, 'critical')
   assert.ok(report.results.some(result => result.id === 'risk-policy'))
 })
 
@@ -248,6 +270,7 @@ test('a non-Git project cannot produce complete revision evidence', () => {
     workflowTier: 'minimal',
   })
   assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(report.risk.tier, 'critical')
   assert.ok(
     report.results.some(
       result =>
@@ -261,17 +284,41 @@ test('a dependency vulnerability blocks independently of secret scanning', () =>
   const target = fixture()
   const { report, calls } = runFixture(target, {
     overrides: {
-      'audit --audit-level=high --omit=dev': {
+      'audit --json --audit-level=high --omit=dev': {
         status: 1,
         signal: null,
         error: null,
-        stdout: 'high severity vulnerability',
+        stdout: JSON.stringify({
+          metadata: {
+            vulnerabilities: { low: 0, moderate: 0, high: 1, critical: 0 },
+          },
+        }),
         stderr: '',
       },
     },
   })
   assert.strictEqual(report.verdict, VERDICT.BLOCK)
   assert.ok(calls.some(call => call.args.includes('security:secrets')))
+})
+
+test('an unavailable dependency audit produces INCOMPLETE', () => {
+  const target = fixture()
+  const { report } = runFixture(target, {
+    overrides: {
+      'audit --json --audit-level=high --omit=dev': {
+        status: 1,
+        signal: null,
+        error: null,
+        stdout: '',
+        stderr: 'registry unavailable',
+      },
+    },
+  })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(
+    report.results.find(result => result.id === 'dependency-audit').status,
+    STATUS.INCOMPLETE
+  )
 })
 
 test('a check that mutates the candidate makes execution INCOMPLETE', () => {
@@ -304,27 +351,41 @@ test('identical inputs have the same identity despite timestamp metadata', () =>
 test('the CLI independently verifies a saved manifest from the checkout', () => {
   const target = fixture()
   const report = runFixture(target).report
-  const output = path.join(target.root, '.qa-architect', 'ship-manifest.json')
-  fs.mkdirSync(path.dirname(output), { recursive: true })
-  fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
-  const cli = spawnSync(
-    process.execPath,
-    [
-      path.join(__dirname, '..', 'setup.js'),
-      '--ship-check',
-      '--verify-ship-manifest',
-      output,
-      '--json',
-    ],
-    {
-      cwd: target.root,
-      encoding: 'utf8',
-      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    }
-  )
+  const cli = verifyViaCli(target, report, 'pass-manifest.json')
   assert.strictEqual(cli.status, 0, cli.stderr || cli.stdout)
   assert.strictEqual(JSON.parse(cli.stdout).fresh, true)
+})
+
+test('fresh BLOCK and INCOMPLETE manifests retain nonzero CLI verdicts', () => {
+  const blockedTarget = fixture()
+  const blocked = runFixture(blockedTarget, {
+    overrides: {
+      'audit --json --audit-level=high --omit=dev': {
+        status: 1,
+        signal: null,
+        error: null,
+        stdout: JSON.stringify({
+          metadata: {
+            vulnerabilities: { low: 0, moderate: 0, high: 1, critical: 0 },
+          },
+        }),
+        stderr: '',
+      },
+    },
+  }).report
+  const blockedCli = verifyViaCli(blockedTarget, blocked, 'block-manifest.json')
+  assert.strictEqual(blockedCli.status, 1, blockedCli.stderr)
+  assert.strictEqual(JSON.parse(blockedCli.stdout).fresh, true)
+
+  const incompleteTarget = fixture()
+  const incomplete = runFixture(incompleteTarget, { skipTests: true }).report
+  const incompleteCli = verifyViaCli(
+    incompleteTarget,
+    incomplete,
+    'incomplete-manifest.json'
+  )
+  assert.strictEqual(incompleteCli.status, 2, incompleteCli.stderr)
+  assert.strictEqual(JSON.parse(incompleteCli.stdout).fresh, true)
 })
 
 test('independent verification rejects a malformed manifest safely', () => {
