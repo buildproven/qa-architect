@@ -126,6 +126,13 @@ function finding() {
   }
 }
 
+function remediationRefs(root) {
+  return {
+    worktrees: run('git', ['worktree', 'list', '--porcelain'], root),
+    branches: run('git', ['branch', '--list', 'qaa/remediate-*'], root),
+  }
+}
+
 function schemaValidator(filename) {
   const ajv = new Ajv({ allErrors: true, strict: true })
   addFormats(ajv)
@@ -290,6 +297,9 @@ test('adapter contract supports Codex and Claude without changing the packet', (
   assert.strictEqual(claude.executable, 'claude')
   assert.ok(codex.args.includes(prompt))
   assert.ok(claude.args.includes(prompt))
+  assert.ok(claude.args.includes('--safe-mode'))
+  assert.ok(claude.args.includes('--tools'))
+  assert.ok(!claude.args.includes('--allowedTools'))
   assert.throws(() => adapterFor('unknown', '/tmp/worktree', prompt))
 })
 
@@ -466,6 +476,7 @@ test('fixture repair proves fail-before, pass-after, regression test, and exact 
 
 test('agent-created symlink paths fail closed before regression execution', () => {
   const { root, rule } = fixture()
+  const refsBefore = remediationRefs(root)
   const packet = createRemediationPacket({
     projectPath: root,
     finding: finding(),
@@ -508,10 +519,14 @@ test('agent-created symlink paths fail closed before regression execution', () =
   assert.strictEqual(evidence.status, 'INCOMPLETE')
   assert.strictEqual(evidence.reason, 'unsafe-agent-paths')
   assert.strictEqual(focusedCommandRan, false)
+  assert.deepStrictEqual(remediationRefs(root), refsBefore)
+  assert.ok(!('worktree' in evidence))
+  assert.ok(!('branch' in evidence))
 })
 
 test('partial repair without a regression test is never labeled fixed', () => {
   const { root, rule } = fixture()
+  const refsBefore = remediationRefs(root)
   const packet = createRemediationPacket({
     projectPath: root,
     finding: finding(),
@@ -548,6 +563,36 @@ test('partial repair without a regression test is never labeled fixed', () => {
   assert.strictEqual(evidence.status, 'INCOMPLETE')
   assert.strictEqual(evidence.reason, 'regression-test-missing')
   assert.strictEqual(evidence.resultHead, null)
+  assert.deepStrictEqual(remediationRefs(root), refsBefore)
+  const validate = schemaValidator('remediation-evidence-v1.schema.json')
+  assert.strictEqual(validate(evidence), true, JSON.stringify(validate.errors))
+})
+
+test('unexpected adapter errors clean the isolated repository state', () => {
+  const { root, rule } = fixture()
+  const refsBefore = remediationRefs(root)
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  const container = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
+  )
+  assert.throws(
+    () =>
+      orchestrateRemediation({
+        projectPath: root,
+        packet,
+        adapterName: 'codex',
+        ruleFiles: [rule],
+        commandRunner: () => {
+          throw new Error('simulated adapter exception')
+        },
+        worktreeRoot: container,
+      }),
+    /simulated adapter exception/
+  )
+  assert.deepStrictEqual(remediationRefs(root), refsBefore)
 })
 
 test('a failing clean baseline cannot masquerade as fail-before proof', () => {
