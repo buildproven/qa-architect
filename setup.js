@@ -518,7 +518,7 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
  *
  * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
  * @param {string[]} rawArgs - Original args (for path values that may include `..`)
- * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, repairWith:string|null, finding:string|null, remediationOut:string|null, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, projectPath:string}}
+ * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, repairWith:string|null, finding:string|null, remediationOut:string|null, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, riskPolicyPath:string|null, verifyShipManifestPath:string|null, projectPath:string}}
  */
 function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const pickValue = (flag, source) => {
@@ -533,6 +533,8 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const artifactValue = pickValue('--artifact-dir', rawArgs)
   const assurancePolicyValue = pickValue('--assurance-policy', rawArgs)
   const prPolicyValue = pickValue('--pr-policy', rawArgs)
+  const riskPolicyValue = pickValue('--risk-policy', rawArgs)
+  const verifyShipManifestValue = pickValue('--verify-ship-manifest', rawArgs)
   const remediationOutValue = pickValue('--remediation-out', rawArgs)
 
   return {
@@ -556,6 +558,10 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
       ? path.resolve(assurancePolicyValue)
       : null,
     prPolicyPath: prPolicyValue ? path.resolve(prPolicyValue) : null,
+    riskPolicyPath: riskPolicyValue ? path.resolve(riskPolicyValue) : null,
+    verifyShipManifestPath: verifyShipManifestValue
+      ? path.resolve(verifyShipManifestValue)
+      : null,
     projectPath: process.cwd(),
   }
 }
@@ -837,17 +843,21 @@ AUDIT PRO (Pro):
   Pro also adds: package-age and advanced provenance heuristics
 
 RELEASE CONFIDENCE (Pro):
-  --ship-check             Unified release-readiness report (lint, tests, security,
-                           coverage, bundle, env, CI cost, docs) with SHIP/REVIEW/BLOCK verdict
+  --ship-check             Revision-bound, risk-derived release assurance manifest
+                           with PASS/BLOCK/INCOMPLETE verdict
   --pr-check               Revision-bound changed-code assurance gate (Semgrep, baselines,
                            SARIF, annotations, evidence bundle; Pro)
   --history-scan           Full git-history secrets audit (gitleaks --log-opts=--all)
-  --base <branch>          Base branch for --pr-check (default: main, falls back to master)
+  --base <branch>          Base ref for --ship-check/--pr-check (default: origin/main)
   --base-sha <commit>      Exact PR base commit (preferred in CI)
   --head <commit>          Expected checked-out head; stale evidence is INCOMPLETE
   --artifact-dir <path>    Write JSON, SARIF, summary, annotations, and manifest evidence
   --assurance-policy <p>   BUI-672 baseline and waiver policy JSON
   --pr-policy <path>       Engine, timeout, and path-exclusion policy JSON
+  --risk-policy <path>     QA Architect risk policy (defaults to project harness-config.json,
+                           then the bundled policy)
+  --verify-ship-manifest <path>
+                           Verify a prior Ship Check manifest against this checkout
   --sarif                  Emit SARIF for --pr-check
   --depth <N>              Limit --history-scan to last N commits (default: full history)
   --skip-tests             Skip running tests in --ship-check (e.g. when slow)
