@@ -61,7 +61,7 @@ Runs [semgrep](https://semgrep.dev/) SAST, npm CVE audit, and direct production 
 
 **Pro tier — verified remediation:**
 
-`--audit --fix` exports an inspectable, agent-neutral packet for each Critical/High finding; nothing is sent to a provider. `--repair-with codex|claude --finding <id>` can explicitly run one local adapter in a dedicated branch/worktree. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit.
+`--audit --fix` exports an inspectable, agent-neutral packet for each supported Critical/High Semgrep finding; nothing is sent to a provider. Dependency-CVE findings remain report-only. `--repair-with codex|claude --finding <id>` can explicitly run one local adapter in a dedicated branch/worktree. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit.
 
 Pro also adds explicitly labeled, low-confidence package-age and name-confusion signals. Registry 404s remain registry facts—not claims that a package is malicious, hallucinated, or typo-squatting. The current policy flags packages first published within 30 days and names one insertion, deletion, substitution, or adjacent transposition from a versioned built-in protected-name list. JSON and SARIF output include the policy version, confidence, registry, lookup time, response state, and coverage limitations so automation can distinguish facts from heuristics.
 

@@ -14,6 +14,7 @@ const {
   createRemediationPacket,
   evidenceFresh,
   exportRemediationPackets,
+  normalizedBlockingSeverity,
   orchestrateRemediation,
   parsePorcelainV1Z,
   redactContext,
@@ -161,11 +162,47 @@ test('packet is provider-neutral, revision-bound, and secret-minimized', () => {
 })
 
 test('private key and secret assignments are redacted', () => {
-  const redacted = redactContext(
-    "token = 'secret-value'\n-----BEGIN PRIVATE KEY-----\nmaterial"
-  )
-  assert.ok(!redacted.includes('secret-value'))
+  const redacted = redactContext("token = 'user:password'")
+  assert.ok(!redacted.includes('user'))
+  assert.ok(!redacted.includes('password'))
   assert.ok(redacted.includes('[REDACTED'))
+  assert.strictEqual(
+    redactContext('-----BEGIN PRIVATE KEY-----\nmaterial'),
+    '[REDACTED PRIVATE KEY MATERIAL]'
+  )
+})
+
+test('packet IDs disambiguate identical findings on different lines', () => {
+  const { root } = fixture()
+  const first = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  const second = createRemediationPacket({
+    projectPath: root,
+    finding: { ...finding(), line: 2, endLine: 2 },
+  })
+  assert.notStrictEqual(first.packetId, second.packetId)
+})
+
+test('focused verification honors the detected manager and real test script', () => {
+  const { root } = fixture()
+  fs.writeFileSync(path.join(root, 'pnpm-lock.yaml'), 'lockfileVersion: 9\n')
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  assert.deepStrictEqual(packet.verification.focusedCommands[0], {
+    executable: 'pnpm',
+    args: ['test'],
+    timeoutMs: 600_000,
+  })
+  fs.writeFileSync(path.join(root, 'package.json'), '{}\n')
+  const withoutTest = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  assert.deepStrictEqual(withoutTest.verification.focusedCommands, [])
 })
 
 test('adapter contract supports Codex and Claude without changing the packet', () => {
@@ -202,6 +239,32 @@ test('export writes inspectable mode-0600 packets and sends nothing', () => {
   )
 })
 
+test('unsupported npm-audit findings are not exported as repairable packets', () => {
+  const { root } = fixture()
+  const output = path.join(root, 'packets')
+  const exports = exportRemediationPackets(
+    root,
+    [{ ...finding(), source: 'npm-audit' }],
+    output
+  )
+  assert.deepStrictEqual(exports, [])
+})
+
+test('adjacent blocking checks use normalized audit severity', () => {
+  assert.strictEqual(
+    normalizedBlockingSeverity({
+      extra: { severity: 'WARNING', metadata: { cwe: 'CWE-78' } },
+    }),
+    true
+  )
+  assert.strictEqual(
+    normalizedBlockingSeverity({
+      extra: { severity: 'WARNING', metadata: { cwe: 'CWE-829' } },
+    }),
+    false
+  )
+})
+
 test('CLI --fix exports packets without invoking an agent', () => {
   const { root } = fixture()
   const output = path.join(root, 'cli-packets')
@@ -228,6 +291,32 @@ test('CLI --fix exports packets without invoking an agent', () => {
     .filter(filename => filename.endsWith('.json'))
   assert.ok(packets.length > 0)
   assert.ok(!/invoking (?:Codex|Claude)|Copy this prompt/.test(cli.stdout))
+})
+
+test('CLI remediation progress does not corrupt JSON stdout', () => {
+  const { root } = fixture()
+  const output = path.join(root, 'json-packets')
+  const cli = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, '..', 'setup.js'),
+      '--audit',
+      '--json',
+      '--fix',
+      '--remediation-out',
+      output,
+    ],
+    {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 180_000,
+      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+  assert.strictEqual(cli.status, 1, cli.stderr || cli.stdout)
+  assert.doesNotThrow(() => JSON.parse(cli.stdout))
+  assert.ok(!cli.stdout.includes('Remediation packet:'))
 })
 
 test('fixture repair proves fail-before, pass-after, regression test, and exact commit', () => {
@@ -382,6 +471,56 @@ test('partial repair without a regression test is never labeled fixed', () => {
   assert.strictEqual(evidence.status, 'INCOMPLETE')
   assert.strictEqual(evidence.reason, 'regression-test-missing')
   assert.strictEqual(evidence.resultHead, null)
+})
+
+test('a failing clean baseline cannot masquerade as fail-before proof', () => {
+  const { root, rule } = fixture()
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  packet.verification.focusedCommands = [
+    {
+      executable: process.execPath,
+      args: ['-e', 'process.exit(1)'],
+      timeoutMs: 10_000,
+    },
+  ]
+  const container = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
+  )
+  const runner = (executable, args, options) => {
+    if (executable === 'codex') {
+      fs.writeFileSync(
+        path.join(options.cwd, 'app.js'),
+        'module.exports = {}\n'
+      )
+      fs.writeFileSync(
+        path.join(options.cwd, 'tests', 'remediation.test.js'),
+        "require('node:test').test('fixed', () => require('../app'))\n"
+      )
+      return {
+        executable,
+        args,
+        status: 0,
+        signal: null,
+        error: null,
+        stdout: '',
+        stderr: '',
+      }
+    }
+    return commandResult(executable, args, options.cwd, options.timeout)
+  }
+  const evidence = orchestrateRemediation({
+    projectPath: root,
+    packet,
+    adapterName: 'codex',
+    ruleFiles: [rule],
+    commandRunner: runner,
+    worktreeRoot: container,
+  })
+  assert.strictEqual(evidence.status, 'INCOMPLETE')
+  assert.strictEqual(evidence.reason, 'regression-baseline-not-green')
 })
 
 test('a packet for a changed commit becomes incomplete before transmission', () => {
