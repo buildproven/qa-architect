@@ -343,7 +343,12 @@ jobs:
           chmod 600 "$QAA_LICENSE_DIR/license.json"
 
       - name: Install pinned Semgrep engine
-        run: pipx install 'semgrep==1.85.0'
+        env:
+          PIPX_HOME: ${{ runner.temp }}/pipx
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
+        run: |
+          pipx install 'semgrep==1.85.0'
+          echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"
 
       # {{QA_ARCHITECT_ONLY_BEGIN}}
       - name: Install QA Architect dependencies

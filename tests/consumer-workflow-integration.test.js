@@ -544,6 +544,11 @@ bbb
     'Pro assurance must resolve an advanced exact base without persisted credentials'
   )
   assert(
+    pro.includes('PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin') &&
+      pro.includes('echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"'),
+    'Pro assurance must expose its pinned Semgrep executable to later steps'
+  )
+  assert(
     pro.includes('set -euo pipefail'),
     'Pro assurance evidence validation must fail closed explicitly'
   )
