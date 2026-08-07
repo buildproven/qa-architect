@@ -140,6 +140,19 @@ test('ship assurance runtime, schema, and risk boundary are in the tarball', () 
   }
 })
 
+test('versioned Web SaaS assurance pack ships with its runtime contract', () => {
+  for (const expected of [
+    'config/assurance-pack-v1.schema.json',
+    'config/assurance-packs/web-saas-v1.json',
+    'lib/assurance/pack.js',
+  ]) {
+    assert.ok(
+      packedFiles.includes(expected),
+      `${expected} missing from tarball`
+    )
+  }
+})
+
 test('customer-facing legal and security documents are in the published tarball', () => {
   const requiredFiles = ['README.md', 'LICENSE', 'COMMERCIAL.md', 'SECURITY.md']
   for (const file of requiredFiles) {

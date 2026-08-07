@@ -1,0 +1,453 @@
+{
+  "schemaVersion": "1.0.0",
+  "id": "web-saas",
+  "version": "1.1.0",
+  "name": "Next.js SaaS assurance pack",
+  "limitations": [
+    "This pack measures only the documented static patterns and named runtime evidence requirements.",
+    "A clean result does not certify framework security, authorization, tenant isolation, or payment correctness.",
+    "Row-level security, cache isolation, webhook replay resistance, and deployed configuration require runtime evidence."
+  ],
+  "stacks": [
+    {
+      "id": "nextjs",
+      "packages": ["next"],
+      "markers": ["next.config.js", "next.config.mjs", "next.config.ts"],
+      "versionVariants": [
+        "pages-router",
+        "app-router-v13",
+        "app-router-v14-plus"
+      ]
+    },
+    {
+      "id": "supabase",
+      "packages": ["@supabase/supabase-js", "@supabase/ssr"],
+      "markers": ["supabase/config.toml"],
+      "versionVariants": ["supabase-js-v1", "supabase-js-v2", "ssr"]
+    },
+    {
+      "id": "prisma",
+      "packages": ["@prisma/client", "prisma"],
+      "markers": ["prisma/schema.prisma"],
+      "versionVariants": ["prisma-v4", "prisma-v5-plus"]
+    },
+    {
+      "id": "drizzle",
+      "packages": ["drizzle-orm", "drizzle-kit"],
+      "markers": ["drizzle.config.js", "drizzle.config.ts"],
+      "versionVariants": ["drizzle-v0"]
+    },
+    {
+      "id": "stripe",
+      "packages": ["stripe"],
+      "markers": [],
+      "versionVariants": ["stripe-node-v12", "stripe-node-v13-plus"]
+    }
+  ],
+  "checks": [
+    {
+      "id": "client-public-secret",
+      "version": "1.0.0",
+      "stacks": ["nextjs", "stripe"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "public-env-holds-secret",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Client-exposed environment prefixes must not carry secret-like values.",
+      "insecureExample": "process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY",
+      "safePattern": "Read STRIPE_SECRET_KEY only in server code.",
+      "verification": "Inspect the built client bundle and confirm the secret value is absent.",
+      "limitations": [
+        "Name-based detection cannot identify a secret with a benign variable name."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V14.2.3",
+          "confidence": "high",
+          "limitation": "Detects only recognized public prefixes and secret-like names."
+        }
+      ]
+    },
+    {
+      "id": "next-client-privileged-client",
+      "version": "1.0.0",
+      "stacks": ["nextjs", "supabase"],
+      "stackMatch": "all",
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "service-key-in-client-component",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Privileged service clients must not be constructed in a client component.",
+      "insecureExample": "'use client'; createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)",
+      "safePattern": "Construct privileged clients in a server-only module or route.",
+      "verification": "Build the app and inspect client chunks for the privileged credential.",
+      "limitations": [
+        "Aliased constructors or credentials hidden behind helper calls may not match."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V14.2.3",
+          "confidence": "high",
+          "limitation": "Static source match does not inspect the emitted bundle."
+        }
+      ]
+    },
+    {
+      "id": "next-route-auth",
+      "version": "1.0.0",
+      "stacks": ["nextjs"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "next-route-handler-missing-auth",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Mutation route handlers should show an authorization decision.",
+      "insecureExample": "export async function POST(req) { return db.user.delete(...) }",
+      "safePattern": "Resolve and validate the caller session before the mutation.",
+      "verification": "Exercise the route unauthenticated and as a second user; both must be denied.",
+      "limitations": [
+        "Project-specific auth wrappers and intentionally public routes require review."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.1.1",
+          "confidence": "medium",
+          "limitation": "Auth may be enforced by middleware or an unrecognized wrapper."
+        }
+      ]
+    },
+    {
+      "id": "next-untrusted-redirect",
+      "version": "1.0.0",
+      "stacks": ["nextjs"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "next-untrusted-redirect",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Redirect destinations must not come directly from request input.",
+      "insecureExample": "redirect(req.nextUrl.searchParams.get('next'))",
+      "safePattern": "Map an allowlisted destination key to a local path.",
+      "verification": "Supply an external URL and confirm the response cannot redirect off-site.",
+      "limitations": [
+        "Data-flow through helper functions may not be detected."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V5.1.5",
+          "confidence": "high",
+          "limitation": "Covers direct request-to-redirect flows only."
+        }
+      ]
+    },
+    {
+      "id": "next-auth-cache-isolation",
+      "version": "1.0.0",
+      "stacks": ["nextjs"],
+      "evidenceClass": "runtime",
+      "semgrepRuleId": null,
+      "ruleFile": null,
+      "summary": "Authenticated and tenant data must not cross cache keys or revalidation boundaries.",
+      "insecureExample": "Cache a tenant query under one global key.",
+      "safePattern": "Include authorization scope in the cache key or opt sensitive reads out of shared caching.",
+      "verification": "Probe the same cached route as two users and two tenants after revalidation.",
+      "limitations": [
+        "Cache isolation cannot be established from source syntax alone."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V8.3.4",
+          "confidence": "low",
+          "limitation": "Requires deployed two-user runtime evidence."
+        }
+      ]
+    },
+    {
+      "id": "supabase-privileged-client",
+      "version": "1.0.0",
+      "stacks": ["supabase"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "supabase-service-role-client",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Service-role clients require an explicit server-only trust boundary.",
+      "insecureExample": "createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)",
+      "safePattern": "Isolate the service-role client in a server-only admin module with caller checks.",
+      "verification": "Trace every caller and confirm no untrusted request can select arbitrary rows.",
+      "limitations": [
+        "A privileged client can be valid; this rule identifies a mandatory review point."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "medium",
+          "limitation": "Static construction alone cannot prove authorization is missing."
+        }
+      ]
+    },
+    {
+      "id": "supabase-cross-tenant-read",
+      "version": "1.0.0",
+      "stacks": ["supabase"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "supabase-select-on-user-table",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Request-selected rows depend on verified RLS or explicit ownership scope.",
+      "insecureExample": "supabase.from('users').select('*').eq('id', req.query.id)",
+      "safePattern": "Use authenticated-user scope and verified RLS policies.",
+      "verification": "Read the row as a second user and confirm the database denies it.",
+      "limitations": ["Static analysis cannot inspect deployed RLS policies."],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "medium",
+          "limitation": "A finding may be protected by deployed RLS."
+        }
+      ]
+    },
+    {
+      "id": "supabase-rls-isolation",
+      "version": "1.0.0",
+      "stacks": ["supabase"],
+      "evidenceClass": "runtime",
+      "semgrepRuleId": null,
+      "ruleFile": null,
+      "summary": "RLS must deny cross-user reads and writes for every exposed table.",
+      "insecureExample": "An authenticated user can select or update another user's row.",
+      "safePattern": "Enable RLS and define least-privilege owner or tenant policies.",
+      "verification": "Run two-user read and mutation probes against the deployed database.",
+      "limitations": [
+        "Local source files do not prove the policies deployed to the target database."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "low",
+          "limitation": "Requires target-environment database evidence."
+        }
+      ]
+    },
+    {
+      "id": "prisma-tenant-scope",
+      "version": "1.0.0",
+      "stacks": ["prisma"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "prisma-find-by-request-id-unscoped",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Prisma reads and mutations selected by request ID should include owner or tenant scope.",
+      "insecureExample": "prisma.order.findUnique({ where: { id: req.params.id } })",
+      "safePattern": "Include userId, ownerId, tenantId, organizationId, or accountId in the query.",
+      "verification": "Attempt the operation using another user's object ID.",
+      "limitations": [
+        "Authorization enforced before the query may make a finding safe."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "medium",
+          "limitation": "Recognizes direct request expressions and common scope fields."
+        }
+      ]
+    },
+    {
+      "id": "prisma-mass-assignment",
+      "version": "1.0.0",
+      "stacks": ["prisma"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "prisma-request-body-mass-assignment",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "An unfiltered request body must not become Prisma mutation data.",
+      "insecureExample": "prisma.user.update({ where: { id }, data: req.body })",
+      "safePattern": "Parse an allowlisted input schema and construct mutation data explicitly.",
+      "verification": "Submit an authorization-sensitive field and confirm it is rejected.",
+      "limitations": [
+        "Aliases and helper-mediated request data may evade direct matching."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V5.1.3",
+          "confidence": "high",
+          "limitation": "Covers direct request-body assignment."
+        }
+      ]
+    },
+    {
+      "id": "drizzle-tenant-scope",
+      "version": "1.0.0",
+      "stacks": ["drizzle"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "drizzle-where-eq-id-unscoped",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Drizzle queries selected by request ID should combine owner or tenant scope.",
+      "insecureExample": "db.select().from(order).where(eq(order.id, req.params.id))",
+      "safePattern": "Combine ID and authenticated ownership predicates with and().",
+      "verification": "Attempt the operation using another user's object ID.",
+      "limitations": [
+        "The current rule recognizes direct request expressions, not arbitrary data flow."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "medium",
+          "limitation": "Static syntax cannot prove upstream authorization."
+        }
+      ]
+    },
+    {
+      "id": "drizzle-mass-assignment",
+      "version": "1.0.0",
+      "stacks": ["drizzle"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "drizzle-request-body-mass-assignment",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "An unfiltered request body must not become a Drizzle update set.",
+      "insecureExample": "db.update(users).set(req.body)",
+      "safePattern": "Parse an allowlisted input schema and set explicit fields.",
+      "verification": "Submit an authorization-sensitive field and confirm it is rejected.",
+      "limitations": [
+        "Aliases and helper-mediated request data may evade direct matching."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V5.1.3",
+          "confidence": "high",
+          "limitation": "Covers direct request-body assignment."
+        }
+      ]
+    },
+    {
+      "id": "orm-destructive-migration",
+      "version": "1.1.0",
+      "stacks": ["prisma", "drizzle"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "destructive-database-migration",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Destructive migration statements require explicit data-preservation review.",
+      "insecureExample": "ALTER TABLE customer DROP COLUMN email;",
+      "safePattern": "Use an expand-migrate-contract sequence with backup and rollback evidence.",
+      "verification": "Apply the migration to a production-like snapshot and verify preserved data and rollback.",
+      "limitations": [
+        "A matched destructive operation may be intentional but remains release-sensitive.",
+        "This rule covers DROP TABLE, DROP COLUMN, and TRUNCATE in recognized migration paths; it does not classify every possible data-rewriting statement."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V1.14.3",
+          "confidence": "high",
+          "limitation": "Detects named destructive SQL statements in recognized migration paths."
+        }
+      ]
+    },
+    {
+      "id": "stripe-webhook-signature",
+      "version": "1.1.0",
+      "stacks": ["stripe"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "stripe-webhook-json-without-signature",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Stripe webhook payloads must be verified from the raw body before parsing or acting.",
+      "insecureExample": "const event = JSON.parse(req.body)",
+      "safePattern": "stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)",
+      "verification": "Replay a payload with an invalid signature and confirm rejection before side effects.",
+      "limitations": [
+        "Custom verification wrappers may require a waiver after review.",
+        "The heuristic is limited to recognized Next.js Stripe webhook route paths and direct request-body parsing."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V13.2.6",
+          "confidence": "medium",
+          "limitation": "Path and syntax heuristic does not prove all webhook entry points."
+        }
+      ]
+    },
+    {
+      "id": "stripe-idempotency-replay",
+      "version": "1.0.0",
+      "stacks": ["stripe"],
+      "evidenceClass": "runtime",
+      "semgrepRuleId": null,
+      "ruleFile": null,
+      "summary": "Repeated delivery of one Stripe event must produce at most one business side effect.",
+      "insecureExample": "Each delivery independently grants credits or fulfills an order.",
+      "safePattern": "Persist the event ID transactionally before applying an idempotent side effect.",
+      "verification": "Deliver the same signed event twice concurrently and compare durable outcomes.",
+      "limitations": [
+        "Replay resistance depends on durable state and transaction behavior."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V11.1.4",
+          "confidence": "low",
+          "limitation": "Requires runtime concurrency and durable-state evidence."
+        }
+      ]
+    },
+    {
+      "id": "stripe-server-authoritative-amount",
+      "version": "1.0.0",
+      "stacks": ["stripe"],
+      "evidenceClass": "deterministic",
+      "semgrepRuleId": "stripe-request-controlled-amount",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Payment amount, price, and product selection must be server-authoritative.",
+      "insecureExample": "stripe.paymentIntents.create({ amount: req.body.amount })",
+      "safePattern": "Resolve an allowlisted server-side price or product record.",
+      "verification": "Tamper with the client amount or price ID and confirm the server ignores or rejects it.",
+      "limitations": [
+        "Data flow through intermediate helpers may not be detected."
+      ],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V11.1.1",
+          "confidence": "high",
+          "limitation": "Covers direct request-to-Stripe object creation."
+        }
+      ]
+    },
+    {
+      "id": "stripe-customer-ownership",
+      "version": "1.0.0",
+      "stacks": ["stripe"],
+      "evidenceClass": "heuristic",
+      "semgrepRuleId": "stripe-request-customer-without-ownership",
+      "ruleFile": ".semgrep/vibe-moat-rules.yaml",
+      "summary": "Request-selected Stripe customer or account IDs require local ownership validation.",
+      "insecureExample": "stripe.customers.retrieve(req.params.customerId)",
+      "safePattern": "Load the customer ID from the authenticated user's server-side account record.",
+      "verification": "Supply another user's customer ID and confirm denial before the Stripe call.",
+      "limitations": ["Upstream ownership checks may make a direct call safe."],
+      "assuranceMappings": [
+        {
+          "standard": "OWASP ASVS",
+          "control": "V4.2.1",
+          "confidence": "medium",
+          "limitation": "Direct request-expression heuristic cannot see all upstream guards."
+        }
+      ]
+    }
+  ],
+  "migrations": [
+    {
+      "checkId": "orm-destructive-migration",
+      "from": "1.0.0",
+      "to": "1.1.0",
+      "reason": "Cover DROP COLUMN, bare TRUNCATE, and newline-separated destructive SQL."
+    },
+    {
+      "checkId": "stripe-webhook-signature",
+      "from": "1.0.0",
+      "to": "1.1.0",
+      "reason": "Restrict the heuristic to recognized Stripe webhook routes and request receivers, and make findings advisory."
+    }
+  ]
+}

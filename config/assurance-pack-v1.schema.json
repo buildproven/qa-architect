@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/assurance-pack-v1.schema.json",
+  "title": "QA Architect assurance pack v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "version",
+    "name",
+    "limitations",
+    "stacks",
+    "checks",
+    "migrations"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "stacks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "packages", "markers", "versionVariants"],
+        "properties": {
+          "id": {
+            "enum": ["nextjs", "supabase", "prisma", "drizzle", "stripe"]
+          },
+          "packages": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "markers": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          },
+          "versionVariants": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "version",
+          "stacks",
+          "evidenceClass",
+          "semgrepRuleId",
+          "ruleFile",
+          "summary",
+          "insecureExample",
+          "safePattern",
+          "verification",
+          "limitations",
+          "assuranceMappings"
+        ],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "version": {
+            "type": "string",
+            "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+          },
+          "stacks": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "enum": ["nextjs", "supabase", "prisma", "drizzle", "stripe"]
+            },
+            "uniqueItems": true
+          },
+          "stackMatch": { "enum": ["any", "all"] },
+          "evidenceClass": {
+            "enum": ["deterministic", "heuristic", "runtime"]
+          },
+          "semgrepRuleId": { "type": ["string", "null"] },
+          "ruleFile": { "type": ["string", "null"] },
+          "summary": { "type": "string", "minLength": 1 },
+          "insecureExample": { "type": "string", "minLength": 1 },
+          "safePattern": { "type": "string", "minLength": 1 },
+          "verification": { "type": "string", "minLength": 1 },
+          "limitations": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "assuranceMappings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["standard", "control", "confidence", "limitation"],
+              "properties": {
+                "standard": { "type": "string", "minLength": 1 },
+                "control": { "type": "string", "minLength": 1 },
+                "confidence": { "enum": ["low", "medium", "high"] },
+                "limitation": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "evidenceClass": { "const": "runtime" } } },
+            "then": {
+              "properties": {
+                "semgrepRuleId": { "type": "null" },
+                "ruleFile": { "type": "null" }
+              }
+            },
+            "else": {
+              "properties": {
+                "semgrepRuleId": { "type": "string", "minLength": 1 },
+                "ruleFile": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "migrations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["checkId", "from", "to", "reason"],
+        "properties": {
+          "checkId": { "type": "string", "minLength": 1 },
+          "from": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "to": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

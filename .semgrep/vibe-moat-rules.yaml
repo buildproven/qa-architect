@@ -65,8 +65,8 @@ rules:
       include:
         - '**/*.tsx'
         - '**/*.jsx'
-        - 'app/**'
-        - 'components/**'
+        - '**/app/**'
+        - '**/components/**'
     patterns:
       - pattern-inside: |
           "use client"
@@ -151,3 +151,222 @@ rules:
       category: security
       cwe: 'CWE-639'
       owasp: 'A01:2021'
+
+  # =========================================================================
+  # VERSIONED WEB-SAAS ASSURANCE PACK
+  # These checks are selected through config/assurance-packs/web-saas-v1.json.
+  # Deterministic means the named direct syntax is present; heuristic means the
+  # match identifies a mandatory review point rather than proving exploitation.
+  # =========================================================================
+
+  - id: next-route-handler-missing-auth
+    message: |
+      A Next.js mutation route handler has no recognized session or authorization
+      decision. Confirm this route is intentionally public or resolve and validate
+      the caller before any side effect.
+    severity: WARNING
+    languages: [javascript, typescript]
+    paths:
+      include:
+        - '**/app/api/**/route.js'
+        - '**/app/api/**/route.ts'
+        - '**/pages/api/**/*.js'
+        - '**/pages/api/**/*.ts'
+    patterns:
+      - pattern-either:
+          - pattern: 'export async function POST(...) { ... }'
+          - pattern: 'export async function PUT(...) { ... }'
+          - pattern: 'export async function PATCH(...) { ... }'
+          - pattern: 'export async function DELETE(...) { ... }'
+          - pattern: 'export default async function $HANDLER(...) { ... }'
+      - pattern-not-inside: 'export async function $METHOD(...) { ... auth(...); ... }'
+      - pattern-not-inside: 'export async function $METHOD(...) { ... getServerSession(...); ... }'
+      - pattern-not-inside: 'export async function $METHOD(...) { ... currentUser(...); ... }'
+      - pattern-not-inside: 'export async function $METHOD(...) { ... requireUser(...); ... }'
+      - pattern-not-inside: 'export default async function $HANDLER(...) { ... auth(...); ... }'
+      - pattern-not-inside: 'export default async function $HANDLER(...) { ... getServerSession(...); ... }'
+      - pattern-not-inside: 'export default async function $HANDLER(...) { ... requireUser(...); ... }'
+    metadata:
+      category: security
+      evidence: heuristic
+      framework: nextjs
+      rule-version: '1.0.0'
+      cwe: 'CWE-862'
+      owasp: 'A01:2021'
+      fix: 'Resolve and authorize the caller in the route, or document and waive an intentionally public endpoint.'
+
+  - id: next-untrusted-redirect
+    message: |
+      A Next.js redirect destination comes directly from request input. Map an
+      allowlisted key to a local path instead of accepting an arbitrary URL.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: redirect($REQ.nextUrl.searchParams.get(...))
+      - pattern: redirect($REQ.query.$FIELD)
+      - pattern: NextResponse.redirect($REQ.nextUrl.searchParams.get(...))
+    metadata:
+      category: security
+      evidence: deterministic
+      framework: nextjs
+      rule-version: '1.0.0'
+      cwe: 'CWE-601'
+      owasp: 'A01:2021'
+      fix: 'Resolve an allowlisted destination key to a local path.'
+
+  - id: supabase-service-role-client
+    message: |
+      A Supabase client uses a service-role or admin credential. This bypasses
+      Row-Level Security and therefore requires a server-only module and an
+      explicit caller authorization boundary.
+    severity: WARNING
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: createClient($URL, process.env.$KEY, ...)
+          - pattern: createClient($URL, $ENV.$KEY, ...)
+          - pattern: createServerClient($URL, process.env.$KEY, ...)
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: '.*(SERVICE_ROLE|SERVICE_KEY|SUPABASE_SECRET|ADMIN).*'
+    metadata:
+      category: security
+      evidence: heuristic
+      framework: supabase
+      rule-version: '1.0.0'
+      cwe: 'CWE-250'
+      owasp: 'A01:2021'
+      fix: 'Isolate the privileged client in server-only code and authorize every caller.'
+
+  - id: prisma-request-body-mass-assignment
+    message: |
+      An unfiltered request body is assigned directly to Prisma mutation data.
+      Parse an allowlisted input schema and construct the data object explicitly.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: '$P.$MODEL.update({ ..., data: $REQ.body, ... })'
+      - pattern: '$P.$MODEL.create({ ..., data: $REQ.body, ... })'
+      - pattern: '$P.$MODEL.upsert({ ..., create: $REQ.body, ... })'
+    metadata:
+      category: security
+      evidence: deterministic
+      framework: prisma
+      rule-version: '1.0.0'
+      cwe: 'CWE-915'
+      owasp: 'A01:2021'
+      fix: 'Parse an allowlisted schema and construct mutation data from approved fields.'
+
+  - id: drizzle-request-body-mass-assignment
+    message: |
+      An unfiltered request body is assigned directly to a Drizzle mutation.
+      Parse an allowlisted input schema and set only approved fields.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: $DB.update($TABLE).set($REQ.body)
+      - pattern: $DB.insert($TABLE).values($REQ.body)
+    metadata:
+      category: security
+      evidence: deterministic
+      framework: drizzle
+      rule-version: '1.0.0'
+      cwe: 'CWE-915'
+      owasp: 'A01:2021'
+      fix: 'Parse an allowlisted schema and set only approved fields.'
+
+  - id: destructive-database-migration
+    message: |
+      A destructive database migration statement can irreversibly remove data.
+      Require backup, production-like migration, rollback, and data-preservation
+      evidence before release.
+    severity: ERROR
+    languages: [generic]
+    paths:
+      include:
+        - '**/prisma/migrations/**/*.sql'
+        - '**/drizzle/**/*.sql'
+        - '**/migrations/**/*.sql'
+    pattern-regex: '(?i)\b(?:DROP[ \t\r\n]+(?:TABLE|COLUMN)\b|TRUNCATE(?:[ \t\r\n]+TABLE)?[ \t\r\n]+[A-Za-z_])'
+    metadata:
+      category: security
+      evidence: deterministic
+      framework: database
+      rule-version: '1.1.0'
+      cwe: 'CWE-732'
+      owasp: 'A04:2021'
+      fix: 'Use an expand-migrate-contract sequence with backup and rollback evidence.'
+
+  - id: stripe-webhook-json-without-signature
+    message: |
+      A Stripe webhook route parses the body directly instead of constructing a
+      verified event from the raw body and Stripe-Signature header.
+    severity: WARNING
+    languages: [javascript, typescript]
+    paths:
+      include:
+        - '**/app/api/**/stripe/**/webhook*/route.js'
+        - '**/app/api/**/stripe/**/webhook*/route.ts'
+        - '**/app/api/**/webhook*/stripe/**/route.js'
+        - '**/app/api/**/webhook*/stripe/**/route.ts'
+        - '**/app/api/**/stripe-webhook*/route.js'
+        - '**/app/api/**/stripe-webhook*/route.ts'
+        - '**/pages/api/**/stripe/**/webhook*.js'
+        - '**/pages/api/**/stripe/**/webhook*.ts'
+        - '**/pages/api/**/webhook*/**/stripe*.js'
+        - '**/pages/api/**/webhook*/**/stripe*.ts'
+        - '**/pages/api/**/stripe-webhook*.js'
+        - '**/pages/api/**/stripe-webhook*.ts'
+    patterns:
+      - pattern-either:
+          - pattern: JSON.parse($REQ.body)
+          - pattern: await $REQ.json()
+      - metavariable-regex:
+          metavariable: $REQ
+          regex: '(?i)^(?:req|request)$'
+    metadata:
+      category: security
+      evidence: heuristic
+      framework: stripe
+      rule-version: '1.2.0'
+      cwe: 'CWE-345'
+      owasp: 'A08:2021'
+      fix: 'Use stripe.webhooks.constructEvent(rawBody, signature, webhookSecret) before parsing or side effects.'
+
+  - id: stripe-request-controlled-amount
+    message: |
+      Stripe amount or price selection comes directly from request data. Resolve
+      an allowlisted price or product from server-side state.
+    severity: ERROR
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: '$STRIPE.paymentIntents.create({ ..., amount: $REQ.body.$FIELD, ... })'
+      - pattern: '$STRIPE.checkout.sessions.create({ ..., line_items: $REQ.body.$FIELD, ... })'
+    metadata:
+      category: security
+      evidence: deterministic
+      framework: stripe
+      rule-version: '1.0.0'
+      cwe: 'CWE-602'
+      owasp: 'A04:2021'
+      fix: 'Resolve server-authoritative product, price, and amount values.'
+
+  - id: stripe-request-customer-without-ownership
+    message: |
+      A Stripe customer or account ID comes directly from request input. Load the
+      identifier from the authenticated user's server-side ownership record.
+    severity: WARNING
+    languages: [javascript, typescript]
+    pattern-either:
+      - pattern: $STRIPE.customers.retrieve($REQ.params.$FIELD)
+      - pattern: $STRIPE.customers.retrieve($REQ.query.$FIELD)
+      - pattern: $STRIPE.accounts.retrieve($REQ.params.$FIELD)
+      - pattern: $STRIPE.accounts.retrieve($REQ.query.$FIELD)
+    metadata:
+      category: security
+      evidence: heuristic
+      framework: stripe
+      rule-version: '1.0.0'
+      cwe: 'CWE-639'
+      owasp: 'A01:2021'
+      fix: 'Load the Stripe identifier from the authenticated user or tenant record.'
