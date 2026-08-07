@@ -518,7 +518,7 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
  *
  * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
  * @param {string[]} rawArgs - Original args (for path values that may include `..`)
- * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, repairWith:string|null, finding:string|null, remediationOut:string|null, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, riskPolicyPath:string|null, verifyShipManifestPath:string|null, projectPath:string}}
+ * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, repairWith:string|null, finding:string|null, remediationOut:string|null, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, riskPolicyPath:string|null, verifyShipManifestPath:string|null, previewUrl:string|null, previewConfigPath:string|null, allowPreviewMutations:boolean, allowProductionPreview:boolean, projectPath:string}}
  */
 function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const pickValue = (flag, source) => {
@@ -536,6 +536,8 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const riskPolicyValue = pickValue('--risk-policy', rawArgs)
   const verifyShipManifestValue = pickValue('--verify-ship-manifest', rawArgs)
   const remediationOutValue = pickValue('--remediation-out', rawArgs)
+  const previewUrlValue = pickValue('--preview-url', rawArgs)
+  const previewConfigValue = pickValue('--preview-config', rawArgs)
 
   return {
     json: sanitizedArgs.includes('--json'),
@@ -562,6 +564,14 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
     verifyShipManifestPath: verifyShipManifestValue
       ? path.resolve(verifyShipManifestValue)
       : null,
+    previewUrl: previewUrlValue,
+    previewConfigPath: previewConfigValue
+      ? path.resolve(previewConfigValue)
+      : null,
+    allowPreviewMutations: sanitizedArgs.includes('--allow-preview-mutations'),
+    allowProductionPreview: sanitizedArgs.includes(
+      '--allow-production-preview'
+    ),
     projectPath: process.cwd(),
   }
 }
@@ -852,6 +862,10 @@ RELEASE CONFIDENCE (Pro):
   --base-sha <commit>      Exact PR base commit (preferred in CI)
   --head <commit>          Expected checked-out head; stale evidence is INCOMPLETE
   --artifact-dir <path>    Write JSON, SARIF, summary, annotations, and manifest evidence
+  --preview-url <origin>   Opt in to deployed-preview verification for --ship-check
+  --preview-config <path>  Versioned preview routes, binding, and optional two-user probe
+  --allow-preview-mutations  Consent to the configured synthetic create/read/mutate/cleanup probe
+  --allow-production-preview Require with config allowProduction=true for a production-like host
   --assurance-policy <p>   BUI-672 baseline and waiver policy JSON
   --pr-policy <path>       Engine, timeout, and path-exclusion policy JSON
   --risk-policy <path>     QA Architect risk policy (defaults to project harness-config.json,
