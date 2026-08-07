@@ -22,6 +22,7 @@ const {
   rawFindingMatches,
   rawOccurrenceSha256,
   renderAgentInstructions,
+  validateRemediationOutputDirectory,
 } = require('../lib/commands/remediation')
 
 let passed = 0
@@ -74,11 +75,28 @@ function commandResult(executable, args, cwd, timeout = 120_000) {
   }
 }
 
+function adapterContractResult(executable, args) {
+  const stdout =
+    executable === 'codex'
+      ? '--cd --sandbox --ephemeral'
+      : '--safe-mode --permission-mode --tools --no-session-persistence'
+  return {
+    executable,
+    args,
+    status: 0,
+    signal: null,
+    error: null,
+    stdout,
+    stderr: '',
+  }
+}
+
 function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-remediation-test-'))
   run('git', ['init', '-b', 'feature/test-remediation'], root)
   run('git', ['config', 'user.email', 'qaa@example.test'], root)
   run('git', ['config', 'user.name', 'QA Architect Test'], root)
+  fs.writeFileSync(path.join(root, '.gitignore'), '.qa-architect/\n')
   fs.mkdirSync(path.join(root, 'tests'))
   fs.writeFileSync(
     path.join(root, 'app.js'),
@@ -295,12 +313,39 @@ test('adapter contract supports Codex and Claude without changing the packet', (
   const claude = adapterFor('claude', '/tmp/worktree', prompt)
   assert.strictEqual(codex.executable, 'codex')
   assert.strictEqual(claude.executable, 'claude')
-  assert.ok(codex.args.includes(prompt))
-  assert.ok(claude.args.includes(prompt))
+  assert.ok(!codex.args.includes(prompt))
+  assert.ok(!claude.args.includes(prompt))
+  assert.strictEqual(codex.input, prompt)
+  assert.strictEqual(claude.input, prompt)
+  assert.strictEqual(codex.args.at(-1), '-')
   assert.ok(claude.args.includes('--safe-mode'))
   assert.ok(claude.args.includes('--tools'))
   assert.ok(!claude.args.includes('--allowedTools'))
   assert.throws(() => adapterFor('unknown', '/tmp/worktree', prompt))
+})
+
+test('in-repository remediation output must be gitignored and untracked', () => {
+  const { root } = fixture()
+  assert.strictEqual(
+    validateRemediationOutputDirectory(
+      root,
+      path.join(root, '.qa-architect', 'remediation')
+    ),
+    path.join(root, '.qa-architect', 'remediation')
+  )
+  assert.throws(
+    () => validateRemediationOutputDirectory(root, path.join(root, 'src')),
+    /must be untracked and gitignored/
+  )
+  assert.throws(
+    () => validateRemediationOutputDirectory(root, root),
+    /cannot be the project root/
+  )
+  const external = path.join(os.tmpdir(), 'qaa-external-remediation')
+  assert.strictEqual(
+    validateRemediationOutputDirectory(root, external),
+    external
+  )
 })
 
 test('NUL porcelain parsing preserves both paths for renames', () => {
@@ -354,7 +399,7 @@ test('adjacent blocking checks use normalized audit severity', () => {
 
 test('CLI --fix exports packets without invoking an agent', () => {
   const { root } = fixture()
-  const output = path.join(root, 'cli-packets')
+  const output = path.join(root, '.qa-architect', 'cli-packets')
   const cli = spawnSync(
     process.execPath,
     [
@@ -382,7 +427,7 @@ test('CLI --fix exports packets without invoking an agent', () => {
 
 test('CLI remediation progress does not corrupt JSON stdout', () => {
   const { root } = fixture()
-  const output = path.join(root, 'json-packets')
+  const output = path.join(root, '.qa-architect', 'json-packets')
   const cli = spawnSync(
     process.execPath,
     [
@@ -412,13 +457,14 @@ test('fixture repair proves fail-before, pass-after, regression test, and exact 
     projectPath: root,
     finding: finding(),
   })
-  const packetPath = path.join(root, 'remediation-packet.json')
-  fs.writeFileSync(packetPath, `${JSON.stringify(packet, null, 2)}\n`)
   const container = fs.mkdtempSync(
     path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
   )
   const runner = (executable, args, options) => {
+    if (args.includes('--help')) return adapterContractResult(executable, args)
     if (executable === 'codex') {
+      assert.strictEqual(options.input, renderAgentInstructions(packet))
+      assert.ok(!args.includes(options.input))
       fs.writeFileSync(
         path.join(options.cwd, 'app.js'),
         "const allowed = { crypto: process.getBuiltinModule('crypto') }\nfunction load(name) { return allowed[name] }\nmodule.exports = { load }\n"
@@ -446,7 +492,6 @@ test('fixture repair proves fail-before, pass-after, regression test, and exact 
     ruleFiles: [rule],
     commandRunner: runner,
     worktreeRoot: container,
-    allowedDirtyPaths: ['remediation-packet.json'],
   })
   assert.strictEqual(evidence.status, 'VERIFIED', evidence.reason)
   if (evidence.status !== 'VERIFIED' || !('changedPaths' in evidence)) {
@@ -486,6 +531,7 @@ test('agent-created symlink paths fail closed before regression execution', () =
   )
   let focusedCommandRan = false
   const runner = (executable, args, options) => {
+    if (args.includes('--help')) return adapterContractResult(executable, args)
     if (executable === 'codex') {
       fs.writeFileSync(
         path.join(options.cwd, 'app.js'),
@@ -535,6 +581,7 @@ test('partial repair without a regression test is never labeled fixed', () => {
     path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
   )
   const runner = (executable, args, options) => {
+    if (args.includes('--help')) return adapterContractResult(executable, args)
     if (executable === 'claude') {
       fs.writeFileSync(
         path.join(options.cwd, 'app.js'),
@@ -568,6 +615,33 @@ test('partial repair without a regression test is never labeled fixed', () => {
   assert.strictEqual(validate(evidence), true, JSON.stringify(validate.errors))
 })
 
+test('an unverified adapter contract fails closed before transmitting a packet', () => {
+  const { root, rule } = fixture()
+  const refsBefore = remediationRefs(root)
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  let packetTransmitted = false
+  const evidence = orchestrateRemediation({
+    projectPath: root,
+    packet,
+    adapterName: 'claude',
+    ruleFiles: [rule],
+    commandRunner: (executable, args, options) => {
+      if (args.includes('--help')) {
+        return { ...adapterContractResult(executable, args), stdout: '--print' }
+      }
+      if (options.input) packetTransmitted = true
+      throw new Error('packet must not be transmitted')
+    },
+  })
+  assert.strictEqual(evidence.status, 'INCOMPLETE')
+  assert.strictEqual(evidence.reason, 'adapter-contract-unverified')
+  assert.strictEqual(packetTransmitted, false)
+  assert.deepStrictEqual(remediationRefs(root), refsBefore)
+})
+
 test('unexpected adapter errors clean the isolated repository state', () => {
   const { root, rule } = fixture()
   const refsBefore = remediationRefs(root)
@@ -585,7 +659,9 @@ test('unexpected adapter errors clean the isolated repository state', () => {
         packet,
         adapterName: 'codex',
         ruleFiles: [rule],
-        commandRunner: () => {
+        commandRunner: (executable, args) => {
+          if (args.includes('--help'))
+            return adapterContractResult(executable, args)
           throw new Error('simulated adapter exception')
         },
         worktreeRoot: container,
@@ -612,6 +688,7 @@ test('a failing clean baseline cannot masquerade as fail-before proof', () => {
     path.join(os.tmpdir(), 'qaa-remediation-worktrees-')
   )
   const runner = (executable, args, options) => {
+    if (args.includes('--help')) return adapterContractResult(executable, args)
     if (executable === 'codex') {
       fs.writeFileSync(
         path.join(options.cwd, 'app.js'),
