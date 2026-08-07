@@ -518,7 +518,7 @@ async function runProCommand(command, sanitizedArgs, rawArgs) {
  *
  * @param {string[]} sanitizedArgs - Args after validateAndSanitizeInput
  * @param {string[]} rawArgs - Original args (for path values that may include `..`)
- * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, projectPath:string}}
+ * @returns {{json:boolean, sarif:boolean, skipTests:boolean, noFail:boolean, fix:boolean, repairWith:string|null, finding:string|null, remediationOut:string|null, base:string|null, baseSha:string|null, head:string|null, depth:string|null, outPath:string|null, artifactDir:string|null, assurancePolicyPath:string|null, prPolicyPath:string|null, projectPath:string}}
  */
 function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const pickValue = (flag, source) => {
@@ -533,6 +533,7 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
   const artifactValue = pickValue('--artifact-dir', rawArgs)
   const assurancePolicyValue = pickValue('--assurance-policy', rawArgs)
   const prPolicyValue = pickValue('--pr-policy', rawArgs)
+  const remediationOutValue = pickValue('--remediation-out', rawArgs)
 
   return {
     json: sanitizedArgs.includes('--json'),
@@ -540,6 +541,11 @@ function parseProCommandOptions(sanitizedArgs, rawArgs) {
     skipTests: sanitizedArgs.includes('--skip-tests'),
     noFail: sanitizedArgs.includes('--no-fail'),
     fix: sanitizedArgs.includes('--fix'),
+    repairWith: pickValue('--repair-with', sanitizedArgs),
+    finding: pickValue('--finding', sanitizedArgs),
+    remediationOut: remediationOutValue
+      ? path.resolve(remediationOutValue)
+      : null,
     base: baseValue,
     baseSha: pickValue('--base-sha', sanitizedArgs),
     head: pickValue('--head', sanitizedArgs),
@@ -822,8 +828,10 @@ VIBE-CODE SECURITY AUDIT (Free):
   --audit --no-fail        Always exit 0 (report-only, don't block CI)
 
 AUDIT PRO (Pro):
-  --audit --fix            Generate Claude Code prompts for each Critical/High finding
-                           (paste directly into Claude Code to fix issues one by one)
+  --audit --fix            Export inspectable, agent-neutral remediation packets (Pro)
+  --audit --repair-with <codex|claude> --finding <id>
+                           Repair one finding in an isolated worktree and verify it (Pro)
+  --remediation-out <path> Packet and evidence output directory
 
   Requires: semgrep (pip install semgrep / brew install semgrep)
   Pro also adds: package-age and advanced provenance heuristics
@@ -936,8 +944,11 @@ EXAMPLES:
   npx create-qa-architect@latest --audit --sarif
     → Emit SARIF 2.1.0 with package provenance evidence
 
-  npx create-qa-architect@latest --audit --fix
-    → Run audit + generate Claude Code prompts for each finding (Pro)
+  npx create-qa-architect@latest --audit --fix --remediation-out ./qaa-remediation
+    → Export inspectable remediation packets without sending code externally (Pro)
+
+  npx create-qa-architect@latest --audit --repair-with codex --finding <rule-id>
+    → Repair one finding in an isolated branch/worktree; report VERIFIED only after proof
 
   npx create-qa-architect@latest --analyze-ci
     → Analyze your GitHub Actions usage and get cost optimization recommendations (Pro)

@@ -1,0 +1,161 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://qa-architect.dev/schemas/remediation-packet-v1.schema.json",
+  "title": "QA Architect remediation packet v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "packetId",
+    "createdAt",
+    "revision",
+    "rulePackVersion",
+    "finding",
+    "context",
+    "constraints",
+    "verification",
+    "packetSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "packetId": {
+      "type": "string",
+      "pattern": "^qaa-remediation-[a-f0-9]{16}$"
+    },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "revision": { "$ref": "#/$defs/revision" },
+    "rulePackVersion": { "type": "string", "minLength": 1 },
+    "finding": { "$ref": "#/$defs/finding" },
+    "context": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/context" }]
+    },
+    "constraints": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "verification": { "$ref": "#/$defs/verification" },
+    "packetSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "value"],
+      "properties": {
+        "kind": { "const": "git-commit" },
+        "value": { "type": "string", "pattern": "^[a-f0-9]{40,64}$" }
+      }
+    },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "startLine", "endLine"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "startLine": { "type": "integer", "minimum": 0 },
+        "endLine": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fingerprintVersion",
+        "fingerprint",
+        "occurrenceSha256",
+        "source",
+        "ruleId",
+        "severity",
+        "message",
+        "location",
+        "cwe",
+        "owasp",
+        "guidance"
+      ],
+      "properties": {
+        "fingerprintVersion": { "const": 1 },
+        "fingerprint": { "$ref": "#/$defs/sha256" },
+        "occurrenceSha256": { "$ref": "#/$defs/sha256" },
+        "source": { "type": "string", "minLength": 1 },
+        "ruleId": { "type": "string", "minLength": 1 },
+        "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "location": { "$ref": "#/$defs/location" },
+        "cwe": { "type": ["string", "null"] },
+        "owasp": { "type": ["string", "null"] },
+        "guidance": { "type": ["string", "null"] }
+      }
+    },
+    "context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "startLine", "endLine", "redacted", "text"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "startLine": { "type": "integer", "minimum": 1 },
+        "endLine": { "type": "integer", "minimum": 1 },
+        "redacted": { "const": true },
+        "text": { "type": "string" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable", "args", "timeoutMs"],
+      "properties": {
+        "executable": { "type": "string", "minLength": 1 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "timeoutMs": { "type": "integer", "minimum": 1, "maximum": 900000 }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "exactFinding",
+        "regressionTest",
+        "focusedCommands",
+        "adjacentScan"
+      ],
+      "properties": {
+        "exactFinding": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["source", "ruleId", "path"],
+          "properties": {
+            "source": { "type": "string" },
+            "ruleId": { "type": "string" },
+            "path": { "type": "string" }
+          }
+        },
+        "regressionTest": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["required", "reason"],
+          "properties": {
+            "required": { "type": "boolean" },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        },
+        "focusedCommands": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/command" }
+        },
+        "adjacentScan": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["blockingSeverities"],
+          "properties": {
+            "blockingSeverities": {
+              "type": "array",
+              "items": { "enum": ["critical", "high"] },
+              "uniqueItems": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -59,11 +59,11 @@ Runs [semgrep](https://semgrep.dev/) SAST, npm CVE audit, and direct production 
 | Direct production dependency source + npm registry evidence                   | ✅ Free             |
 | Package-age and name-confusion review signals                                 | 🔒 Pro              |
 
-**Pro tier — `--audit --fix`:**
+**Pro tier — verified remediation:**
 
-Generates a ready-to-paste Claude Code prompt for each Critical/High finding. Pro also adds explicitly labeled, low-confidence package-age and name-confusion signals. Registry 404s remain registry facts—not claims that a package is malicious, hallucinated, or typo-squatting.
+`--audit --fix` exports an inspectable, agent-neutral packet for each supported Critical/High Semgrep finding; nothing is sent to a provider. Dependency-CVE findings remain report-only. `--repair-with codex|claude --finding <id>` explicitly sends the selected packet and its redacted surrounding source context to that provider over stdin, then runs the adapter in a dedicated branch/worktree. Review the exported packet before invoking a provider. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit.
 
-The current Pro provenance policy flags packages first published within 30 days and names one insertion, deletion, substitution, or adjacent transposition from a versioned built-in protected-name list. JSON and SARIF output include the policy version, confidence, registry, lookup time, response state, and coverage limitations so automation can distinguish facts from heuristics.
+Pro also adds explicitly labeled, low-confidence package-age and name-confusion signals. Registry 404s remain registry facts—not claims that a package is malicious, hallucinated, or typo-squatting. The current policy flags packages first published within 30 days and names one insertion, deletion, substitution, or adjacent transposition from a versioned built-in protected-name list. JSON and SARIF output include the policy version, confidence, registry, lookup time, response state, and coverage limitations so automation can distinguish facts from heuristics.
 
 **Also included:**
 
@@ -101,8 +101,11 @@ npx create-qa-architect@latest --audit
 # 3. Write report to file (for docs or PR comments)
 npx create-qa-architect@latest --audit --out audit-report.md
 
-# 4. Get Claude Code fix prompts for Critical/High findings (Pro)
-npx create-qa-architect@latest --audit --fix
+# 4. Export inspectable remediation packets (Pro; no provider transmission)
+npx create-qa-architect@latest --audit --fix --remediation-out ./qaa-remediation
+
+# 5. Explicitly repair one finding with a local adapter and verify the result
+npx create-qa-architect@latest --audit --repair-with codex --finding <rule-id>
 ```
 
 **Suppressing a false positive:** if a finding is a confirmed false positive (or
@@ -130,25 +133,26 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                                                                     |
-| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Free** | $0                | Security audit (`--audit`), direct dependency registry/source evidence, linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                       |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + `--audit --fix` (Claude Code prompts), advanced provenance signals, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language |
+| Tier     | Price             | What You Get                                                                                                                                                                                                |
+| -------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                | Security audit (`--audit`), direct dependency registry/source evidence, linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                  |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, advanced provenance signals, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
 ### Security Audit by Tier
 
-| Feature                                           | Free | Pro |
-| ------------------------------------------------- | ---- | --- |
-| SAST (semgrep — auth, injection, XSS, misconfigs) | ✅   | ✅  |
-| npm CVE audit                                     | ✅   | ✅  |
-| Gitleaks secret scanning (working tree)           | ✅   | ✅  |
-| Full-history secret scan (`--history-scan`)       | ❌   | ✅  |
-| ESLint security ruleset                           | ❌   | ✅  |
-| Direct dependency registry/source evidence        | ✅   | ✅  |
-| Package-age and name-confusion review signals     | ❌   | ✅  |
-| `--fix` Claude Code prompts per finding           | ❌   | ✅  |
+| Feature                                             | Free | Pro |
+| --------------------------------------------------- | ---- | --- |
+| SAST (semgrep — auth, injection, XSS, misconfigs)   | ✅   | ✅  |
+| npm CVE audit                                       | ✅   | ✅  |
+| Gitleaks secret scanning (working tree)             | ✅   | ✅  |
+| Full-history secret scan (`--history-scan`)         | ❌   | ✅  |
+| ESLint security ruleset                             | ❌   | ✅  |
+| Direct dependency registry/source evidence          | ✅   | ✅  |
+| Package-age and name-confusion review signals       | ❌   | ✅  |
+| Inspectable remediation packets                     | ❌   | ✅  |
+| Codex/Claude isolated verified-remediation adapters | ❌   | ✅  |
 
 ### Release Confidence by Tier
 

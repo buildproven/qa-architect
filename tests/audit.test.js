@@ -225,7 +225,7 @@ test('states the supported boundary when no findings are detected', () => {
   assert.ok(!md.includes('SAFE TO SHIP'))
 })
 
-test('includes fix prompts when fix option set', () => {
+test('does not embed provider-specific fix prompts', () => {
   const findings = [
     {
       severity: 'critical',
@@ -238,9 +238,10 @@ test('includes fix prompts when fix option set', () => {
       source: 'semgrep',
     },
   ]
-  const md = buildMarkdownReport(findings, { fix: true })
-  assert.ok(md.includes('Claude Code'))
+  const md = buildMarkdownReport(findings)
   assert.ok(md.includes('auth.js'))
+  assert.ok(!md.includes('Claude Code'))
+  assert.ok(!md.includes('Copy this prompt'))
 })
 
 test('does not include fix section when fix option not set', () => {
@@ -256,7 +257,7 @@ test('does not include fix section when fix option not set', () => {
       source: 'semgrep',
     },
   ]
-  const md = buildMarkdownReport(findings, { fix: false })
+  const md = buildMarkdownReport(findings)
   assert.ok(!md.includes('Claude Code Fix Prompts'))
 })
 
