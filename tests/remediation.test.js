@@ -11,6 +11,7 @@ const Ajv = require('ajv/dist/2020').default
 const addFormats = require('ajv-formats').default
 const {
   adapterFor,
+  blockingIdentity,
   createRemediationPacket,
   evidenceFresh,
   exportRemediationPackets,
@@ -18,6 +19,8 @@ const {
   orchestrateRemediation,
   parsePorcelainV1Z,
   redactContext,
+  rawFindingMatches,
+  rawOccurrenceSha256,
   renderAgentInstructions,
 } = require('../lib/commands/remediation')
 
@@ -183,6 +186,80 @@ test('packet IDs disambiguate identical findings on different lines', () => {
     finding: { ...finding(), line: 2, endLine: 2 },
   })
   assert.notStrictEqual(first.packetId, second.packetId)
+})
+
+test('exact occurrence proof is content-bound, not count-bound', () => {
+  const { root } = fixture()
+  const packet = createRemediationPacket({
+    projectPath: root,
+    finding: finding(),
+  })
+  const raw = {
+    check_id: finding().id,
+    path: 'app.js',
+    start: { line: 1 },
+    end: { line: 1 },
+    extra: {
+      lines: 'requires login',
+      message: finding().message,
+      severity: 'ERROR',
+      metadata: { cwe: finding().cwe },
+    },
+  }
+  assert.strictEqual(
+    packet.finding.occurrenceSha256,
+    rawOccurrenceSha256(root, raw)
+  )
+  assert.strictEqual(rawFindingMatches(raw, packet, root), true)
+  fs.appendFileSync(path.join(root, 'app.js'), 'require(other)\n')
+  assert.strictEqual(
+    rawFindingMatches(
+      { ...raw, start: { line: 3 }, end: { line: 3 } },
+      packet,
+      root
+    ),
+    false
+  )
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-outside-'))
+  fs.writeFileSync(path.join(outside, 'external.js'), 'require(name)\n')
+  fs.symlinkSync(
+    path.join(outside, 'external.js'),
+    path.join(root, 'linked.js')
+  )
+  assert.strictEqual(
+    rawOccurrenceSha256(root, { ...raw, path: 'linked.js' }),
+    null
+  )
+})
+
+test('adjacent identity survives line shifts and supports duplicate counts', () => {
+  const beforeRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-identity-before-')
+  )
+  const afterRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-identity-after-')
+  )
+  fs.writeFileSync(path.join(beforeRoot, 'app.js'), 'dangerous(input)\n')
+  fs.writeFileSync(path.join(afterRoot, 'app.js'), '\n\n\ndangerous(input)\n')
+  const raw = {
+    check_id: 'rule',
+    path: 'app.js',
+    start: { line: 1 },
+    end: { line: 1 },
+    extra: {
+      lines: 'dangerous(input)',
+      message: 'Dangerous call',
+      severity: 'ERROR',
+      metadata: { cwe: 'CWE-78' },
+    },
+  }
+  assert.strictEqual(
+    blockingIdentity(raw, beforeRoot),
+    blockingIdentity(
+      { ...raw, start: { line: 4 }, end: { line: 4 } },
+      afterRoot
+    )
+  )
 })
 
 test('focused verification honors the detected manager and real test script', () => {

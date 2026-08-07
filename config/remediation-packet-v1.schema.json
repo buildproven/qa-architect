@@ -64,6 +64,7 @@
       "required": [
         "fingerprintVersion",
         "fingerprint",
+        "occurrenceSha256",
         "source",
         "ruleId",
         "severity",
@@ -76,6 +77,7 @@
       "properties": {
         "fingerprintVersion": { "const": 1 },
         "fingerprint": { "$ref": "#/$defs/sha256" },
+        "occurrenceSha256": { "$ref": "#/$defs/sha256" },
         "source": { "type": "string", "minLength": 1 },
         "ruleId": { "type": "string", "minLength": 1 },
         "severity": { "enum": ["critical", "high", "medium", "low", "info"] },
