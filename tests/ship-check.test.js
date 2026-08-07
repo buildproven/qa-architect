@@ -462,12 +462,17 @@ test('PR assurance references must match the exact head', () => {
   const evidenceDir = path.join(target.root, '.qa-architect')
   fs.mkdirSync(evidenceDir, { recursive: true })
   const reference = path.join(evidenceDir, 'assurance.json')
+  const findingFingerprint = 'a'.repeat(64)
   fs.writeFileSync(
     reference,
-    `${JSON.stringify({ assurance: { verdict: 'PASS', revision: { value: target.head } } })}\n`
+    `${JSON.stringify({ assurance: { verdict: 'PASS', revision: { value: target.head }, findings: [{ fingerprint: findingFingerprint }], checks: [{ engine: { rulePackVersion: '2.0.0' } }] } })}\n`
   )
   const freshReport = runFixture(target, { referencePaths: [reference] }).report
   assert.strictEqual(freshReport.verdict, VERDICT.PASS)
+  assert.deepStrictEqual(freshReport.references[0].findingFingerprints, [
+    findingFingerprint,
+  ])
+  assert.strictEqual(freshReport.references[0].rulePackVersion, '2.0.0')
   fs.unlinkSync(reference)
   assert.ok(
     verifyShipManifest(target.root, freshReport).reasons.includes(

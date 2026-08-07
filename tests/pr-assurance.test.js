@@ -11,6 +11,7 @@ const AjvImport = require('ajv')
 const addFormatsImport = require('ajv-formats')
 const {
   exitCode,
+  mapFinding,
   parseChangedLines,
   parseNameStatus,
   parseSemgrepResult,
@@ -129,6 +130,27 @@ async function main() {
 
   const { directory, initialSha, baseSha, headSha } = fixture()
   try {
+    const packFinding = mapFinding(
+      {
+        check_id: 'semgrep.stripe-request-controlled-amount',
+        path: 'src/app.js',
+        start: { line: 2 },
+        end: { line: 2 },
+        extra: {
+          severity: 'ERROR',
+          message: 'Request-controlled Stripe amount',
+          lines: 'amount: req.body.amount',
+          metadata: {},
+        },
+      },
+      directory,
+      '1.170.0'
+    )
+    assert.strictEqual(packFinding.ruleVersion, '1.0.0')
+    assert.strictEqual(packFinding.engine.rulePackVersion, '2.0.0')
+    assert.match(packFinding.remediation.guidance, /allowlisted server-side/)
+    assert.strictEqual(packFinding.assuranceMappings[0].standard, 'OWASP ASVS')
+
     const range = resolvePrRange(directory, {
       baseSha,
       head: headSha,
@@ -186,8 +208,9 @@ async function main() {
       baseSha,
       head: headSha,
       fetch: false,
-      scanner: async (_root, paths) => {
+      scanner: async (_root, paths, _policy, assurancePack) => {
         assert.deepStrictEqual(paths.sort(), ['src/app.js', 'src/renamed.js'])
+        assert.deepStrictEqual(assurancePack.detectedStacks, [])
         return { outcome: 'passed', version: '1.100.0', findings: [finding()] }
       },
       now: new Date('2026-08-05T12:00:00.000Z'),
@@ -195,6 +218,10 @@ async function main() {
     assert.strictEqual(blocked.result.verdict, 'BLOCK')
     assert.strictEqual(blocked.result.revision.value, headSha)
     assert.strictEqual(blocked.result.findings.length, 1)
+    assert.match(
+      blocked.result.checks[0].details,
+      /Web SaaS pack not applicable/
+    )
     assert.strictEqual(
       validateAssurance(blocked.result),
       true,

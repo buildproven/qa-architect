@@ -1,0 +1,332 @@
+{
+  "packVersion": "1.0.0",
+  "frameworkVariants": {
+    "nextjs": ["pages-router", "app-router-v13", "app-router-v14-plus"],
+    "supabase": ["supabase-js-v1", "supabase-js-v2", "ssr"],
+    "prisma": ["prisma-v4", "prisma-v5-plus"],
+    "drizzle": ["drizzle-v0"],
+    "stripe": ["stripe-node-v12", "stripe-node-v13-plus"]
+  },
+  "variantFixtures": [
+    {
+      "stack": "nextjs",
+      "variant": "pages-router",
+      "checkId": "next-route-auth",
+      "positive": {
+        "path": "pages/api/admin.ts",
+        "source": "export default async function handler(req, res) { return db.user.delete({ where: { id: req.query.id } }) }\n"
+      },
+      "negative": {
+        "path": "pages/api/admin.ts",
+        "source": "export default async function handler(req, res) { const session = await getServerSession(); return db.user.delete({ where: { id: session.user.id } }) }\n"
+      }
+    },
+    {
+      "stack": "nextjs",
+      "variant": "app-router-v13",
+      "checkId": "next-route-auth",
+      "positive": {
+        "path": "app/api/v13/route.ts",
+        "source": "export async function POST(req) { return db.user.delete({ where: { id: req.id } }) }\n"
+      },
+      "negative": {
+        "path": "app/api/v13/route.ts",
+        "source": "export async function POST(req) { const user = await auth(); return db.user.delete({ where: { id: user.id } }) }\n"
+      }
+    },
+    {
+      "stack": "nextjs",
+      "variant": "app-router-v14-plus",
+      "checkId": "next-untrusted-redirect",
+      "positive": {
+        "path": "app/api/v14/route.ts",
+        "source": "return NextResponse.redirect(req.nextUrl.searchParams.get('next'))\n"
+      },
+      "negative": {
+        "path": "app/api/v14/route.ts",
+        "source": "return NextResponse.redirect(new URL('/dashboard', req.url))\n"
+      }
+    },
+    {
+      "stack": "supabase",
+      "variant": "supabase-js-v1",
+      "checkId": "supabase-privileged-client",
+      "positive": {
+        "path": "lib/supabase-v1.ts",
+        "source": "const admin = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)\n"
+      },
+      "negative": {
+        "path": "lib/supabase-v1.ts",
+        "source": "const client = createClient(url, process.env.SUPABASE_ANON_KEY)\n"
+      }
+    },
+    {
+      "stack": "supabase",
+      "variant": "supabase-js-v2",
+      "checkId": "supabase-cross-tenant-read",
+      "positive": {
+        "path": "app/api/supabase-v2.ts",
+        "source": "const row = supabase.from('users').select('*').eq('id', req.query.id)\n"
+      },
+      "negative": {
+        "path": "app/api/supabase-v2.ts",
+        "source": "const row = supabase.from('users').select('*').eq('id', user.id)\n"
+      }
+    },
+    {
+      "stack": "supabase",
+      "variant": "ssr",
+      "checkId": "supabase-privileged-client",
+      "positive": {
+        "path": "lib/supabase-ssr.ts",
+        "source": "const admin = createServerClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)\n"
+      },
+      "negative": {
+        "path": "lib/supabase-ssr.ts",
+        "source": "const client = createServerClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)\n"
+      }
+    },
+    {
+      "stack": "prisma",
+      "variant": "prisma-v4",
+      "checkId": "prisma-tenant-scope",
+      "positive": {
+        "path": "app/api/prisma-v4.ts",
+        "source": "const row = prisma.order.findUnique({ where: { id: req.params.id } })\n"
+      },
+      "negative": {
+        "path": "app/api/prisma-v4.ts",
+        "source": "const row = prisma.order.findUnique({ where: { id: req.params.id, userId: session.user.id } })\n"
+      }
+    },
+    {
+      "stack": "prisma",
+      "variant": "prisma-v5-plus",
+      "checkId": "prisma-mass-assignment",
+      "positive": {
+        "path": "app/api/prisma-v5.ts",
+        "source": "await prisma.user.update({ where: { id }, data: req.body })\n"
+      },
+      "negative": {
+        "path": "app/api/prisma-v5.ts",
+        "source": "await prisma.user.update({ where: { id }, data: { name: input.name } })\n"
+      }
+    },
+    {
+      "stack": "drizzle",
+      "variant": "drizzle-v0",
+      "checkId": "drizzle-mass-assignment",
+      "positive": {
+        "path": "app/api/drizzle.ts",
+        "source": "await db.update(users).set(req.body)\n"
+      },
+      "negative": {
+        "path": "app/api/drizzle.ts",
+        "source": "await db.update(users).set({ name: input.name })\n"
+      }
+    },
+    {
+      "stack": "stripe",
+      "variant": "stripe-node-v12",
+      "checkId": "stripe-webhook-signature",
+      "positive": {
+        "path": "pages/api/stripe/webhook.ts",
+        "source": "const event = JSON.parse(req.body)\n"
+      },
+      "negative": {
+        "path": "pages/api/stripe/webhook.ts",
+        "source": "const event = stripe.webhooks.constructEvent(req.rawBody, signature, secret)\n"
+      }
+    },
+    {
+      "stack": "stripe",
+      "variant": "stripe-node-v13-plus",
+      "checkId": "stripe-server-authoritative-amount",
+      "positive": {
+        "path": "app/api/stripe-v13.ts",
+        "source": "await stripe.paymentIntents.create({ amount: req.body.amount })\n"
+      },
+      "negative": {
+        "path": "app/api/stripe-v13.ts",
+        "source": "await stripe.paymentIntents.create({ amount: product.price })\n"
+      }
+    }
+  ],
+  "checks": {
+    "client-public-secret": {
+      "positive": {
+        "path": "app/page.ts",
+        "source": "const key = process.env.NEXT_PUBLIC_STRIPE_SECRET_KEY\n"
+      },
+      "negative": {
+        "path": "app/page.ts",
+        "source": "const key = process.env.STRIPE_SECRET_KEY\n"
+      }
+    },
+    "next-client-privileged-client": {
+      "positive": {
+        "path": "app/page.tsx",
+        "source": "'use client'\nconst sb = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)\n"
+      },
+      "negative": {
+        "path": "lib/supabase/server.ts",
+        "source": "const sb = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)\n"
+      }
+    },
+    "next-route-auth": {
+      "positive": {
+        "path": "app/api/admin/route.ts",
+        "source": "export async function POST(req) { return db.user.delete({ where: { id: req.id } }) }\n"
+      },
+      "negative": {
+        "path": "app/api/admin/route.ts",
+        "source": "export async function POST(req) { const user = await auth(); return db.user.delete({ where: { id: user.id } }) }\n"
+      }
+    },
+    "next-untrusted-redirect": {
+      "positive": {
+        "path": "app/login/route.ts",
+        "source": "redirect(req.nextUrl.searchParams.get('next'))\n"
+      },
+      "negative": {
+        "path": "app/login/route.ts",
+        "source": "redirect('/dashboard')\n"
+      }
+    },
+    "next-auth-cache-isolation": {
+      "positive": {
+        "evidence": "two-user-probe",
+        "users": 2,
+        "crossUserLeak": false
+      },
+      "negative": {
+        "evidence": "source-only",
+        "users": 0,
+        "crossUserLeak": null
+      }
+    },
+    "supabase-privileged-client": {
+      "positive": {
+        "path": "lib/supabase/admin.ts",
+        "source": "const sb = createClient(url, process.env.SUPABASE_SERVICE_ROLE_KEY)\n"
+      },
+      "negative": {
+        "path": "lib/supabase/browser.ts",
+        "source": "const sb = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)\n"
+      }
+    },
+    "supabase-cross-tenant-read": {
+      "positive": {
+        "path": "app/api/user.ts",
+        "source": "const row = supabase.from('users').select('*').eq('id', req.query.id)\n"
+      },
+      "negative": {
+        "path": "app/api/user.ts",
+        "source": "const row = supabase.from('users').select('*').eq('id', user.id)\n"
+      }
+    },
+    "supabase-rls-isolation": {
+      "positive": {
+        "evidence": "two-user-rls-probe",
+        "readDenied": true,
+        "writeDenied": true
+      },
+      "negative": {
+        "evidence": "migration-source",
+        "deployedPolicyVerified": false
+      }
+    },
+    "prisma-tenant-scope": {
+      "positive": {
+        "path": "app/api/order.ts",
+        "source": "const row = prisma.order.findUnique({ where: { id: req.params.id } })\n"
+      },
+      "negative": {
+        "path": "app/api/order.ts",
+        "source": "const row = prisma.order.findUnique({ where: { id: req.params.id, tenantId: session.tenantId } })\n"
+      }
+    },
+    "prisma-mass-assignment": {
+      "positive": {
+        "path": "app/api/profile.ts",
+        "source": "await prisma.user.update({ where: { id }, data: req.body })\n"
+      },
+      "negative": {
+        "path": "app/api/profile.ts",
+        "source": "await prisma.user.update({ where: { id }, data: { name: input.name } })\n"
+      }
+    },
+    "drizzle-tenant-scope": {
+      "positive": {
+        "path": "app/api/order.ts",
+        "source": "const row = db.select().from(orders).where(eq(orders.id, req.params.id))\n"
+      },
+      "negative": {
+        "path": "app/api/order.ts",
+        "source": "const row = db.select().from(orders).where(and(eq(orders.id, id), eq(orders.tenantId, session.tenantId)))\n"
+      }
+    },
+    "drizzle-mass-assignment": {
+      "positive": {
+        "path": "app/api/profile.ts",
+        "source": "await db.update(users).set(req.body)\n"
+      },
+      "negative": {
+        "path": "app/api/profile.ts",
+        "source": "await db.update(users).set({ name: input.name })\n"
+      }
+    },
+    "orm-destructive-migration": {
+      "positive": {
+        "path": "prisma/migrations/20260807_drop/migration.sql",
+        "source": "DROP TABLE customer;\n"
+      },
+      "negative": {
+        "path": "prisma/migrations/20260807_add/migration.sql",
+        "source": "ALTER TABLE customer ADD COLUMN nickname TEXT;\n"
+      }
+    },
+    "stripe-webhook-signature": {
+      "positive": {
+        "path": "app/api/stripe/webhook/route.ts",
+        "source": "export async function POST(req) { const event = await req.json(); return handle(event) }\n"
+      },
+      "negative": {
+        "path": "app/api/stripe/webhook/route.ts",
+        "source": "export async function POST(req) { const raw = await req.text(); return stripe.webhooks.constructEvent(raw, signature, secret) }\n"
+      }
+    },
+    "stripe-idempotency-replay": {
+      "positive": {
+        "evidence": "concurrent-replay",
+        "deliveries": 2,
+        "sideEffects": 1
+      },
+      "negative": {
+        "evidence": "single-delivery",
+        "deliveries": 1,
+        "sideEffects": 1
+      }
+    },
+    "stripe-server-authoritative-amount": {
+      "positive": {
+        "path": "app/api/checkout.ts",
+        "source": "await stripe.paymentIntents.create({ amount: req.body.amount, currency: 'usd' })\n"
+      },
+      "negative": {
+        "path": "app/api/checkout.ts",
+        "source": "await stripe.paymentIntents.create({ amount: product.price, currency: 'usd' })\n"
+      }
+    },
+    "stripe-customer-ownership": {
+      "positive": {
+        "path": "app/api/customer.ts",
+        "source": "const customer = await stripe.customers.retrieve(req.params.customerId)\n"
+      },
+      "negative": {
+        "path": "app/api/customer.ts",
+        "source": "const customer = await stripe.customers.retrieve(session.stripeCustomerId)\n"
+      }
+    }
+  }
+}

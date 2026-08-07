@@ -69,6 +69,7 @@ Pro also adds explicitly labeled, low-confidence package-age and name-confusion 
 
 - **Shipping assurance** (`--ship-check`) — derives required checks from the exact change, workflow tier, stack/configuration, and QA Architect risk policy; emits a revision-bound PASS/BLOCK/INCOMPLETE manifest
 - **Changed-code PR assurance** (`--pr-check`) — exact-head Semgrep gate with baselines, SARIF annotations, and revision-bound evidence
+- **Web SaaS assurance pack** — detects Next.js, Supabase, Prisma, Drizzle, and Stripe; selects versioned deterministic/heuristic checks and names cache, RLS, and replay evidence that still requires runtime verification
 - **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
 - **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
 
@@ -104,6 +105,12 @@ waivers, blocking severities, and required checks remain in the separate
 `.qa-architect-assurance.json` contract. Pro workflow generation adds a
 least-privilege `pr-assurance` job; configure the repository secret
 `QAA_LICENSE_JSON`, then require that check in branch protection.
+
+The generated [assurance rule catalog](docs/ASSURANCE-RULE-CATALOG.md) states
+the exact Web SaaS pack boundary, fixture-measured rules, safe patterns,
+verification steps, and known false-positive/false-negative limitations. A
+clean static scan is not a framework-security, tenant-isolation, or payments
+certification.
 
 ## Quick Start
 

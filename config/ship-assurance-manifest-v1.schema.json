@@ -165,7 +165,16 @@
     "reference": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["type", "path", "sha256", "revision", "verdict", "fresh"],
+      "required": [
+        "type",
+        "path",
+        "sha256",
+        "revision",
+        "verdict",
+        "findingFingerprints",
+        "rulePackVersion",
+        "fresh"
+      ],
       "properties": {
         "type": { "enum": ["pr-assurance", "remediation", "unknown"] },
         "path": {
@@ -180,6 +189,15 @@
           "anyOf": [{ "$ref": "#/$defs/gitSha" }, { "type": "null" }]
         },
         "verdict": { "type": ["string", "null"] },
+        "findingFingerprints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" },
+          "uniqueItems": true
+        },
+        "rulePackVersion": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+        },
         "fresh": { "type": "boolean" }
       }
     }
