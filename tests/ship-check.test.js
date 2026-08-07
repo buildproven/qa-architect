@@ -259,6 +259,20 @@ test('a malformed risk policy produces INCOMPLETE', () => {
   assert.ok(report.results.some(result => result.id === 'risk-policy'))
 })
 
+test('an unreadable waiver policy produces INCOMPLETE evidence', () => {
+  const target = fixture()
+  fs.mkdirSync(path.join(target.root, '.qa-architect-assurance.json'))
+  const { report } = runFixture(target)
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(report.waivers.error, 'waiver-policy-unreadable')
+  assert.ok(
+    report.results.some(
+      result =>
+        result.id === 'waiver-policy' && result.status === STATUS.INCOMPLETE
+    )
+  )
+})
+
 test('a non-Git project cannot produce complete revision evidence', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-ship-non-git-'))
   fs.writeFileSync(
