@@ -383,12 +383,14 @@ async function main() {
     }
   })
 
-  await test('evidence excludes tokens, bodies, PII, and raw deployment IDs', async () => {
-    const { evidence } = await run('safe')
+  await test('evidence excludes tokens, bodies, PII, and raw identifiers', async () => {
+    const { evidence, state } = await run('safe')
     const serialized = JSON.stringify(evidence)
     for (const secret of [
       USER_A,
       USER_B,
+      state.fixtureId,
+      'fixture-resource-1',
       'person@example.com',
       'a@example.com',
       'deploy-private-123',
