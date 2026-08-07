@@ -129,7 +129,11 @@ async function main() {
 
   const { directory, initialSha, baseSha, headSha } = fixture()
   try {
-    const range = resolvePrRange(directory, { baseSha, fetch: false })
+    const range = resolvePrRange(directory, {
+      baseSha,
+      head: headSha,
+      fetch: false,
+    })
     assert.strictEqual(range.headSha, headSha)
     assert.strictEqual(range.baseSha, baseSha)
     assert.strictEqual(range.mergeBase, initialSha)
@@ -138,6 +142,7 @@ async function main() {
     fs.writeFileSync(scalarPolicyPath, '5\n')
     const scalarPolicy = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       prPolicyPath: scalarPolicyPath,
@@ -148,6 +153,7 @@ async function main() {
 
     const missingPrPolicy = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       prPolicyPath: path.join(directory, 'missing-pr-policy.json'),
@@ -157,6 +163,7 @@ async function main() {
 
     const missingAssurancePolicy = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       assurancePolicyPath: path.join(
@@ -177,6 +184,7 @@ async function main() {
 
     const blocked = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       scanner: async (_root, paths) => {
         assert.deepStrictEqual(paths.sort(), ['src/app.js', 'src/renamed.js'])
@@ -214,6 +222,7 @@ async function main() {
     )
     const headPolicyBypass = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       scanner: async (_root, paths) => {
@@ -225,7 +234,11 @@ async function main() {
     fs.unlinkSync(headPrPolicyPath)
 
     fs.writeFileSync(path.join(directory, 'uncommitted.txt'), 'dirty\n')
-    const dirty = await runPrAssurance(directory, { baseSha, fetch: false })
+    const dirty = await runPrAssurance(directory, {
+      baseSha,
+      head: headSha,
+      fetch: false,
+    })
     assert.strictEqual(dirty.result.verdict, 'INCOMPLETE')
     assert.match(dirty.result.checks[0].summary, /not clean/)
     fs.unlinkSync(path.join(directory, 'uncommitted.txt'))
@@ -256,6 +269,7 @@ async function main() {
     )
     const headBaselineBypass = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       scanner: async () => ({
@@ -289,6 +303,7 @@ async function main() {
     )
     const baselined = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       assurancePolicyPath,
@@ -303,6 +318,7 @@ async function main() {
 
     const unchanged = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       scanner: async () => ({
@@ -317,6 +333,7 @@ async function main() {
 
     const unavailable = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       scanner: async () => ({
@@ -330,6 +347,7 @@ async function main() {
 
     const timedOut = await runPrAssurance(directory, {
       baseSha,
+      head: headSha,
       fetch: false,
       allowDirty: true,
       scanner: async () => ({

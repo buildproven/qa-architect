@@ -346,6 +346,9 @@ jobs:
         run: pipx install 'semgrep==1.85.0'
 
       # {{QA_ARCHITECT_ONLY_BEGIN}}
+      - name: Install QA Architect dependencies
+        run: npm ci --ignore-scripts
+
       - name: Evaluate QA Architect's own changed-code assurance
         id: assurance_own
         continue-on-error: true
