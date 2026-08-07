@@ -2163,6 +2163,7 @@
                 "enum": [
                   "policy.fingerprint-overlap",
                   "policy.waiver-expired",
+                  "policy.entry-invalid",
                   "policy.ambiguous-finding",
                   "policy.fingerprint-version-mismatch",
                   "policy.identity-version-mismatch"

@@ -44,7 +44,7 @@ QA Architect reports supported patterns and evidence boundaries. A clean scan is
 
 **Free tier — `--audit`:**
 
-Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase and produces a prioritized security report. Covers the most common vibe-coding vulnerability categories — including AI-native classes generic SAST misses, like secrets shipped in the client bundle and unscoped data access (IDOR) across Prisma, Drizzle, and Supabase:
+Runs [semgrep](https://semgrep.dev/) SAST, npm CVE audit, and direct production dependency provenance analysis against your codebase and produces a prioritized security report. Covers the most common vibe-coding vulnerability categories — including AI-native classes generic SAST misses, like secrets shipped in the client bundle and unscoped data access (IDOR) across Prisma, Drizzle, and Supabase:
 
 | Category                                                                      | Coverage            |
 | ----------------------------------------------------------------------------- | ------------------- |
@@ -56,18 +56,38 @@ Runs [semgrep](https://semgrep.dev/) SAST + npm CVE audit against your codebase 
 | Production misconfigs (CORS-all, verbose errors, debug mode, missing headers) | ✅ Free             |
 | XSS patterns (unsafe HTML, dynamic hrefs)                                     | ✅ Free             |
 | Dependency CVEs                                                               | ✅ Free (npm audit) |
-| Hallucinated packages (slopsquatting)                                         | 🔒 Pro              |
+| Direct production dependency source + npm registry evidence                   | ✅ Free             |
+| Package-age and name-confusion review signals                                 | 🔒 Pro              |
 
 **Pro tier — verified remediation:**
 
-`--audit --fix` exports an inspectable, agent-neutral packet for each Critical/High finding; nothing is sent to a provider. `--repair-with codex|claude --finding <id>` can explicitly run one local adapter in a dedicated branch/worktree. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit. Also adds hallucinated package detection (verifies every package in `package.json` exists on npm).
+`--audit --fix` exports an inspectable, agent-neutral packet for each Critical/High finding; nothing is sent to a provider. `--repair-with codex|claude --finding <id>` can explicitly run one local adapter in a dedicated branch/worktree. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit.
+
+Pro also adds explicitly labeled, low-confidence package-age and name-confusion signals. Registry 404s remain registry facts—not claims that a package is malicious, hallucinated, or typo-squatting. The current policy flags packages first published within 30 days and names one insertion, deletion, substitution, or adjacent transposition from a versioned built-in protected-name list. JSON and SARIF output include the policy version, confidence, registry, lookup time, response state, and coverage limitations so automation can distinguish facts from heuristics.
 
 **Also included:**
 
 - **Shipping gates** (`--ship-check`) — SHIP/REVIEW/BLOCK verdict across lint, tests, coverage, bundle, env vars, and CI cost
-- **PR risk classifier** (`--pr-check`) — flags high-risk changes before merge
+- **Changed-code PR assurance** (`--pr-check`) — exact-head Semgrep gate with baselines, SARIF annotations, and revision-bound evidence
 - **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
 - **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
+
+Reproduce the required PR check locally against an exact revision:
+
+```bash
+npx create-qa-architect@latest --pr-check \
+  --base-sha <40-character-base-commit> \
+  --head "$(git rev-parse HEAD)" \
+  --artifact-dir /tmp/qa-architect-assurance
+```
+
+The command exits `0` only for `PASS`, `1` for `BLOCK`, and `2` for
+`INCOMPLETE`. Optional checked-in `.qa-architect-pr-assurance.json` policy can
+set the Semgrep timeout and project-relative path exclusions. Baselines,
+waivers, blocking severities, and required checks remain in the separate
+`.qa-architect-assurance.json` contract. Pro workflow generation adds a
+least-privilege `pr-assurance` job; configure the repository secret
+`QAA_LICENSE_JSON`, then require that check in branch protection.
 
 ## Quick Start
 
@@ -113,10 +133,10 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                                                                        |
-| -------- | ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Free** | $0                | Security audit (`--audit`), linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                                                      |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, hallucination check, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| Tier     | Price             | What You Get                                                                                                                                                                                                |
+| -------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                | Security audit (`--audit`), direct dependency registry/source evidence, linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                  |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, advanced provenance signals, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
@@ -129,7 +149,8 @@ npx create-qa-architect@latest
 | Gitleaks secret scanning (working tree)             | ✅   | ✅  |
 | Full-history secret scan (`--history-scan`)         | ❌   | ✅  |
 | ESLint security ruleset                             | ❌   | ✅  |
-| Hallucinated package detection                      | ❌   | ✅  |
+| Direct dependency registry/source evidence          | ✅   | ✅  |
+| Package-age and name-confusion review signals       | ❌   | ✅  |
 | Inspectable remediation packets                     | ❌   | ✅  |
 | Codex/Claude isolated verified-remediation adapters | ❌   | ✅  |
 

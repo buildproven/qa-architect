@@ -308,6 +308,153 @@ jobs:
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
 
+  # {{PRO_ASSURANCE_BEGIN}}
+  # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,
+  # then require the `pr-assurance` check in branch protection.
+  pr-assurance:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout exact pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          # Fetch all refs before removing credentials so an advanced private-repo
+          # base SHA remains resolvable without exposing a token to scanned code.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Configure QA Architect entitlement
+        if: github.repository != 'buildproven/qa-architect'
+        env:
+          QAA_LICENSE_JSON: ${{ secrets.QAA_LICENSE_JSON }}
+          QAA_LICENSE_DIR: ${{ runner.temp }}/qa-architect-license
+        run: |
+          if [ -z "$QAA_LICENSE_JSON" ]; then
+            echo "::error::QAA_LICENSE_JSON is required for the Pro PR assurance gate"
+            exit 1
+          fi
+          install -d -m 700 "$QAA_LICENSE_DIR"
+          printf '%s' "$QAA_LICENSE_JSON" > "$QAA_LICENSE_DIR/license.json"
+          chmod 600 "$QAA_LICENSE_DIR/license.json"
+
+      - name: Install pinned Semgrep engine
+        env:
+          PIPX_HOME: ${{ runner.temp }}/pipx
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
+        run: |
+          pipx install 'semgrep==1.85.0'
+          pipx runpip semgrep install --force-reinstall 'setuptools==80.9.0'
+          "$PIPX_BIN_DIR/semgrep" --version
+          echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"
+
+      # {{QA_ARCHITECT_ONLY_BEGIN}}
+      - name: Install QA Architect dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Evaluate QA Architect's own changed-code assurance
+        id: assurance_own
+        continue-on-error: true
+        env:
+          NODE_ENV: test
+          QAA_DEVELOPER: 'true'
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
+        run: |
+          export PATH="$PIPX_BIN_DIR:$PATH"
+          semgrep --version
+          node setup.js --pr-check \
+            --base-sha '${{ github.event.pull_request.base.sha }}' \
+            --head '${{ github.event.pull_request.head.sha }}' \
+            --artifact-dir '${{ runner.temp }}/qa-architect-assurance'
+      # {{QA_ARCHITECT_ONLY_END}}
+      - name: Evaluate changed-code assurance
+        id: assurance_consumer
+        if: github.repository != 'buildproven/qa-architect'
+        continue-on-error: true
+        env:
+          QAA_LICENSE_DIR: ${{ runner.temp }}/qa-architect-license
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
+        run: |
+          export PATH="$PIPX_BIN_DIR:$PATH"
+          semgrep --version
+          npx create-qa-architect@latest --pr-check \
+            --base-sha '${{ github.event.pull_request.base.sha }}' \
+            --head '${{ github.event.pull_request.head.sha }}' \
+            --artifact-dir '${{ runner.temp }}/qa-architect-assurance'
+
+      - name: Detect assurance evidence
+        id: evidence
+        if: always()
+        env:
+          EVIDENCE_DIR: ${{ runner.temp }}/qa-architect-assurance
+          EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+          for file in assurance.json assurance.sarif summary.md annotations.json manifest.json; do
+            test -s "$EVIDENCE_DIR/$file"
+          done
+          node <<'NODE'
+          const fs = require('fs')
+          const path = require('path')
+          const read = name => JSON.parse(fs.readFileSync(path.join(process.env.EVIDENCE_DIR, name), 'utf8'))
+          const manifest = read('manifest.json')
+          const assurance = read('assurance.json').assurance
+          const sarif = read('assurance.sarif')
+          read('annotations.json')
+          const sarifRun = sarif.runs && sarif.runs[0]
+          if (
+            manifest.baseSha !== process.env.EXPECTED_BASE ||
+            manifest.headSha !== process.env.EXPECTED_HEAD ||
+            assurance.revision.value !== process.env.EXPECTED_HEAD ||
+            manifest.verdict !== assurance.verdict ||
+            !sarifRun ||
+            sarifRun.automationDetails?.id !== `git-commit/${process.env.EXPECTED_HEAD}` ||
+            sarifRun.properties?.assuranceVerdict !== assurance.verdict
+          ) {
+            throw new Error('Assurance evidence is incomplete or revision-inconsistent')
+          }
+          NODE
+          verdict="$(node -p "require('$EVIDENCE_DIR/assurance.json').assurance.verdict")"
+          case "$verdict" in PASS|BLOCK|INCOMPLETE) ;; *) exit 1 ;; esac
+          echo "verdict=$verdict" >> "$GITHUB_OUTPUT"
+          echo 'available=true' >> "$GITHUB_OUTPUT"
+
+      - name: Publish assurance summary
+        if: always() && steps.evidence.outputs.available == 'true'
+        run: cat '${{ runner.temp }}/qa-architect-assurance/summary.md' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload SARIF annotations
+        if: always() && steps.evidence.outputs.available == 'true' && github.event.pull_request.head.repo.full_name == github.repository
+        uses: github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
+        with:
+          sarif_file: ${{ runner.temp }}/qa-architect-assurance/assurance.sarif
+
+      - name: Upload revision-bound evidence
+        if: always() && steps.evidence.outputs.available == 'true'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: qa-architect-assurance-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/qa-architect-assurance
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce assurance verdict
+        if: always()
+        env:
+          ASSURANCE_OUTCOME: ${{ steps.assurance_own.outcome || steps.assurance_consumer.outcome }}
+          EVIDENCE_AVAILABLE: ${{ steps.evidence.outputs.available }}
+          EVIDENCE_VERDICT: ${{ steps.evidence.outputs.verdict }}
+        run: |
+          if [ "$ASSURANCE_OUTCOME" != 'success' ] || [ "$EVIDENCE_AVAILABLE" != 'true' ] || [ "$EVIDENCE_VERDICT" != 'PASS' ]; then
+            echo 'PR assurance did not produce a PASS verdict and complete evidence for this exact head.'
+            exit 1
+          fi
+  # {{PRO_ASSURANCE_END}}
   # Step 2b: Advisory audit report (NON-BLOCKING). Runs in parallel with the
   # security gate (needs detect-maturity, NOT security) so a gate failure can
   # never suppress this report. Surfaces qa-architect's own vibe-code audit (the

@@ -16,6 +16,8 @@ const {
   buildMarkdownReport,
   buildHumanReport,
   buildSkippedReport,
+  buildSkippedSarif,
+  auditExitCode,
 } = require('../lib/commands/audit')
 
 let passed = 0
@@ -372,6 +374,35 @@ test('falls back to raw error text for unknown errors', () => {
 test('omits hint code block when no hint provided', () => {
   const report = buildSkippedReport({ error: 'no_rules' })
   assert.ok(!report.includes('```'))
+})
+
+test('emits valid SARIF evidence when a no-fail scan is skipped', () => {
+  const sarif = buildSkippedSarif({
+    error: 'semgrep_not_installed',
+    hint: 'Install Semgrep.',
+  })
+  assert.strictEqual(sarif.version, '2.1.0')
+  assert.strictEqual(sarif.runs[0].properties.completion, 'incomplete')
+  assert.strictEqual(
+    sarif.runs[0].results[0].ruleId,
+    'audit-infrastructure-incomplete'
+  )
+})
+
+test('fails closed on partial provenance unless no-fail is explicit', () => {
+  const result = {
+    findings: [],
+    packageProvenance: { coverage: { completion: 'partial' } },
+  }
+  assert.strictEqual(auditExitCode(result), 1)
+  assert.strictEqual(auditExitCode(result, { noFail: true }), 0)
+  assert.strictEqual(
+    auditExitCode({
+      findings: [],
+      packageProvenance: { coverage: { completion: 'complete' } },
+    }),
+    0
+  )
 })
 
 // ---------------------------------------------------------------------------

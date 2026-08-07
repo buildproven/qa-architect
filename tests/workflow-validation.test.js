@@ -326,9 +326,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: \${{ github.event.pull_request.head.sha }}
       - uses: actions/setup-node@v3
         with:
           node-version: '20'
+      - if: github.event.pull_request.head.repo.full_name == github.repository
+        run: npm run fork-safe-check
       - run: npm install
       - run: npm test
 `
