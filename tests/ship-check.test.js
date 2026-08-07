@@ -473,6 +473,13 @@ test('PR assurance references must match the exact head', () => {
     findingFingerprint,
   ])
   assert.strictEqual(freshReport.references[0].rulePackVersion, '2.0.0')
+  fs.writeFileSync(
+    reference,
+    `${JSON.stringify({ assurance: { verdict: 'PASS', revision: { value: target.head }, checks: [{ engine: { rulePackVersion: '1.0.0' } }, { engine: { rulePackVersion: '2.0.0' } }] } })}\n`
+  )
+  const mixedReport = runFixture(target, { referencePaths: [reference] }).report
+  assert.strictEqual(mixedReport.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(mixedReport.references[0].verdict, 'MALFORMED')
   fs.unlinkSync(reference)
   assert.ok(
     verifyShipManifest(target.root, freshReport).reasons.includes(

@@ -142,10 +142,30 @@ test('PR scanning config contains exactly the applicable pack rules', () => {
     )
     const config = yaml.load(fs.readFileSync(configPath, 'utf8'))
     const ids = config.rules.map(rule => rule.id).sort()
-    assert.ok(ids.includes('next-route-handler-missing-auth'))
-    assert.ok(ids.includes('stripe-request-controlled-amount'))
-    assert.ok(!ids.includes('prisma-request-body-mass-assignment'))
-    assert.ok(!ids.includes('supabase-service-role-client'))
+    assert.ok(ids.includes('qaa-web-saas.next-route-handler-missing-auth'))
+    assert.ok(ids.includes('qaa-web-saas.stripe-request-controlled-amount'))
+    assert.ok(!ids.includes('qaa-web-saas.prisma-request-body-mass-assignment'))
+    assert.ok(!ids.includes('qaa-web-saas.supabase-service-role-client'))
+  } finally {
+    fs.rmSync(output, { recursive: true, force: true })
+  }
+})
+
+test('pack rule files cannot escape the shipped .semgrep directory', () => {
+  const root = fixtureProject({ next: '^15.0.0' })
+  const selection = structuredClone(selectAssurancePack(root))
+  selection.checks[0].ruleFile = '../../package.json'
+  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-pack-config-'))
+  try {
+    assert.throws(
+      () =>
+        selectedPackConfig(
+          path.resolve(__dirname, '../.semgrep'),
+          selection,
+          output
+        ),
+      /outside \.semgrep/
+    )
   } finally {
     fs.rmSync(output, { recursive: true, force: true })
   }
@@ -162,7 +182,7 @@ test('repository markers detect ORM stacks without package metadata', () => {
 test('rule-version changes require an explicit compatible migration', () => {
   const previous = structuredClone(PACK)
   const next = structuredClone(PACK)
-  next.version = '1.1.0'
+  next.version = '1.2.0'
   next.checks[0].version = '1.1.0'
   assert.throws(() => assertCompatiblePackUpdate(previous, next), /migration/)
   next.migrations.push({
@@ -176,7 +196,7 @@ test('rule-version changes require an explicit compatible migration', () => {
 
 test('removing a check or changing the pack major fails compatibility', () => {
   const removed = structuredClone(PACK)
-  removed.version = '1.1.0'
+  removed.version = '1.2.0'
   removed.checks.pop()
   assert.throws(() => assertCompatiblePackUpdate(PACK, removed), /removed/)
   const major = structuredClone(PACK)
@@ -186,7 +206,7 @@ test('removing a check or changing the pack major fails compatibility', () => {
 
 test('semantic changes need a rule bump and pack versions cannot regress', () => {
   const silentChange = structuredClone(PACK)
-  silentChange.version = '1.0.1'
+  silentChange.version = '1.1.1'
   silentChange.checks[0].safePattern = 'Different guidance'
   assert.throws(
     () => assertCompatiblePackUpdate(PACK, silentChange),
@@ -211,7 +231,7 @@ test('semantic changes need a rule bump and pack versions cannot regress', () =>
     /without a pack version bump/
   )
   const backwardRule = structuredClone(PACK)
-  backwardRule.version = '1.0.1'
+  backwardRule.version = '1.1.1'
   backwardRule.checks[0].version = '0.9.0'
   assert.throws(
     () => assertCompatiblePackUpdate(PACK, backwardRule),
@@ -220,10 +240,10 @@ test('semantic changes need a rule bump and pack versions cannot regress', () =>
 })
 
 if (!semgrepAvailable()) {
-  console.log(
-    '  ⏭️  semgrep not installed — static precision benchmark skipped'
+  console.error(
+    '  ❌ semgrep is required — static precision benchmark did not run'
   )
-  skipped += 1
+  failed += 1
 } else {
   test('the changed-code scanner executes the selected pack rules', () => {
     const root = fixtureProject({ next: '^15.0.0', stripe: '^18.0.0' })
@@ -245,6 +265,11 @@ if (!semgrepAvailable()) {
       String(item.check_id).split('.').pop()
     )
     assert.ok(fired.includes('stripe-request-controlled-amount'))
+    assert.ok(
+      scan.findings.some(item =>
+        String(item.check_id).includes('qaa-web-saas.')
+      )
+    )
   })
 
   test('every framework-version fixture fires only on its insecure variant', () => {
@@ -265,19 +290,35 @@ if (!semgrepAvailable()) {
     const staticChecks = PACK.checks.filter(check => check.semgrepRuleId)
     const missed = []
     const noisy = []
+    let positiveCount = 0
+    let negativeCount = 0
     for (const check of staticChecks) {
       const fixtures = FIXTURES.checks[check.id]
-      if (!firedRules(fixtures.positive).has(check.semgrepRuleId)) {
-        missed.push(check.id)
+      const positives = [
+        fixtures.positive,
+        ...(fixtures.additionalPositives || []),
+      ]
+      const negatives = [
+        fixtures.negative,
+        ...(fixtures.additionalNegatives || []),
+      ]
+      positiveCount += positives.length
+      negativeCount += negatives.length
+      for (const [index, fixture] of positives.entries()) {
+        if (!firedRules(fixture).has(check.semgrepRuleId)) {
+          missed.push(`${check.id}#${index + 1}`)
+        }
       }
-      if (firedRules(fixtures.negative).has(check.semgrepRuleId)) {
-        noisy.push(check.id)
+      for (const [index, fixture] of negatives.entries()) {
+        if (firedRules(fixture).has(check.semgrepRuleId)) {
+          noisy.push(`${check.id}#${index + 1}`)
+        }
       }
     }
     assert.deepStrictEqual(missed, [], `missed fixtures: ${missed.join(', ')}`)
     assert.deepStrictEqual(noisy, [], `noisy fixtures: ${noisy.join(', ')}`)
     console.log(
-      `     fixture precision: ${staticChecks.length}/${staticChecks.length} positives, 0/${staticChecks.length} negatives`
+      `     fixture precision: ${positiveCount}/${positiveCount} positives, 0/${negativeCount} negatives`
     )
   })
 }

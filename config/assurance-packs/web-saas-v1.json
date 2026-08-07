@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "id": "web-saas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "Next.js SaaS assurance pack",
   "limitations": [
     "This pack measures only the documented static patterns and named runtime evidence requirements.",
@@ -322,17 +322,18 @@
     },
     {
       "id": "orm-destructive-migration",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "stacks": ["prisma", "drizzle"],
       "evidenceClass": "deterministic",
       "semgrepRuleId": "destructive-database-migration",
       "ruleFile": ".semgrep/vibe-moat-rules.yaml",
       "summary": "Destructive migration statements require explicit data-preservation review.",
-      "insecureExample": "DROP TABLE customer;",
+      "insecureExample": "ALTER TABLE customer DROP COLUMN email;",
       "safePattern": "Use an expand-migrate-contract sequence with backup and rollback evidence.",
       "verification": "Apply the migration to a production-like snapshot and verify preserved data and rollback.",
       "limitations": [
-        "A matched destructive operation may be intentional but remains release-sensitive."
+        "A matched destructive operation may be intentional but remains release-sensitive.",
+        "This rule covers DROP TABLE, DROP COLUMN, and TRUNCATE in recognized migration paths; it does not classify every possible data-rewriting statement."
       ],
       "assuranceMappings": [
         {
@@ -345,7 +346,7 @@
     },
     {
       "id": "stripe-webhook-signature",
-      "version": "1.0.0",
+      "version": "1.1.0",
       "stacks": ["stripe"],
       "evidenceClass": "heuristic",
       "semgrepRuleId": "stripe-webhook-json-without-signature",
@@ -355,7 +356,8 @@
       "safePattern": "stripe.webhooks.constructEvent(rawBody, signature, webhookSecret)",
       "verification": "Replay a payload with an invalid signature and confirm rejection before side effects.",
       "limitations": [
-        "Custom verification wrappers may require a waiver after review."
+        "Custom verification wrappers may require a waiver after review.",
+        "The heuristic is limited to recognized Next.js Stripe webhook route paths and direct request-body parsing."
       ],
       "assuranceMappings": [
         {
@@ -434,5 +436,18 @@
       ]
     }
   ],
-  "migrations": []
+  "migrations": [
+    {
+      "checkId": "orm-destructive-migration",
+      "from": "1.0.0",
+      "to": "1.1.0",
+      "reason": "Cover DROP COLUMN, bare TRUNCATE, and newline-separated destructive SQL."
+    },
+    {
+      "checkId": "stripe-webhook-signature",
+      "from": "1.0.0",
+      "to": "1.1.0",
+      "reason": "Restrict the heuristic to recognized Stripe webhook routes and request receivers, and make findings advisory."
+    }
+  ]
 }

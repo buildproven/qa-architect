@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.0.0",
+  "packVersion": "1.1.0",
   "frameworkVariants": {
     "nextjs": ["pages-router", "app-router-v13", "app-router-v14-plus"],
     "supabase": ["supabase-js-v1", "supabase-js-v2", "ssr"],
@@ -281,6 +281,20 @@
         "path": "prisma/migrations/20260807_drop/migration.sql",
         "source": "DROP TABLE customer;\n"
       },
+      "additionalPositives": [
+        {
+          "path": "prisma/migrations/20260807_column/migration.sql",
+          "source": "ALTER TABLE customer DROP COLUMN email;\n"
+        },
+        {
+          "path": "drizzle/20260807_truncate.sql",
+          "source": "TRUNCATE customer;\n"
+        },
+        {
+          "path": "migrations/20260807_wrapped.sql",
+          "source": "DROP\nTABLE customer;\n"
+        }
+      ],
       "negative": {
         "path": "prisma/migrations/20260807_add/migration.sql",
         "source": "ALTER TABLE customer ADD COLUMN nickname TEXT;\n"
@@ -294,7 +308,17 @@
       "negative": {
         "path": "app/api/stripe/webhook/route.ts",
         "source": "export async function POST(req) { const raw = await req.text(); return stripe.webhooks.constructEvent(raw, signature, secret) }\n"
-      }
+      },
+      "additionalNegatives": [
+        {
+          "path": "app/api/stripe/webhook/route.ts",
+          "source": "export async function POST(req) { const response = await fetch(url); return response.json() }\n"
+        },
+        {
+          "path": "lib/webhook-polar.ts",
+          "source": "export async function read(response) { return response.json() }\n"
+        }
+      ]
     },
     "stripe-idempotency-replay": {
       "positive": {

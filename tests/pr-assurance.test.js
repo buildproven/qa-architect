@@ -132,7 +132,7 @@ async function main() {
   try {
     const packFinding = mapFinding(
       {
-        check_id: 'semgrep.stripe-request-controlled-amount',
+        check_id: 'semgrep.qaa-web-saas.stripe-request-controlled-amount',
         path: 'src/app.js',
         start: { line: 2 },
         end: { line: 2 },
@@ -150,6 +150,27 @@ async function main() {
     assert.strictEqual(packFinding.engine.rulePackVersion, '2.0.0')
     assert.match(packFinding.remediation.guidance, /allowlisted server-side/)
     assert.strictEqual(packFinding.assuranceMappings[0].standard, 'OWASP ASVS')
+    const collidingFinding = mapFinding(
+      {
+        check_id: 'custom.stripe-request-controlled-amount',
+        path: 'src/app.js',
+        start: { line: 2 },
+        end: { line: 2 },
+        extra: {
+          severity: 'ERROR',
+          message: 'Unrelated custom rule',
+          lines: 'custom finding',
+          metadata: { fix: 'Custom remediation' },
+        },
+      },
+      directory,
+      '1.170.0'
+    )
+    assert.strictEqual(
+      collidingFinding.remediation.guidance,
+      'Custom remediation'
+    )
+    assert.deepStrictEqual(collidingFinding.assuranceMappings, [])
 
     const range = resolvePrRange(directory, {
       baseSha,

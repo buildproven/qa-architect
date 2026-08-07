@@ -287,12 +287,12 @@ rules:
         - '**/prisma/migrations/**/*.sql'
         - '**/drizzle/**/*.sql'
         - '**/migrations/**/*.sql'
-    pattern-regex: '(?i)\b(?:DROP[ \t]+TABLE|TRUNCATE[ \t]+TABLE)\b'
+    pattern-regex: '(?i)\b(?:DROP[ \t\r\n]+(?:TABLE|COLUMN)\b|TRUNCATE(?:[ \t\r\n]+TABLE)?[ \t\r\n]+[A-Za-z_])'
     metadata:
       category: security
       evidence: deterministic
       framework: database
-      rule-version: '1.0.0'
+      rule-version: '1.1.0'
       cwe: 'CWE-732'
       owasp: 'A04:2021'
       fix: 'Use an expand-migrate-contract sequence with backup and rollback evidence.'
@@ -301,22 +301,30 @@ rules:
     message: |
       A Stripe webhook route parses the body directly instead of constructing a
       verified event from the raw body and Stripe-Signature header.
-    severity: ERROR
+    severity: WARNING
     languages: [javascript, typescript]
     paths:
       include:
-        - '**/stripe/**/route.js'
-        - '**/stripe/**/route.ts'
-        - '**/webhook*.js'
-        - '**/webhook*.ts'
-    pattern-either:
-      - pattern: JSON.parse($REQ.body)
-      - pattern: await $REQ.json()
+        - '**/app/api/**/stripe/**/route.js'
+        - '**/app/api/**/stripe/**/route.ts'
+        - '**/app/api/**/stripe-webhook*/route.js'
+        - '**/app/api/**/stripe-webhook*/route.ts'
+        - '**/pages/api/**/stripe/**/*.js'
+        - '**/pages/api/**/stripe/**/*.ts'
+        - '**/pages/api/**/stripe*.js'
+        - '**/pages/api/**/stripe*.ts'
+    patterns:
+      - pattern-either:
+          - pattern: JSON.parse($REQ.body)
+          - pattern: await $REQ.json()
+      - metavariable-regex:
+          metavariable: $REQ
+          regex: '(?i)^(?:req|request)$'
     metadata:
       category: security
       evidence: heuristic
       framework: stripe
-      rule-version: '1.0.0'
+      rule-version: '1.1.0'
       cwe: 'CWE-345'
       owasp: 'A08:2021'
       fix: 'Use stripe.webhooks.constructEvent(rawBody, signature, webhookSecret) before parsing or side effects.'
