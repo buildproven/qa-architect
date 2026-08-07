@@ -378,7 +378,7 @@ jobs:
           EXPECTED_BASE: ${{ github.event.pull_request.base.sha }}
           EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
         run: |
-          echo 'available=false' >> "$GITHUB_OUTPUT"
+          set -euo pipefail
           for file in assurance.json assurance.sarif summary.md annotations.json manifest.json; do
             test -s "$EVIDENCE_DIR/$file"
           done
@@ -397,8 +397,8 @@ jobs:
             assurance.revision.value !== process.env.EXPECTED_HEAD ||
             manifest.verdict !== assurance.verdict ||
             !sarifRun ||
-            sarifRun.automationDetails.id !== `git-commit/${process.env.EXPECTED_HEAD}` ||
-            sarifRun.properties.assuranceVerdict !== assurance.verdict
+            sarifRun.automationDetails?.id !== `git-commit/${process.env.EXPECTED_HEAD}` ||
+            sarifRun.properties?.assuranceVerdict !== assurance.verdict
           ) {
             throw new Error('Assurance evidence is incomplete or revision-inconsistent')
           }

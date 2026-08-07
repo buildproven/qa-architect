@@ -543,6 +543,14 @@ bbb
     pro.includes('fetch-depth: 0'),
     'Pro assurance must resolve an advanced exact base without persisted credentials'
   )
+  assert(
+    pro.includes('set -euo pipefail'),
+    'Pro assurance evidence validation must fail closed explicitly'
+  )
+  assert(
+    !pro.includes("echo 'available=false'"),
+    'Pro assurance must publish evidence availability only after validation'
+  )
   assert(pro.includes('--head'), 'Pro assurance must bind the exact head')
   assert(
     pro.includes('create-qa-architect@latest'),

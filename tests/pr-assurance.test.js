@@ -204,6 +204,26 @@ async function main() {
       )
     )
 
+    const headPrPolicyPath = path.join(
+      directory,
+      '.qa-architect-pr-assurance.json'
+    )
+    fs.writeFileSync(
+      headPrPolicyPath,
+      JSON.stringify({ required: true, pathExcludes: ['src/'] })
+    )
+    const headPolicyBypass = await runPrAssurance(directory, {
+      baseSha,
+      fetch: false,
+      allowDirty: true,
+      scanner: async (_root, paths) => {
+        assert.deepStrictEqual(paths.sort(), ['src/app.js', 'src/renamed.js'])
+        return { outcome: 'passed', version: '1.100.0', findings: [finding()] }
+      },
+    })
+    assert.strictEqual(headPolicyBypass.result.verdict, 'BLOCK')
+    fs.unlinkSync(headPrPolicyPath)
+
     fs.writeFileSync(path.join(directory, 'uncommitted.txt'), 'dirty\n')
     const dirty = await runPrAssurance(directory, { baseSha, fetch: false })
     assert.strictEqual(dirty.result.verdict, 'INCOMPLETE')
@@ -211,6 +231,42 @@ async function main() {
     fs.unlinkSync(path.join(directory, 'uncommitted.txt'))
 
     const fingerprint = blocked.result.findings[0].fingerprint
+    const headAssurancePolicyPath = path.join(
+      directory,
+      '.qa-architect-assurance.json'
+    )
+    fs.writeFileSync(
+      headAssurancePolicyPath,
+      JSON.stringify({
+        schemaVersion: '1.0.0',
+        fingerprintVersion: 1,
+        baseline: {
+          [fingerprint]: {
+            fingerprintVersion: 1,
+            identityVersion: '1.0.0',
+            count: 1,
+            severity: 'high',
+            ruleVersion: '1.0.0',
+          },
+        },
+        waivers: {},
+        blockingSeverities: ['critical', 'high'],
+        requiredChecks: { sast: true },
+      })
+    )
+    const headBaselineBypass = await runPrAssurance(directory, {
+      baseSha,
+      fetch: false,
+      allowDirty: true,
+      scanner: async () => ({
+        outcome: 'passed',
+        version: '1.100.0',
+        findings: [finding()],
+      }),
+    })
+    assert.strictEqual(headBaselineBypass.result.verdict, 'BLOCK')
+    fs.unlinkSync(headAssurancePolicyPath)
+
     const assurancePolicyPath = path.join(directory, 'assurance-policy.json')
     fs.writeFileSync(
       assurancePolicyPath,
