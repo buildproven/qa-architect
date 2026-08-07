@@ -1,5 +1,5 @@
 {
-  "packVersion": "1.1.0",
+  "packVersion": "1.2.0",
   "frameworkVariants": {
     "nextjs": ["pages-router", "app-router-v13", "app-router-v14-plus"],
     "supabase": ["supabase-js-v1", "supabase-js-v2", "ssr"],
@@ -317,6 +317,10 @@
         {
           "path": "lib/webhook-polar.ts",
           "source": "export async function read(response) { return response.json() }\n"
+        },
+        {
+          "path": "app/api/payments/stripe/checkout/route.ts",
+          "source": "export async function POST(request) { const input = await request.json(); return createCheckout(input) }\n"
         }
       ]
     },

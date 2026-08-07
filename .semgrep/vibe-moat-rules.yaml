@@ -305,14 +305,18 @@ rules:
     languages: [javascript, typescript]
     paths:
       include:
-        - '**/app/api/**/stripe/**/route.js'
-        - '**/app/api/**/stripe/**/route.ts'
+        - '**/app/api/**/stripe/**/webhook*/route.js'
+        - '**/app/api/**/stripe/**/webhook*/route.ts'
+        - '**/app/api/**/webhook*/stripe/**/route.js'
+        - '**/app/api/**/webhook*/stripe/**/route.ts'
         - '**/app/api/**/stripe-webhook*/route.js'
         - '**/app/api/**/stripe-webhook*/route.ts'
-        - '**/pages/api/**/stripe/**/*.js'
-        - '**/pages/api/**/stripe/**/*.ts'
-        - '**/pages/api/**/stripe*.js'
-        - '**/pages/api/**/stripe*.ts'
+        - '**/pages/api/**/stripe/**/webhook*.js'
+        - '**/pages/api/**/stripe/**/webhook*.ts'
+        - '**/pages/api/**/webhook*/**/stripe*.js'
+        - '**/pages/api/**/webhook*/**/stripe*.ts'
+        - '**/pages/api/**/stripe-webhook*.js'
+        - '**/pages/api/**/stripe-webhook*.ts'
     patterns:
       - pattern-either:
           - pattern: JSON.parse($REQ.body)
@@ -324,7 +328,7 @@ rules:
       category: security
       evidence: heuristic
       framework: stripe
-      rule-version: '1.1.0'
+      rule-version: '1.2.0'
       cwe: 'CWE-345'
       owasp: 'A08:2021'
       fix: 'Use stripe.webhooks.constructEvent(rawBody, signature, webhookSecret) before parsing or side effects.'

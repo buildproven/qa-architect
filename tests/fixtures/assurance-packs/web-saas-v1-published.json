@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "id": "web-saas",
-  "version": "1.2.0",
+  "version": "1.1.0",
   "name": "Next.js SaaS assurance pack",
   "limitations": [
     "This pack measures only the documented static patterns and named runtime evidence requirements.",
@@ -346,7 +346,7 @@
     },
     {
       "id": "stripe-webhook-signature",
-      "version": "1.2.0",
+      "version": "1.1.0",
       "stacks": ["stripe"],
       "evidenceClass": "heuristic",
       "semgrepRuleId": "stripe-webhook-json-without-signature",
@@ -448,12 +448,6 @@
       "from": "1.0.0",
       "to": "1.1.0",
       "reason": "Restrict the heuristic to recognized Stripe webhook routes and request receivers, and make findings advisory."
-    },
-    {
-      "checkId": "stripe-webhook-signature",
-      "from": "1.1.0",
-      "to": "1.2.0",
-      "reason": "Require webhook-named route segments so ordinary Stripe checkout routes are not classified as webhook handlers."
     }
   ]
 }

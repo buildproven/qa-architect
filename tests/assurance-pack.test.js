@@ -21,6 +21,7 @@ const {
 } = require('../lib/commands/pr-assurance')
 
 const FIXTURES = require('./fixtures/assurance-packs/web-saas-v1.json')
+const PUBLISHED_PACK = require('./fixtures/assurance-packs/web-saas-v1-published.json')
 const RULES = path.resolve(__dirname, '../.semgrep/vibe-moat-rules.yaml')
 let passed = 0
 let failed = 0
@@ -57,12 +58,14 @@ function semgrepAvailable() {
   return !result.error && result.status === 0
 }
 
-function firedRules(fixture) {
+function firedRulesForFixtures(fixtures) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-pack-rule-'))
   try {
-    const filename = path.join(root, fixture.path)
-    fs.mkdirSync(path.dirname(filename), { recursive: true })
-    fs.writeFileSync(filename, fixture.source)
+    for (const [index, fixture] of fixtures.entries()) {
+      const filename = path.join(root, `case-${index}`, fixture.path)
+      fs.mkdirSync(path.dirname(filename), { recursive: true })
+      fs.writeFileSync(filename, fixture.source)
+    }
     const result = spawnSync(
       'semgrep',
       ['--json', '--quiet', '--no-git-ignore', '--config', RULES, root],
@@ -70,9 +73,14 @@ function firedRules(fixture) {
     )
     const parsed = JSON.parse(result.stdout || '{"results":[]}')
     assert.ok([0, 1].includes(result.status), result.stderr)
-    return new Set(
-      (parsed.results || []).map(item => String(item.check_id).split('.').pop())
-    )
+    const fired = fixtures.map(() => new Set())
+    for (const item of parsed.results || []) {
+      const normalized = String(item.path).replaceAll('\\', '/')
+      const match = normalized.match(/(?:^|\/)case-(\d+)\//)
+      assert.ok(match, `Semgrep returned an unknown fixture path: ${item.path}`)
+      fired[Number(match[1])].add(String(item.check_id).split('.').pop())
+    }
+    return fired
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
@@ -182,7 +190,7 @@ test('repository markers detect ORM stacks without package metadata', () => {
 test('rule-version changes require an explicit compatible migration', () => {
   const previous = structuredClone(PACK)
   const next = structuredClone(PACK)
-  next.version = '1.2.0'
+  next.version = '1.3.0'
   next.checks[0].version = '1.1.0'
   assert.throws(() => assertCompatiblePackUpdate(previous, next), /migration/)
   next.migrations.push({
@@ -196,7 +204,7 @@ test('rule-version changes require an explicit compatible migration', () => {
 
 test('removing a check or changing the pack major fails compatibility', () => {
   const removed = structuredClone(PACK)
-  removed.version = '1.2.0'
+  removed.version = '1.3.0'
   removed.checks.pop()
   assert.throws(() => assertCompatiblePackUpdate(PACK, removed), /removed/)
   const major = structuredClone(PACK)
@@ -206,7 +214,7 @@ test('removing a check or changing the pack major fails compatibility', () => {
 
 test('semantic changes need a rule bump and pack versions cannot regress', () => {
   const silentChange = structuredClone(PACK)
-  silentChange.version = '1.1.1'
+  silentChange.version = '1.2.1'
   silentChange.checks[0].safePattern = 'Different guidance'
   assert.throws(
     () => assertCompatiblePackUpdate(PACK, silentChange),
@@ -231,12 +239,16 @@ test('semantic changes need a rule bump and pack versions cannot regress', () =>
     /without a pack version bump/
   )
   const backwardRule = structuredClone(PACK)
-  backwardRule.version = '1.1.1'
+  backwardRule.version = '1.2.1'
   backwardRule.checks[0].version = '0.9.0'
   assert.throws(
     () => assertCompatiblePackUpdate(PACK, backwardRule),
     /rule version moved backward/
   )
+})
+
+test('current pack remains compatible with the published snapshot', () => {
+  assert.strictEqual(assertCompatiblePackUpdate(PUBLISHED_PACK, PACK), true)
 })
 
 if (!semgrepAvailable()) {
@@ -274,12 +286,17 @@ if (!semgrepAvailable()) {
 
   test('every framework-version fixture fires only on its insecure variant', () => {
     const failures = []
-    for (const fixture of FIXTURES.variantFixtures) {
+    const cases = FIXTURES.variantFixtures.flatMap(fixture => [
+      fixture.positive,
+      fixture.negative,
+    ])
+    const fired = firedRulesForFixtures(cases)
+    for (const [index, fixture] of FIXTURES.variantFixtures.entries()) {
       const check = PACK.checks.find(item => item.id === fixture.checkId)
-      if (!firedRules(fixture.positive).has(check.semgrepRuleId)) {
+      if (!fired[index * 2].has(check.semgrepRuleId)) {
         failures.push(`${fixture.stack}/${fixture.variant}: missed`)
       }
-      if (firedRules(fixture.negative).has(check.semgrepRuleId)) {
+      if (fired[index * 2 + 1].has(check.semgrepRuleId)) {
         failures.push(`${fixture.stack}/${fixture.variant}: noisy`)
       }
     }
@@ -290,6 +307,8 @@ if (!semgrepAvailable()) {
     const staticChecks = PACK.checks.filter(check => check.semgrepRuleId)
     const missed = []
     const noisy = []
+    const cases = []
+    const expectations = []
     let positiveCount = 0
     let negativeCount = 0
     for (const check of staticChecks) {
@@ -305,15 +324,29 @@ if (!semgrepAvailable()) {
       positiveCount += positives.length
       negativeCount += negatives.length
       for (const [index, fixture] of positives.entries()) {
-        if (!firedRules(fixture).has(check.semgrepRuleId)) {
-          missed.push(`${check.id}#${index + 1}`)
-        }
+        cases.push(fixture)
+        expectations.push({
+          check,
+          kind: 'positive',
+          label: `${check.id}#${index + 1}`,
+        })
       }
       for (const [index, fixture] of negatives.entries()) {
-        if (firedRules(fixture).has(check.semgrepRuleId)) {
-          noisy.push(`${check.id}#${index + 1}`)
-        }
+        cases.push(fixture)
+        expectations.push({
+          check,
+          kind: 'negative',
+          label: `${check.id}#${index + 1}`,
+        })
       }
+    }
+    const fired = firedRulesForFixtures(cases)
+    for (const [index, expectation] of expectations.entries()) {
+      const matched = fired[index].has(expectation.check.semgrepRuleId)
+      if (expectation.kind === 'positive' && !matched)
+        missed.push(expectation.label)
+      if (expectation.kind === 'negative' && matched)
+        noisy.push(expectation.label)
     }
     assert.deepStrictEqual(missed, [], `missed fixtures: ${missed.join(', ')}`)
     assert.deepStrictEqual(noisy, [], `noisy fixtures: ${noisy.join(', ')}`)

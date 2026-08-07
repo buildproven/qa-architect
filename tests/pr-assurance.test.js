@@ -11,6 +11,7 @@ const AjvImport = require('ajv')
 const addFormatsImport = require('ajv-formats')
 const {
   exitCode,
+  eligibleSelection,
   mapFinding,
   parseChangedLines,
   parseNameStatus,
@@ -119,6 +120,24 @@ async function main() {
     parseSemgrepResult(semgrepJson(['src/app.js']), '1.100.0', ['src/app.js'])
       .outcome,
     'passed'
+  )
+  const sqlSurface = {
+    files: [{ status: 'A', oldPath: null, path: 'migrations/001.sql' }],
+  }
+  assert.deepStrictEqual(eligibleSelection(sqlSurface, {}, { checks: [] }), {
+    eligible: [],
+    excluded: 0,
+    candidates: [],
+  })
+  assert.deepStrictEqual(
+    eligibleSelection(
+      sqlSurface,
+      {},
+      {
+        checks: [{ semgrepRuleId: 'destructive-database-migration' }],
+      }
+    ).eligible,
+    ['migrations/001.sql']
   )
   const partialScan = parseSemgrepResult(
     semgrepJson(['src/app.js']),
