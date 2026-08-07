@@ -360,7 +360,10 @@ jobs:
         env:
           NODE_ENV: test
           QAA_DEVELOPER: 'true'
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
         run: |
+          export PATH="$PIPX_BIN_DIR:$PATH"
+          semgrep --version
           node setup.js --pr-check \
             --base-sha '${{ github.event.pull_request.base.sha }}' \
             --head '${{ github.event.pull_request.head.sha }}' \
@@ -372,7 +375,10 @@ jobs:
         continue-on-error: true
         env:
           QAA_LICENSE_DIR: ${{ runner.temp }}/qa-architect-license
+          PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin
         run: |
+          export PATH="$PIPX_BIN_DIR:$PATH"
+          semgrep --version
           npx create-qa-architect@latest --pr-check \
             --base-sha '${{ github.event.pull_request.base.sha }}' \
             --head '${{ github.event.pull_request.head.sha }}' \

@@ -545,7 +545,9 @@ bbb
   )
   assert(
     pro.includes('PIPX_BIN_DIR: ${{ runner.temp }}/pipx-bin') &&
-      pro.includes('echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"'),
+      pro.includes('echo "$PIPX_BIN_DIR" >> "$GITHUB_PATH"') &&
+      pro.includes('export PATH="$PIPX_BIN_DIR:$PATH"') &&
+      pro.includes('semgrep --version'),
     'Pro assurance must expose its pinned Semgrep executable to later steps'
   )
   assert(
