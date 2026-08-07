@@ -1,0 +1,187 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/ship-assurance-manifest-v1.schema.json",
+  "title": "QA Architect ship assurance manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "verdict",
+    "evidenceIdentity",
+    "revision",
+    "branch",
+    "commit",
+    "workflowTier",
+    "risk",
+    "stack",
+    "policy",
+    "inputs",
+    "rulePackVersion",
+    "requiredChecks",
+    "waivers",
+    "results",
+    "references",
+    "tools",
+    "generatedAt"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "verdict": { "enum": ["PASS", "BLOCK", "INCOMPLETE"] },
+    "evidenceIdentity": { "$ref": "#/$defs/sha256" },
+    "revision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["base", "baseRef", "head", "diffSha256"],
+      "properties": {
+        "base": { "anyOf": [{ "$ref": "#/$defs/gitSha" }, { "type": "null" }] },
+        "baseRef": { "type": ["string", "null"] },
+        "head": { "anyOf": [{ "$ref": "#/$defs/gitSha" }, { "type": "null" }] },
+        "diffSha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        }
+      }
+    },
+    "branch": { "type": ["string", "null"] },
+    "commit": { "anyOf": [{ "$ref": "#/$defs/gitSha" }, { "type": "null" }] },
+    "workflowTier": { "enum": ["minimal", "standard", "comprehensive"] },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tier", "changedFiles"],
+      "properties": {
+        "tier": { "enum": ["low", "medium", "high", "critical", "unknown"] },
+        "changedFiles": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "uniqueItems": true
+        }
+      }
+    },
+    "stack": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "node",
+          "nextjs",
+          "typescript",
+          "prisma",
+          "drizzle",
+          "stripe",
+          "supabase",
+          "python"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "sha256"],
+      "properties": {
+        "source": { "type": "string", "minLength": 1 },
+        "sha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/$defs/sha256" }
+    },
+    "rulePackVersion": { "type": "string", "minLength": 1 },
+    "requiredChecks": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "waivers": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["policySha256", "fingerprints", "error"],
+      "properties": {
+        "policySha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "fingerprints": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/sha256" },
+          "uniqueItems": true
+        },
+        "error": { "type": ["string", "null"] }
+      }
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/result" }
+    },
+    "references": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reference" }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "npm", "git", "gitleaks", "semgrep"],
+      "properties": {
+        "node": { "type": "string", "minLength": 1 },
+        "npm": { "type": ["string", "null"] },
+        "git": { "type": ["string", "null"] },
+        "gitleaks": { "type": ["string", "null"] },
+        "semgrep": { "type": ["string", "null"] }
+      }
+    },
+    "generatedAt": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["executable", "args", "timeoutMs"],
+      "properties": {
+        "executable": { "type": "string", "minLength": 1 },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "timeoutMs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "required", "status", "summary"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean" },
+        "status": { "enum": ["pass", "warn", "fail", "skip", "incomplete"] },
+        "summary": { "type": "string" },
+        "details": { "type": "string" },
+        "command": { "$ref": "#/$defs/command" },
+        "exitCode": { "type": ["integer", "null"] },
+        "durationMs": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "path", "sha256", "revision", "verdict", "fresh"],
+      "properties": {
+        "type": { "enum": ["pr-assurance", "remediation", "unknown"] },
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+"
+        },
+        "sha256": {
+          "anyOf": [{ "$ref": "#/$defs/sha256" }, { "type": "null" }]
+        },
+        "revision": {
+          "anyOf": [{ "$ref": "#/$defs/gitSha" }, { "type": "null" }]
+        },
+        "verdict": { "type": ["string", "null"] },
+        "fresh": { "type": "boolean" }
+      }
+    }
+  }
+}

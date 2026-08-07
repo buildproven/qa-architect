@@ -128,6 +128,18 @@ test('verified-remediation runtime and schemas are in the published tarball', ()
   }
 })
 
+test('ship assurance runtime, schema, and risk boundary are in the tarball', () => {
+  const requiredFiles = [
+    'lib/commands/ship-check.js',
+    'config/ship-assurance-manifest-v1.schema.json',
+    'harness-config.json',
+    'scripts/risk-policy-gate.js',
+  ]
+  for (const file of requiredFiles) {
+    assert.ok(packedFiles.includes(file), `${file} missing from tarball`)
+  }
+})
+
 test('customer-facing legal and security documents are in the published tarball', () => {
   const requiredFiles = ['README.md', 'LICENSE', 'COMMERCIAL.md', 'SECURITY.md']
   for (const file of requiredFiles) {
@@ -142,7 +154,7 @@ test('internal planning, deployment, and archived files are excluded from the ta
   const forbiddenFiles = packedFiles.filter(
     file =>
       file.startsWith('docs/') ||
-      file.startsWith('scripts/') ||
+      (file.startsWith('scripts/') && file !== 'scripts/risk-policy-gate.js') ||
       file.startsWith('lib/_archive/') ||
       (file.startsWith('.github/') && file !== '.github/workflows/quality.yml')
   )

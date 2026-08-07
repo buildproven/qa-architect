@@ -1,239 +1,443 @@
 #!/usr/bin/env node
 
-/**
- * Tests for --ship-check (release readiness report).
- * Exercises the pure helpers (no process.exit), so the suite is fast
- * and does not depend on running npm scripts in a temp project.
- */
+'use strict'
 
 const assert = require('assert')
 const fs = require('fs')
-const path = require('path')
 const os = require('os')
-
+const path = require('path')
+const { execFileSync, spawnSync } = require('child_process')
+const Ajv = require('ajv/dist/2020').default
+const addFormats = require('ajv-formats').default
 const {
-  runShipCheck,
-  buildMarkdown,
-  buildHumanReport,
-  computeVerdict,
-  parseEnvKeys,
   STATUS,
   VERDICT,
+  buildHumanReport,
+  buildMarkdown,
+  computeVerdict,
+  parseEnvKeys,
+  runShipCheck,
+  verifyShipManifest,
 } = require('../lib/commands/ship-check')
 
-console.log('🧪 Testing ship-check module...\n')
+let passed = 0
+let failed = 0
 
-function tmp(label) {
-  const dir = path.join(os.tmpdir(), `qaa-shipcheck-${label}-${Date.now()}`)
-  fs.mkdirSync(dir, { recursive: true })
-  return dir
+function test(name, fn) {
+  try {
+    fn()
+    console.log(`  ✅ ${name}`)
+    passed += 1
+  } catch (error) {
+    console.error(`  ❌ ${name}`)
+    console.error(`     ${error.stack || error.message}`)
+    failed += 1
+  }
 }
 
-function cleanup(dir) {
-  fs.rmSync(dir, { recursive: true, force: true })
+function git(root, args) {
+  return execFileSync('git', args, {
+    cwd: root,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  }).trim()
 }
 
-// Test 1: parseEnvKeys handles comments and empty lines
-;(() => {
-  console.log('Test 1: parseEnvKeys() — handles comments, blanks, KEY=value')
-  const sample = [
-    '# comment',
-    '',
-    'FOO=bar',
-    'BAZ=quux=with=equals',
-    '   QUUX = value-with-spaces',
-    '=missing-key',
-  ].join('\n')
-  const keys = parseEnvKeys(sample)
-  assert.deepStrictEqual(keys, ['FOO', 'BAZ', 'QUUX'])
-  console.log('✅ PASS\n')
-})()
+function policy(
+  requiredChecks = ['lint-and-format', 'test-unit', 'security-scan']
+) {
+  return {
+    riskTierRules: {
+      critical: ['package.json'],
+      high: ['lib/**'],
+      medium: ['tests/**'],
+      low: ['docs/**', 'README.md', '*.md'],
+    },
+    mergePolicy: {
+      critical: { requiredChecks },
+      high: { requiredChecks },
+      medium: { requiredChecks },
+      low: { requiredChecks: ['lint-and-format', 'security-scan'] },
+    },
+  }
+}
 
-// Test 2: computeVerdict short-circuits on FAIL
-;(() => {
-  console.log(
-    'Test 2: computeVerdict() — FAIL → BLOCK, WARN → REVIEW, all pass → SHIP'
+/**
+ * @param {{requiredChecks?: string[], changedPath?: string, dependencies?: Record<string,string>, build?: boolean}} [options]
+ */
+function fixture({
+  requiredChecks,
+  changedPath = 'lib/app.js',
+  dependencies = {},
+  build = false,
+} = {}) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-ship-check-'))
+  git(root, ['init', '-b', 'main'])
+  git(root, ['config', 'user.email', 'qaa@example.test'])
+  git(root, ['config', 'user.name', 'QA Architect Test'])
+  fs.writeFileSync(path.join(root, '.gitignore'), '.qa-architect/\ncoverage/\n')
+  fs.writeFileSync(
+    path.join(root, 'package.json'),
+    `${JSON.stringify(
+      {
+        scripts: {
+          'format:check': 'node -e "process.exit(0)"',
+          lint: 'node -e "process.exit(0)"',
+          test: 'node -e "process.exit(0)"',
+          'security:secrets': 'node -e "process.exit(0)"',
+          ...(build ? { build: 'node -e "process.exit(0)"' } : {}),
+        },
+        dependencies,
+      },
+      null,
+      2
+    )}\n`
   )
+  fs.writeFileSync(
+    path.join(root, 'README.md'),
+    `# Fixture\n\n${'Exact revision assurance. '.repeat(12)}\n`
+  )
+  fs.writeFileSync(
+    path.join(root, 'harness-config.json'),
+    `${JSON.stringify(policy(requiredChecks), null, 2)}\n`
+  )
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'test: base'])
+  const base = git(root, ['rev-parse', 'HEAD'])
+  git(root, ['switch', '-c', 'feature/ship-check'])
+  const target = path.join(root, changedPath)
+  fs.mkdirSync(path.dirname(target), { recursive: true })
+  fs.writeFileSync(target, 'module.exports = true\n')
+  git(root, ['add', '.'])
+  git(root, ['commit', '-m', 'feat: change fixture'])
+  return { root, base, head: git(root, ['rev-parse', 'HEAD']) }
+}
+
+function successfulRunner(calls, overrides = {}) {
+  return (executable, args) => {
+    calls.push({ executable, args: [...args] })
+    const key = args.join(' ')
+    if (overrides[key]) return overrides[key]
+    return {
+      status: 0,
+      signal: null,
+      error: null,
+      stdout: '',
+      stderr: '',
+    }
+  }
+}
+
+function runFixture(target, options = {}) {
+  const calls = []
+  const report = runShipCheck(target.root, {
+    baseSha: target.base,
+    commandRunner: successfulRunner(calls, options.overrides),
+    workflowTier: options.workflowTier || 'minimal',
+    referencePaths: options.referencePaths || [],
+    skipTests: options.skipTests || false,
+    riskPolicyPath: options.riskPolicyPath,
+  })
+  return { report, calls }
+}
+
+function manifestValidator() {
+  const ajv = new Ajv({ allErrors: true, strict: true })
+  addFormats(ajv)
+  return ajv.compile(
+    JSON.parse(
+      fs.readFileSync(
+        path.join(
+          __dirname,
+          '..',
+          'config',
+          'ship-assurance-manifest-v1.schema.json'
+        ),
+        'utf8'
+      )
+    )
+  )
+}
+
+console.log('\nRevision-bound Ship Check')
+
+test('parses environment keys without values or comments', () => {
+  assert.deepStrictEqual(
+    parseEnvKeys('# comment\nFOO=bar\nBAZ=quux=with=equals\n QUUX = value\n'),
+    ['FOO', 'BAZ', 'QUUX']
+  )
+})
+
+test('required failures block and missing evidence is incomplete', () => {
   assert.strictEqual(
-    computeVerdict([{ status: STATUS.PASS }, { status: STATUS.FAIL }]),
+    computeVerdict([{ required: true, status: STATUS.FAIL }]),
     VERDICT.BLOCK
   )
   assert.strictEqual(
-    computeVerdict([{ status: STATUS.PASS }, { status: STATUS.WARN }]),
-    VERDICT.REVIEW
+    computeVerdict([{ required: true, status: STATUS.SKIP }]),
+    VERDICT.INCOMPLETE
   )
   assert.strictEqual(
-    computeVerdict([{ status: STATUS.PASS }, { status: STATUS.SKIP }]),
-    VERDICT.SHIP
+    computeVerdict([{ required: false, status: STATUS.WARN }]),
+    VERDICT.PASS
   )
-  console.log('✅ PASS\n')
-})()
+})
 
-// Test 3: runShipCheck() on empty project skips everything → SHIP
-;(() => {
-  console.log(
-    'Test 3: runShipCheck() — empty project produces SHIP (all skipped/pass)'
+test('secrets and dependency audit both execute and bind to one revision', () => {
+  const target = fixture()
+  const { report, calls } = runFixture(target)
+  assert.strictEqual(report.verdict, VERDICT.PASS)
+  assert.strictEqual(report.revision.base, target.base)
+  assert.strictEqual(report.revision.head, target.head)
+  assert.match(report.revision.diffSha256, /^[a-f0-9]{64}$/)
+  assert.ok(calls.some(call => call.args.includes('security:secrets')))
+  assert.ok(calls.some(call => call.args[0] === 'audit'))
+  const validate = manifestValidator()
+  assert.strictEqual(validate(report), true, JSON.stringify(validate.errors))
+})
+
+test('a skipped required test produces INCOMPLETE', () => {
+  const target = fixture()
+  const { report } = runFixture(target, { skipTests: true })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(
+    report.results.find(result => result.id === 'tests').status,
+    STATUS.SKIP
   )
-  const dir = tmp('empty')
-  try {
-    const report = runShipCheck(dir, { skipTests: true })
-    // No package.json, no workflows, no coverage → most checks SKIP.
-    assert.ok(Array.isArray(report.results))
-    assert.ok(report.results.length > 0)
-    // README missing is a WARN, so verdict will be REVIEW.
-    assert.ok(
-      [VERDICT.SHIP, VERDICT.REVIEW].includes(report.verdict),
-      `Got ${report.verdict}`
+})
+
+test('a timed-out required test produces INCOMPLETE', () => {
+  const target = fixture()
+  const timeout = Object.assign(new Error('timed out'), { code: 'ETIMEDOUT' })
+  const { report } = runFixture(target, {
+    overrides: {
+      'run --silent test': {
+        status: null,
+        signal: 'SIGTERM',
+        error: timeout,
+        stdout: '',
+        stderr: '',
+      },
+    },
+  })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(
+    report.results.find(result => result.id === 'tests').status,
+    STATUS.INCOMPLETE
+  )
+})
+
+test('a malformed risk policy produces INCOMPLETE', () => {
+  const target = fixture()
+  const malformed = path.join(target.root, 'malformed-risk-policy.json')
+  fs.writeFileSync(malformed, '{"riskTierRules": {}}\n')
+  const { report } = runFixture(target, { riskPolicyPath: malformed })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.strictEqual(report.risk.tier, 'unknown')
+  assert.ok(report.results.some(result => result.id === 'risk-policy'))
+})
+
+test('a non-Git project cannot produce complete revision evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-ship-non-git-'))
+  fs.writeFileSync(
+    path.join(root, 'README.md'),
+    `# Fixture\n\n${'No immutable Git revision. '.repeat(12)}\n`
+  )
+  const report = runShipCheck(root, {
+    commandRunner: successfulRunner([]),
+    workflowTier: 'minimal',
+  })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.ok(
+    report.results.some(
+      result =>
+        result.id === 'revision-binding' &&
+        result.summary === 'not-a-git-checkout'
     )
-  } finally {
-    cleanup(dir)
-  }
-  console.log('✅ PASS\n')
-})()
+  )
+})
 
-// Test 4: coverage threshold detection
-;(() => {
-  console.log('Test 4: runShipCheck() — coverage below threshold → BLOCK')
-  const dir = tmp('coverage')
-  fs.mkdirSync(path.join(dir, 'coverage'), { recursive: true })
-  fs.writeFileSync(
-    path.join(dir, 'coverage', 'coverage-summary.json'),
-    JSON.stringify({
-      total: {
-        lines: { pct: 40 },
-        functions: { pct: 50 },
-        branches: { pct: 30 },
+test('a dependency vulnerability blocks independently of secret scanning', () => {
+  const target = fixture()
+  const { report, calls } = runFixture(target, {
+    overrides: {
+      'audit --audit-level=high --omit=dev': {
+        status: 1,
+        signal: null,
+        error: null,
+        stdout: 'high severity vulnerability',
+        stderr: '',
       },
-    })
-  )
-  // Add a README so we don't trip the docs warning.
-  fs.writeFileSync(
-    path.join(dir, 'README.md'),
-    '# Project\n\nThis is a real readme with more than two hundred characters so that the docs check passes. '.repeat(
-      3
-    )
-  )
-  try {
-    const report = runShipCheck(dir, { skipTests: true })
-    const coverage = report.results.find(r => r.name === 'Coverage')
-    assert.strictEqual(coverage.status, STATUS.FAIL)
-    assert.strictEqual(report.verdict, VERDICT.BLOCK)
-  } finally {
-    cleanup(dir)
-  }
-  console.log('✅ PASS\n')
-})()
+    },
+  })
+  assert.strictEqual(report.verdict, VERDICT.BLOCK)
+  assert.ok(calls.some(call => call.args.includes('security:secrets')))
+})
 
-// Test 5: coverage above threshold passes
-;(() => {
-  console.log('Test 5: runShipCheck() — coverage above threshold → PASS')
-  const dir = tmp('coverage-pass')
-  fs.mkdirSync(path.join(dir, 'coverage'), { recursive: true })
-  fs.writeFileSync(
-    path.join(dir, 'coverage', 'coverage-summary.json'),
-    JSON.stringify({
-      total: {
-        lines: { pct: 90 },
-        functions: { pct: 85 },
-        branches: { pct: 80 },
-      },
-    })
-  )
-  try {
-    const report = runShipCheck(dir, { skipTests: true })
-    const coverage = report.results.find(r => r.name === 'Coverage')
-    assert.strictEqual(coverage.status, STATUS.PASS)
-  } finally {
-    cleanup(dir)
+test('a check that mutates the candidate makes execution INCOMPLETE', () => {
+  const target = fixture()
+  const calls = []
+  const runner = (executable, args) => {
+    calls.push({ executable, args })
+    if (args.join(' ') === 'run --silent test') {
+      fs.appendFileSync(path.join(target.root, 'lib', 'app.js'), '// mutated\n')
+    }
+    return { status: 0, signal: null, error: null, stdout: '', stderr: '' }
   }
-  console.log('✅ PASS\n')
-})()
+  const report = runShipCheck(target.root, {
+    baseSha: target.base,
+    commandRunner: runner,
+    workflowTier: 'minimal',
+  })
+  assert.strictEqual(report.verdict, VERDICT.INCOMPLETE)
+  assert.ok(report.results.some(result => result.id === 'execution-freshness'))
+})
 
-// Test 6: .qualityrc.json overrides thresholds
-;(() => {
-  console.log(
-    'Test 6: runShipCheck() — .qualityrc.json overrides coverage thresholds'
-  )
-  const dir = tmp('coverage-custom')
-  fs.mkdirSync(path.join(dir, 'coverage'), { recursive: true })
-  fs.writeFileSync(
-    path.join(dir, 'coverage', 'coverage-summary.json'),
-    JSON.stringify({
-      total: {
-        lines: { pct: 50 },
-        functions: { pct: 50 },
-        branches: { pct: 50 },
-      },
-    })
-  )
-  // Lower the threshold so 50% passes.
-  fs.writeFileSync(
-    path.join(dir, '.qualityrc.json'),
-    JSON.stringify({ coverage: { lines: 40, functions: 40, branches: 40 } })
-  )
-  try {
-    const report = runShipCheck(dir, { skipTests: true })
-    const coverage = report.results.find(r => r.name === 'Coverage')
-    assert.strictEqual(coverage.status, STATUS.PASS)
-  } finally {
-    cleanup(dir)
-  }
-  console.log('✅ PASS\n')
-})()
+test('identical inputs have the same identity despite timestamp metadata', () => {
+  const target = fixture()
+  const first = runFixture(target).report
+  const second = runFixture(target).report
+  assert.strictEqual(first.evidenceIdentity, second.evidenceIdentity)
+  assert.strictEqual(first.revision.diffSha256, second.revision.diffSha256)
+})
 
-// Test 7: env-var audit detects missing keys
-;(() => {
-  console.log(
-    'Test 7: runShipCheck() — env-var diff between .env.example and .env'
-  )
-  const dir = tmp('env')
-  fs.writeFileSync(
-    path.join(dir, '.env.example'),
-    'FOO=\nBAR=\nBAZ=\n# comment\n'
-  )
-  fs.writeFileSync(path.join(dir, '.env'), 'FOO=1\nBAR=2\n')
-  try {
-    const report = runShipCheck(dir, { skipTests: true })
-    const env = report.results.find(r => r.name === 'Env vars')
-    assert.strictEqual(env.status, STATUS.WARN)
-    assert.ok(env.summary.includes('BAZ'), `Summary was: ${env.summary}`)
-  } finally {
-    cleanup(dir)
-  }
-  console.log('✅ PASS\n')
-})()
-
-// Test 8: markdown output structure
-;(() => {
-  console.log('Test 8: buildMarkdown() — produces table + verdict section')
-  const report = {
-    verdict: VERDICT.REVIEW,
-    branch: 'feature/x',
-    commit: 'abc1234',
-    results: [
-      { name: 'Lint', status: STATUS.PASS, summary: 'OK' },
-      { name: 'Tests', status: STATUS.WARN, summary: 'Slow' },
+test('the CLI independently verifies a saved manifest from the checkout', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const output = path.join(target.root, '.qa-architect', 'ship-manifest.json')
+  fs.mkdirSync(path.dirname(output), { recursive: true })
+  fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
+  const cli = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, '..', 'setup.js'),
+      '--ship-check',
+      '--verify-ship-manifest',
+      output,
+      '--json',
     ],
-  }
-  const md = buildMarkdown(report)
-  assert.ok(md.startsWith('# Ship Check — REVIEW'))
-  assert.ok(md.includes('| Check | Status | Summary |'))
-  assert.ok(md.includes('| Lint | ✅ pass | OK |'))
-  assert.ok(md.includes('Ship with review'))
-  console.log('✅ PASS\n')
-})()
+    {
+      cwd: target.root,
+      encoding: 'utf8',
+      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+  assert.strictEqual(cli.status, 0, cli.stderr || cli.stdout)
+  assert.strictEqual(JSON.parse(cli.stdout).fresh, true)
+})
 
-// Test 9: human report includes all checks
-;(() => {
-  console.log('Test 9: buildHumanReport() — lists every check + verdict line')
-  const report = {
-    verdict: VERDICT.SHIP,
-    results: [{ name: 'Lint', status: STATUS.PASS, summary: 'OK' }],
-  }
-  const out = buildHumanReport(report)
-  assert.ok(out.includes('Lint'))
-  assert.ok(out.includes('Verdict: SHIP'))
-  console.log('✅ PASS\n')
-})()
+test('independent verification rejects a malformed manifest safely', () => {
+  const target = fixture()
+  const verification = verifyShipManifest(target.root, {
+    schemaVersion: '1.0.0',
+    references: [{ path: '../../outside.json' }],
+  })
+  assert.deepStrictEqual(verification, {
+    fresh: false,
+    reasons: ['invalid-manifest'],
+  })
+})
 
-console.log('🎉 ship-check tests passed.\n')
+test('a new commit makes prior evidence stale', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  fs.appendFileSync(
+    path.join(target.root, 'lib', 'app.js'),
+    'module.exports = false\n'
+  )
+  git(target.root, ['add', '.'])
+  git(target.root, ['commit', '-m', 'fix: advance revision'])
+  const verification = verifyShipManifest(target.root, report)
+  assert.strictEqual(verification.fresh, false)
+  assert.ok(verification.reasons.includes('requested-head-mismatch'))
+})
+
+test('policy or relevant config changes make evidence stale', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  fs.appendFileSync(path.join(target.root, 'harness-config.json'), '\n')
+  fs.writeFileSync(path.join(target.root, '.qualityrc.json'), '{}\n')
+  const verification = verifyShipManifest(target.root, report)
+  assert.strictEqual(verification.fresh, false)
+  assert.ok(verification.reasons.includes('worktree-dirty'))
+  assert.ok(verification.reasons.includes('policy-changed'))
+  assert.ok(verification.reasons.includes('inputs-changed'))
+})
+
+test('a rule-pack change makes prior evidence stale', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const verification = verifyShipManifest(target.root, report, {
+    rulePackVersion: 'future-rule-pack',
+  })
+  assert.strictEqual(verification.fresh, false)
+  assert.ok(verification.reasons.includes('rule-pack-changed'))
+})
+
+test('PR assurance references must match the exact head', () => {
+  const target = fixture({
+    requiredChecks: [
+      'lint-and-format',
+      'test-unit',
+      'security-scan',
+      'code-review-agent',
+    ],
+  })
+  const evidenceDir = path.join(target.root, '.qa-architect')
+  fs.mkdirSync(evidenceDir, { recursive: true })
+  const reference = path.join(evidenceDir, 'assurance.json')
+  fs.writeFileSync(
+    reference,
+    `${JSON.stringify({ assurance: { verdict: 'PASS', revision: { value: target.head } } })}\n`
+  )
+  const freshReport = runFixture(target, { referencePaths: [reference] }).report
+  assert.strictEqual(freshReport.verdict, VERDICT.PASS)
+  fs.unlinkSync(reference)
+  assert.ok(
+    verifyShipManifest(target.root, freshReport).reasons.includes(
+      'references-changed'
+    )
+  )
+  fs.writeFileSync(
+    reference,
+    `${JSON.stringify({ assurance: { verdict: 'PASS', revision: { value: target.base } } })}\n`
+  )
+  assert.strictEqual(
+    runFixture(target, { referencePaths: [reference] }).report.verdict,
+    VERDICT.INCOMPLETE
+  )
+})
+
+test('workflow tiers derive progressively stronger required evidence', () => {
+  const target = fixture({ changedPath: 'docs/change.md' })
+  const minimal = runFixture(target, { workflowTier: 'minimal' }).report
+  const standard = runFixture(target, { workflowTier: 'standard' }).report
+  const comprehensive = runFixture(target, {
+    workflowTier: 'comprehensive',
+  }).report
+  assert.ok(!minimal.requiredChecks.includes('tests'))
+  assert.ok(standard.requiredChecks.includes('tests'))
+  assert.ok(comprehensive.requiredChecks.includes('coverage'))
+  assert.strictEqual(comprehensive.verdict, VERDICT.INCOMPLETE)
+})
+
+test('detected application stack derives its build requirement', () => {
+  const target = fixture({ dependencies: { next: '^16.0.0' }, build: true })
+  const { report, calls } = runFixture(target)
+  assert.ok(report.stack.includes('nextjs'))
+  assert.ok(report.requiredChecks.includes('build'))
+  assert.ok(calls.some(call => call.args.includes('build')))
+})
+
+test('human and Markdown views retain verdict and evidence identity', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  assert.ok(buildHumanReport(report).includes('Verdict: PASS'))
+  const markdown = buildMarkdown(report)
+  assert.ok(markdown.startsWith('# Ship Check — PASS'))
+  assert.ok(markdown.includes(report.evidenceIdentity))
+})
+
+console.log(`\n${passed} passed, ${failed} failed (ship-check.test.js)`)
+if (failed > 0) process.exit(1)

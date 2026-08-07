@@ -67,10 +67,26 @@ Pro also adds explicitly labeled, low-confidence package-age and name-confusion 
 
 **Also included:**
 
-- **Shipping gates** (`--ship-check`) — SHIP/REVIEW/BLOCK verdict across lint, tests, coverage, bundle, env vars, and CI cost
+- **Shipping assurance** (`--ship-check`) — derives required checks from the exact change, workflow tier, stack/configuration, and QA Architect risk policy; emits a revision-bound PASS/BLOCK/INCOMPLETE manifest
 - **Changed-code PR assurance** (`--pr-check`) — exact-head Semgrep gate with baselines, SARIF annotations, and revision-bound evidence
 - **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
 - **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
+
+Create and independently verify assurance for an exact release candidate:
+
+```bash
+npx create-qa-architect@latest --ship-check \
+  --base-sha <40-character-base-commit> \
+  --head "$(git rev-parse HEAD)" \
+  --json
+```
+
+Ship Check runs every risk-required check independently and binds its identity to
+the base/head commits, binary diff, risk policy, relevant configuration, rule
+pack, commands, results, and referenced PR/remediation evidence. A required
+check that is skipped, unavailable, timed out, or stale yields `INCOMPLETE`.
+Save the JSON output and verify it later from the candidate checkout with
+`--ship-check --verify-ship-manifest <manifest.json>`.
 
 Reproduce the required PR check locally against an exact revision:
 
@@ -81,7 +97,7 @@ npx create-qa-architect@latest --pr-check \
   --artifact-dir /tmp/qa-architect-assurance
 ```
 
-The command exits `0` only for `PASS`, `1` for `BLOCK`, and `2` for
+Both assurance commands exit `0` only for `PASS`, `1` for `BLOCK`, and `2` for
 `INCOMPLETE`. Optional checked-in `.qa-architect-pr-assurance.json` policy can
 set the Semgrep timeout and project-relative path exclusions. Baselines,
 waivers, blocking severities, and required checks remain in the separate
