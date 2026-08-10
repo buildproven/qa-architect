@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-QA Architect is a CLI tool (`create-qa-architect`) that bootstraps quality automation for JS/TS/Python/Shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Pro tiers add security scanning (Gitleaks), Smart Test Strategy, and multi-language support.
+QA Architect is a CLI tool (`create-qa-architect`) that bootstraps quality automation for JS/TS/Python/Shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Free includes the local audit and basic working-tree security gate; Pro adds advanced/full-history security scanning, Smart Test Strategy, verified remediation, release assurance, and multi-language support.
 
 ## Commands
 
@@ -58,8 +58,8 @@ setup.js                    # Main CLI entry - argument parsing, orchestration
 
 ### License Tiers
 
-- **FREE**: Basic linting/formatting, 1 private repo, 50 runs/month
-- **PRO**: Security scanning, Smart Test Strategy, unlimited
+- **FREE**: Local security audit, basic linting/formatting, 1 private repo, 50 pre-push runs/month
+- **PRO**: Advanced/full-history security scanning, verified remediation, release assurance, Smart Test Strategy, unlimited
 - Check tier: `hasFeature('smartTestStrategy')` or `getLicenseInfo()` in `lib/licensing.js`
 
 ### Workflow Tiers

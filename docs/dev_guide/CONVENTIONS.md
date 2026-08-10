@@ -5,7 +5,7 @@
 
 ## What This Project Does
 
-QA Architect (`create-qa-architect`) is a CLI tool that bootstraps quality automation for JavaScript/TypeScript, Python, and shell script projects. One command installs ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Pro tier adds Gitleaks security scanning, Smart Test Strategy, and multi-language support.
+QA Architect (`create-qa-architect`) is a CLI tool that bootstraps quality automation for JavaScript/TypeScript, Python, and shell script projects. One command installs ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Free includes the local audit and basic working-tree security gate; Pro adds advanced/full-history security scanning, Smart Test Strategy, verified remediation, release assurance, and multi-language support.
 
 **Tech stack:** Node.js (CommonJS, no build step) · Vanilla JS (no framework) · GitHub Actions templates · c8 for coverage · Playwright for E2E
 

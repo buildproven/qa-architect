@@ -1,6 +1,6 @@
 # Polar.sh Migration Plan
 
-**Status:** in progress
+**Status:** complete (delivered in v5.14.0)
 **Date:** 2026-05-17
 **Replaces:** Stripe-direct billing
 
@@ -10,7 +10,7 @@ We're migrating billing from **Stripe-direct** to **Polar.sh** (Merchant-of-Reco
 
 |                                          | Stripe direct                                                             | Polar.sh (MoR)          |
 | ---------------------------------------- | ------------------------------------------------------------------------- | ----------------------- |
-| Effective fee on $49/mo                  | ~3.5%                                                                     | ~4.8% (~1.3% premium)   |
+| Effective fee on $29/mo                  | ~3.5%                                                                     | ~4.8% (~1.3% premium)   |
 | Global sales tax / VAT / GST             | **We owe it** (~$200-400/mo for Anrok at scale, plus state registrations) | Polar collects + remits |
 | Customer portal (cancel/update/invoices) | Build it                                                                  | Built-in                |
 | Dunning / failed payment retries         | Build it                                                                  | Built-in                |
@@ -62,8 +62,8 @@ Polar's built-in license-key benefit requires online validation against `/v1/cus
 
 1. Create Polar org at https://polar.sh
 2. Create product **"QA Architect Pro"** with two prices:
-   - $49/mo (recurring monthly)
-   - $490/yr (recurring yearly)
+   - $29/mo (recurring monthly)
+   - $290/yr (recurring yearly)
 3. Save the `product_id` — single product, two prices.
 4. Configure webhook endpoint: `https://<your-vercel-domain>/webhook`
 5. Webhook secret → env var `POLAR_WEBHOOK_SECRET`
