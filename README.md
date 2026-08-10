@@ -205,10 +205,10 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                                                                                |
-| -------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Free** | $0                | Security audit (`--audit`), direct dependency registry/source evidence, linting/formatting, npm audit (capped: 1 private repo, 50 runs/mo)                                                                  |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, advanced provenance signals, Ship Check, PR Risk Check, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| Tier     | Price             | What You Get                                                                                                                                                                                                             |
+| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Free** | $0                | Unlimited local security audit (`--audit`) and dependency evidence, plus linting/formatting and basic quality automation (1 private repo, 50 pre-push runs/mo)                                                           |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, revision-bound PR-to-release assurance, advanced provenance signals, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
@@ -227,6 +227,11 @@ npx create-qa-architect@latest
 | Codex/Claude isolated verified-remediation adapters | ❌   | ✅  |
 
 ### Release Confidence by Tier
+
+Pro is the recurring merge-and-release workflow: it binds required checks,
+findings, remediation evidence, and the exact candidate revision into a
+verifiable PASS/BLOCK/INCOMPLETE result. The audit is the free acquisition
+surface; Pro is the evidence and repair loop used on every meaningful change.
 
 | Feature                              | Free | Pro |
 | ------------------------------------ | ---- | --- |
