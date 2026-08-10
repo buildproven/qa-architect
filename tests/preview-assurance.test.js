@@ -364,20 +364,28 @@ async function main() {
 
   await test('production-like hosts are refused before any request', async () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-preview-test-'))
-    let called = false
     try {
-      const evidence = await runPreviewVerification({
-        previewUrl: 'https://app.example.com',
-        configPath: writeConfig(root),
-        expectedRevision: REVISION,
-        fetchImpl: async () => {
-          called = true
-          throw new Error('must not run')
-        },
-      })
-      assert.strictEqual(evidence.status, 'incomplete')
-      assert.strictEqual(evidence.environment.classification, 'production')
-      assert.strictEqual(called, false)
+      for (const previewUrl of [
+        'https://app.example.com',
+        'https://api.example.dev',
+        'https://dev.example.com',
+        'https://test.example.com',
+        'https://stage.example.com',
+      ]) {
+        let called = false
+        const evidence = await runPreviewVerification({
+          previewUrl,
+          configPath: writeConfig(root),
+          expectedRevision: REVISION,
+          fetchImpl: async () => {
+            called = true
+            throw new Error('must not run')
+          },
+        })
+        assert.strictEqual(evidence.status, 'incomplete')
+        assert.strictEqual(evidence.environment.classification, 'production')
+        assert.strictEqual(called, false)
+      }
     } finally {
       fs.rmSync(root, { recursive: true, force: true })
     }
