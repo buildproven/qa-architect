@@ -12,7 +12,7 @@
 
 **Business timelines may differ**: Customer acquisition, revenue ramp, and market penetration follow normal curves regardless of build speed.
 
-## Current Version: 5.13.4
+## Current Version: 5.15.2
 
 ## Completed
 
@@ -29,6 +29,7 @@
 - [x] Pre-launch validation (v5.3.0) - SEO, links, a11y, docs, env vars audit
 - [x] Pro tier purchase flow (Polar.sh — migrated from Stripe-direct 2026-05)
 - [x] Landing page at buildproven.ai/qa-architect
+- [x] Free/Pro release assurance packaging (5.15.2)
 
 ## In Progress (This Week)
 

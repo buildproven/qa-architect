@@ -13,6 +13,12 @@ if ! grep -q "## \[$PACKAGE_VERSION\]" CHANGELOG.md; then
     exit 1
 fi
 
+# Keep the maintained roadmap header aligned with the package source of truth.
+if [ -f ROADMAP.md ] && ! grep -q "^## Current Version: $PACKAGE_VERSION$" ROADMAP.md; then
+    echo "❌ ROADMAP.md current version does not match package.json ($PACKAGE_VERSION)"
+    exit 1
+fi
+
 # Check that setup.js file creation matches README documentation
 echo "📁 Verifying file inventory..."
 

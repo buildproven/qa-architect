@@ -1,8 +1,14 @@
 # Plan: Vibe-Code Auditor
 
 **Created:** 2026-05-27
-**Status:** Active
+**Status:** Complete (delivered in v5.14.0; assurance packaging extended in v5.15.2)
 **Branch:** feat/vibe-code-auditor (new from feat/polar-migration)
+
+This plan is retained as the historical design record. The shipped product now
+also includes revision-bound PR/release assurance, inspectable remediation
+packets, and verified adapters; see the current [README](../../README.md) and
+[Free/Pro release assurance plan](free-pro-release-assurance.md) for the
+maintained product contract.
 
 ---
 

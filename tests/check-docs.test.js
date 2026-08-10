@@ -42,6 +42,10 @@ const createTempProject = config => {
     fs.writeFileSync(path.join(tempDir, 'setup.js'), config.setupJs)
   }
 
+  if (config.roadmap !== undefined) {
+    fs.writeFileSync(path.join(tempDir, 'ROADMAP.md'), config.roadmap)
+  }
+
   // Create .github directory (for any future checklist needs)
   const githubDir = path.join(tempDir, '.github')
   fs.mkdirSync(githubDir, { recursive: true })
@@ -415,4 +419,28 @@ console.log('Test 12: Exit code validation - failure scenario')
   }
 }
 
-console.log('\n✅ All check-docs.sh tests passed! (12 tests)')
+// Test 13: Roadmap version consistency - mismatch
+console.log('Test 13: Roadmap version consistency - mismatch')
+{
+  const tempDir = createTempProject({
+    packageJson: { version: '2.0.0' },
+    changelog: `# Changelog\n\n## [2.0.0] - 2024-01-01\n`,
+    roadmap: '## Current Version: 1.0.0\n',
+    readme: '# Test Project',
+    setupJs: "console.log('test')",
+  })
+
+  try {
+    const result = runCheckDocs(tempDir, false)
+    assert.ok(
+      result.output.includes('ROADMAP.md current version does not match') ||
+        result.error.includes('ROADMAP.md current version does not match'),
+      'Should report a stale roadmap version'
+    )
+    console.log('✓ Test 13 passed: Stale roadmap version detected')
+  } finally {
+    cleanupTempDir(tempDir)
+  }
+}
+
+console.log('\n✅ All check-docs.sh tests passed! (13 tests)')

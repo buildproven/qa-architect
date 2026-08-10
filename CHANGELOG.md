@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.15.2] - 2026-08-10
+
+### Fixed
+
+- **Audit input boundary:** Free Semgrep audits now explicitly exclude
+  dependency and generated output even when `--no-git-ignore` is required, and
+  exact duplicate observations no longer inflate a report.
+
+### Changed
+
+- **Free/Pro packaging:** pricing, release-assurance messaging, internal tier
+  guidance, roadmap status, and completed migration plans now match the shipped
+  product contract.
+- **Landing conversion path:** the Free audit CTA now links to the documented
+  Quick Start instead of a placeholder anchor.
+
+### Tests
+
+- Added a landing-page link and pricing contract test to the release suite.
+
 ## [5.15.1] - 2026-08-09
 
 ### Fixed
