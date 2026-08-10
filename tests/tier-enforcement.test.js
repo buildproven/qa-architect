@@ -19,6 +19,10 @@ const {
 const TEST_LICENSE_DIR = path.join(os.tmpdir(), `cqa-tier-test-${Date.now()}`)
 
 // Set environment before requiring licensing module
+// LicenseValidator uses the test public-key override only in test mode. Set
+// it here so this focused test is deterministic when run directly, rather than
+// relying on `npm test` to provide NODE_ENV.
+process.env.NODE_ENV = 'test'
 process.env.QAA_LICENSE_DIR = TEST_LICENSE_DIR
 const { publicKey, privateKey } = createTestKeyPair()
 setTestPublicKeyEnv(publicKey)

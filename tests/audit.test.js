@@ -18,6 +18,8 @@ const {
   buildSkippedReport,
   buildSkippedSarif,
   auditExitCode,
+  buildSemgrepArgs,
+  dedupeFindings,
 } = require('../lib/commands/audit')
 
 let passed = 0
@@ -34,6 +36,46 @@ function test(name, fn) {
     failed++
   }
 }
+
+// ---------------------------------------------------------------------------
+// Scanner input boundary
+// ---------------------------------------------------------------------------
+
+console.log('\nscanner input boundary')
+
+test('builds explicit exclusions even when git-ignore handling is disabled', () => {
+  const args = buildSemgrepArgs(['/rules/one.yaml'])
+  assert.ok(args.includes('--no-git-ignore'))
+  for (const excluded of [
+    'node_modules',
+    'coverage',
+    'dist',
+    'build',
+    '.next',
+    '*.min.js',
+    '*.bundle.js',
+  ]) {
+    const index = args.indexOf(excluded)
+    assert.ok(index > 0, `missing Semgrep exclusion: ${excluded}`)
+    assert.strictEqual(args[index - 1], '--exclude')
+  }
+})
+
+test('deduplicates identical observations without merging distinct ranges', () => {
+  const base = {
+    id: 'semgrep.example',
+    source: 'semgrep',
+    file: 'src/app.js',
+    line: 4,
+    endLine: 4,
+    message: 'Example finding',
+  }
+  const unique = { ...base, endLine: 5 }
+  assert.deepStrictEqual(dedupeFindings([base, { ...base }, unique]), [
+    base,
+    unique,
+  ])
+})
 
 // ---------------------------------------------------------------------------
 // mapSemgrepFinding
