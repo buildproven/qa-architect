@@ -12,6 +12,8 @@ jobs:
   release:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      SEMGREP_VERSION: '1.96.0'
     steps:
       - name: Checkout code
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -60,14 +62,14 @@ jobs:
           "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --require-hashes \
             --only-binary=:all: \
             --requirement .github/semgrep-release-requirements.txt
-          test "$("$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version)" = '1.96.0'
+          test "$("$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version)" = "$SEMGREP_VERSION"
           echo "$RUNNER_TEMP/semgrep-venv/bin" >> "$GITHUB_PATH"
 
       - name: Run pre-release checks
         run: |
           set -euo pipefail
           test "$(command -v semgrep)" = "$RUNNER_TEMP/semgrep-venv/bin/semgrep"
-          test "$(semgrep --version)" = '1.96.0'
+          test "$(semgrep --version)" = "$SEMGREP_VERSION"
           npm run prerelease
         env:
           CI: 'true'

@@ -107,9 +107,16 @@ const semgrepLockVersion = requirementLines
   .find(line => line.startsWith('semgrep=='))
   ?.match(/^semgrep==([^ ]+)/)?.[1]
 assert.ok(semgrepLockVersion, 'Semgrep lockfile must pin the Semgrep version')
+const workflowSemgrepVersion = releaseWorkflow.match(
+  /SEMGREP_VERSION:\s*'([^']+)'/
+)?.[1]
+assert.ok(
+  workflowSemgrepVersion,
+  'release workflow must define one Semgrep version variable'
+)
 const releaseSemgrepVersions = [
-  ...releaseWorkflow.matchAll(/semgrep --version\)" = '([^']+)'/g),
-].map(match => match[1])
+  ...releaseWorkflow.matchAll(/semgrep --version\)" = "\$SEMGREP_VERSION/g),
+].map(() => workflowSemgrepVersion)
 assert.ok(
   releaseSemgrepVersions.length > 0,
   'release workflow must verify the Semgrep version'
@@ -129,7 +136,7 @@ for (const match of releaseWorkflow.matchAll(
 }
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*semgrep" --version\)" = '1\.96\.0'/,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*semgrep" --version\)" = "\$SEMGREP_VERSION"/,
   'release workflow must verify the installed Semgrep binary before exporting it'
 )
 assert.match(

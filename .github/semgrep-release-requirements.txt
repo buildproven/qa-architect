@@ -1,4 +1,5 @@
-# Locked for ubuntu-latest (Python 3.12, x86_64). Every artifact is pinned and
+# Locked for ubuntu-latest (Python 3.12, x86_64); regenerate with the target
+# platform before changing the runner. Every artifact is pinned and
 # hash-checked so the trusted-publishing job never resolves a moving dependency.
 attrs==26.1.0 --hash=sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309
 boltons==21.0.0 --hash=sha256:b9bb7b58b2b420bbe11a6025fdef6d3e5edc9f76a42fb467afe7ca212ef9948b
