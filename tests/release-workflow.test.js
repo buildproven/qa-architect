@@ -76,7 +76,7 @@ assert.strictEqual(
 )
 assert.match(
   releaseWorkflow,
-  /name: Run pre-release checks[\s\S]*run: npm run prerelease/,
+  /name: Run pre-release checks[\s\S]*run: \|[\s\S]*npm run prerelease/,
   'release workflow must run the complete prerelease script before publishing'
 )
 assert.match(
@@ -86,12 +86,17 @@ assert.match(
 )
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*command -v semgrep[\s\S]*RUNNER_TEMP\/semgrep-venv\/bin\/semgrep/,
-  'release workflow must assert that prerelease checks resolve the pinned Semgrep binary'
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*semgrep" --version\)" = '1\.96\.0'/,
+  'release workflow must verify the installed Semgrep binary before exporting it'
 )
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*\n\s*- name: Run pre-release checks/,
+  /name: Run pre-release checks[\s\S]*command -v semgrep[\s\S]*RUNNER_TEMP\/semgrep-venv\/bin\/semgrep[\s\S]*semgrep --version[\s\S]*npm run prerelease/,
+  'prerelease checks must assert the exported Semgrep binary before running'
+)
+assert.ok(
+  releaseWorkflow.indexOf('name: Install Semgrep CLI for prerelease checks') <
+    releaseWorkflow.indexOf('name: Run pre-release checks'),
   'release workflow must install Semgrep before running prerelease checks'
 )
 
