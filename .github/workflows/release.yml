@@ -22,6 +22,11 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
 
+      - name: Setup Python for pinned Semgrep
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
       # OIDC trusted publishing requires npm >= 11.5. We pin to 11.5.2 (the
       # first OIDC-stable release) instead of `npm@latest` to avoid the
       # MODULE_NOT_FOUND (promise-retry) regression hit when self-upgrading
@@ -51,12 +56,13 @@ jobs:
       - name: Install Semgrep CLI for prerelease checks
         run: |
           set -euo pipefail
-          SEMGREP_CLI_VERSION=1.96.0
           python3 -m venv "$RUNNER_TEMP/semgrep-venv"
-          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --upgrade pip
-          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet "setuptools<81" "semgrep==$SEMGREP_CLI_VERSION"
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --require-hashes \
+            --only-binary=:all: \
+            --requirement .github/semgrep-release-requirements.txt
           echo "$RUNNER_TEMP/semgrep-venv/bin" >> "$GITHUB_PATH"
-          "$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version
+          test "$(command -v semgrep)" = "$RUNNER_TEMP/semgrep-venv/bin/semgrep"
+          test "$(semgrep --version)" = '1.96.0'
 
       - name: Run pre-release checks
         run: npm run prerelease

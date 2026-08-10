@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Trusted release verification:** the tag-driven release workflow now
-  installs the pinned Semgrep CLI before running the prerelease suite, so the
-  assurance-pack precision benchmark cannot be skipped on the publishing path.
+  installs a Python/platform-pinned, hash-locked Semgrep CLI before running the
+  prerelease suite, so the assurance-pack precision benchmark cannot be
+  skipped or supplied moving dependencies on the publishing path.
 
 ## [5.15.0] - 2026-08-09
 

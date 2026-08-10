@@ -81,13 +81,18 @@ assert.match(
 )
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*python3 -m venv[\s\S]*semgrep==\$SEMGREP_CLI_VERSION/,
-  'release workflow must install the pinned Semgrep CLI before prerelease checks'
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*--require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
+  'release workflow must install the hash-locked Semgrep dependency set'
 )
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*GITHUB_PATH/,
-  'release workflow must expose the Semgrep CLI to prerelease checks'
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*command -v semgrep[\s\S]*RUNNER_TEMP\/semgrep-venv\/bin\/semgrep/,
+  'release workflow must assert that prerelease checks resolve the pinned Semgrep binary'
+)
+assert.match(
+  releaseWorkflow,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*\n\s*- name: Run pre-release checks/,
+  'release workflow must install Semgrep before running prerelease checks'
 )
 
 console.log('✅ Release workflow safety gates verified')
