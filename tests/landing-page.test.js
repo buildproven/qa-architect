@@ -44,6 +44,50 @@ assert.match(
 )
 assert.ok(!html.includes('$49') && !html.includes('$490'))
 
+const beehiivPath = path.join(
+  __dirname,
+  '..',
+  'docs',
+  'landing',
+  'beehiiv.html'
+)
+const beehiivHtml = fs.readFileSync(beehiivPath, 'utf8')
+const beehiivIds = new Set(
+  [...beehiivHtml.matchAll(/\bid="([^"]+)"/g)].map(match => match[1])
+)
+const beehiivHrefs = [
+  ...beehiivHtml.matchAll(/<a\b[^>]*\bhref="([^"]*)"/g),
+].map(match => match[1])
+
+assert.ok(beehiivHrefs.length > 0, 'Beehiiv page must contain CTA links')
+assert.ok(
+  !beehiivHrefs.includes('#'),
+  'Beehiiv page must not ship placeholder anchors'
+)
+for (const href of beehiivHrefs.filter(value => value.startsWith('#'))) {
+  assert.ok(
+    beehiivIds.has(href.slice(1)),
+    `missing Beehiiv page target for ${href}`
+  )
+}
+assert.ok(
+  beehiivHrefs.includes(
+    'https://github.com/buildproven/qa-architect#quick-start'
+  ),
+  'Beehiiv Free CTA must link to the documented Quick Start'
+)
+assert.match(
+  beehiivHtml,
+  /Free finds the risk\. Pro helps you ship with confidence\./,
+  'Beehiiv page must state the Free/Pro sales boundary'
+)
+assert.match(
+  beehiivHtml,
+  /PASS[\s\S]*BLOCK[\s\S]*INCOMPLETE/,
+  'Beehiiv page must explain release-assurance outcomes'
+)
+assert.ok(!beehiivHtml.includes('$49') && !beehiivHtml.includes('$490'))
+
 console.log(
-  '✅ Landing page contract passed (links, pricing, and tier boundary)'
+  '✅ Landing page contract passed (marketing and Beehiiv links, pricing, and tier boundary)'
 )
