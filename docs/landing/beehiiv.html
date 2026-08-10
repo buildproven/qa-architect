@@ -1,0 +1,737 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QA Architect — Ship AI-generated code with confidence</title>
+    <meta
+      name="description"
+      content="QA Architect finds security risks in AI-generated code for free, then helps you verify fixes and release with evidence."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2307111b'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-family='Arial,sans-serif' font-size='22' font-weight='700' fill='%23f5b24b'%3EQA%3C/text%3E%3C/svg%3E"
+    />
+    <style>
+      :root {
+        color-scheme: dark;
+        --ink: #eef4f7;
+        --muted: #9db0bb;
+        --faint: #6f8793;
+        --surface: #0d1b28;
+        --surface-strong: #122638;
+        --line: rgba(176, 211, 220, 0.18);
+        --accent: #f5b24b;
+        --accent-soft: #ffe0a5;
+        --good: #84e1bd;
+        --page: #07111b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(
+            circle at 82% 0%,
+            rgba(63, 126, 146, 0.2),
+            transparent 34rem
+          ),
+          var(--page);
+        color: var(--ink);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .page {
+        width: min(1120px, calc(100% - 40px));
+        margin: 0 auto;
+      }
+
+      .eyebrow {
+        margin: 0 0 18px;
+        color: var(--accent);
+        font:
+          700 0.76rem/1.2 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 28px 0;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 0.98rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        text-decoration: none;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border: 1px solid rgba(245, 178, 75, 0.6);
+        border-radius: 9px;
+        color: var(--accent);
+        font:
+          800 0.75rem/1 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+
+      nav {
+        display: flex;
+        gap: 22px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      nav a {
+        text-decoration: none;
+      }
+
+      nav a:hover,
+      nav a:focus-visible {
+        color: var(--ink);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(330px, 0.95fr);
+        gap: clamp(40px, 7vw, 90px);
+        align-items: center;
+        min-height: 620px;
+        padding: 54px 0 92px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p {
+        margin-top: 0;
+      }
+
+      h1 {
+        max-width: 680px;
+        margin-bottom: 24px;
+        font-size: clamp(2.7rem, 7vw, 5.8rem);
+        line-height: 0.98;
+        letter-spacing: -0.075em;
+      }
+
+      h1 em {
+        color: var(--accent-soft);
+        font-style: normal;
+      }
+
+      .hero-copy {
+        max-width: 585px;
+        color: var(--muted);
+        font-size: clamp(1.05rem, 2vw, 1.27rem);
+      }
+
+      .hero-copy strong {
+        color: var(--ink);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 32px;
+      }
+
+      .button {
+        display: inline-flex;
+        min-height: 48px;
+        align-items: center;
+        justify-content: center;
+        padding: 0 20px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        font-weight: 750;
+        text-decoration: none;
+        transition:
+          transform 160ms ease,
+          border-color 160ms ease,
+          background 160ms ease;
+      }
+
+      .button:hover,
+      .button:focus-visible {
+        transform: translateY(-2px);
+        border-color: rgba(245, 178, 75, 0.72);
+      }
+
+      .button-primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: #1a211f;
+      }
+
+      .button-secondary {
+        background: rgba(255, 255, 255, 0.03);
+        color: var(--ink);
+      }
+
+      .fine-print {
+        margin: 16px 0 0;
+        color: var(--faint);
+        font-size: 0.82rem;
+      }
+
+      .terminal {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #09131d;
+        box-shadow: 0 22px 90px rgba(0, 0, 0, 0.32);
+      }
+
+      .terminal-top {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 13px 16px;
+        border-bottom: 1px solid var(--line);
+        color: var(--faint);
+        font:
+          0.72rem/1.2 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e77867;
+      }
+
+      .dot:nth-child(2) {
+        background: var(--accent);
+      }
+
+      .dot:nth-child(3) {
+        background: var(--good);
+      }
+
+      .terminal-body {
+        padding: 24px;
+        font:
+          0.88rem/1.75 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+      }
+
+      .command {
+        color: var(--accent-soft);
+      }
+
+      .finding {
+        margin-top: 18px;
+        padding: 16px;
+        border-left: 2px solid #e77867;
+        background: rgba(231, 120, 103, 0.08);
+        color: #f5b5aa;
+      }
+
+      .finding strong {
+        color: #ffccbf;
+      }
+
+      .terminal-note {
+        margin-top: 20px;
+        color: var(--good);
+      }
+
+      .rule {
+        height: 1px;
+        margin: 0;
+        border: 0;
+        background: var(--line);
+      }
+
+      .section {
+        padding: 88px 0;
+      }
+
+      .section-heading {
+        display: grid;
+        grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr);
+        gap: 50px;
+        align-items: end;
+        margin-bottom: 42px;
+      }
+
+      h2 {
+        margin-bottom: 0;
+        font-size: clamp(2rem, 4vw, 3.55rem);
+        line-height: 1.02;
+        letter-spacing: -0.06em;
+      }
+
+      .section-lede {
+        max-width: 560px;
+        margin-bottom: 0;
+        color: var(--muted);
+        font-size: 1.08rem;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+      }
+
+      .offer {
+        display: flex;
+        min-height: 330px;
+        flex-direction: column;
+        padding: 30px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: rgba(13, 27, 40, 0.78);
+      }
+
+      .offer.pro {
+        border-color: rgba(245, 178, 75, 0.5);
+        background: linear-gradient(
+          145deg,
+          rgba(47, 56, 44, 0.85),
+          rgba(13, 27, 40, 0.9)
+        );
+      }
+
+      .offer-label {
+        margin: 0 0 9px;
+        color: var(--accent);
+        font:
+          700 0.74rem/1.2 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .offer h3 {
+        margin-bottom: 12px;
+        font-size: 1.65rem;
+        letter-spacing: -0.04em;
+      }
+
+      .offer p {
+        color: var(--muted);
+      }
+
+      .offer ul {
+        display: grid;
+        gap: 9px;
+        margin: 10px 0 26px;
+        padding: 0;
+        color: var(--ink);
+        list-style: none;
+      }
+
+      .offer li::before {
+        margin-right: 9px;
+        color: var(--good);
+        content: '✓';
+      }
+
+      .offer .button {
+        width: fit-content;
+        margin-top: auto;
+      }
+
+      .price {
+        margin: 2px 0 20px;
+        color: var(--ink);
+        font-size: 2.2rem;
+        font-weight: 800;
+        letter-spacing: -0.06em;
+      }
+
+      .price span {
+        color: var(--muted);
+        font-size: 0.92rem;
+        font-weight: 500;
+        letter-spacing: 0;
+      }
+
+      .assurance {
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 34px;
+        align-items: center;
+        padding: 38px;
+        border: 1px solid rgba(132, 225, 189, 0.28);
+        border-radius: 14px;
+        background: rgba(132, 225, 189, 0.055);
+      }
+
+      .assurance h2 {
+        color: var(--good);
+      }
+
+      .assurance p {
+        margin-bottom: 0;
+        color: var(--muted);
+      }
+
+      .verdicts {
+        display: grid;
+        gap: 10px;
+      }
+
+      .verdict {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(132, 225, 189, 0.16);
+      }
+
+      .verdict:last-child {
+        border-bottom: 0;
+      }
+
+      .verdict strong {
+        min-width: 100px;
+        color: var(--accent-soft);
+        font:
+          700 0.78rem/1.2 ui-monospace,
+          SFMono-Regular,
+          Menlo,
+          Consolas,
+          monospace;
+        letter-spacing: 0.1em;
+      }
+
+      .verdict span {
+        color: var(--muted);
+        font-size: 0.93rem;
+      }
+
+      .close {
+        padding: 92px 0 110px;
+        text-align: center;
+      }
+
+      .close h2 {
+        max-width: 720px;
+        margin: 0 auto 18px;
+      }
+
+      .close p {
+        max-width: 560px;
+        margin: 0 auto;
+        color: var(--muted);
+      }
+
+      .close .actions {
+        justify-content: center;
+      }
+
+      footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 22px 0 34px;
+        border-top: 1px solid var(--line);
+        color: var(--faint);
+        font-size: 0.82rem;
+      }
+
+      footer a {
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      @media (max-width: 780px) {
+        .page {
+          width: min(100% - 28px, 620px);
+        }
+
+        header {
+          padding: 20px 0;
+        }
+
+        nav {
+          display: none;
+        }
+
+        .hero,
+        .section-heading,
+        .split,
+        .assurance {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          min-height: auto;
+          padding: 62px 0 76px;
+        }
+
+        h1 {
+          font-size: clamp(2.8rem, 14vw, 4.6rem);
+        }
+
+        .section-heading {
+          gap: 18px;
+        }
+
+        .assurance {
+          padding: 28px 22px;
+        }
+
+        footer {
+          flex-direction: column;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <a
+          class="brand"
+          href="https://buildproven.ai"
+          aria-label="BuildProven home"
+        >
+          <span class="brand-mark">QA</span>
+          <span
+            >QA Architect
+            <span style="color: var(--faint)">/ BuildProven</span></span
+          >
+        </a>
+        <nav aria-label="Page navigation">
+          <a href="#how-it-works">How it works</a>
+          <a href="#pricing">Pricing</a>
+          <a href="https://github.com/buildproven/qa-architect">GitHub</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero" aria-labelledby="hero-title">
+          <div>
+            <p class="eyebrow">
+              Security and release assurance for AI-built apps
+            </p>
+            <h1 id="hero-title">
+              AI can build it. <em>Ship it with evidence.</em>
+            </h1>
+            <p class="hero-copy">
+              QA Architect finds the security mistakes AI coding assistants
+              leave behind, then helps you verify the fix before it reaches
+              users.
+            </p>
+            <div class="actions">
+              <a
+                class="button button-primary"
+                href="https://github.com/buildproven/qa-architect#quick-start"
+                >Run the free audit</a
+              >
+              <a class="button button-secondary" href="#pricing"
+                >See Free and Pro</a
+              >
+            </div>
+            <p class="fine-print">
+              Built for solo founders and small teams shipping with AI.
+            </p>
+          </div>
+
+          <div class="terminal" aria-label="Example QA Architect audit output">
+            <div class="terminal-top">
+              <span class="dot"></span><span class="dot"></span
+              ><span class="dot"></span>
+              <span style="margin-left: 6px">project-root / qa-architect</span>
+            </div>
+            <div class="terminal-body">
+              <div class="command">
+                $ npx create-qa-architect@latest --audit
+              </div>
+              <div class="finding">
+                <strong>HIGH · authorization</strong><br />
+                User-controlled ID is queried without an ownership check.<br />
+                <span style="color: #d7a49c"
+                  >pages/api/projects/[id].js:44</span
+                >
+              </div>
+              <div class="terminal-note">→ report saved: qa-audit.md</div>
+            </div>
+          </div>
+        </section>
+
+        <hr class="rule" />
+
+        <section class="section" id="how-it-works" aria-labelledby="how-title">
+          <div class="section-heading">
+            <h2 id="how-title">
+              Find the risk. Fix the change. Ship the release.
+            </h2>
+            <p class="section-lede">
+              Free is the fast security check every AI-built project should run.
+              Pro is the recurring confidence layer for code that matters.
+            </p>
+          </div>
+
+          <div class="split" id="pricing">
+            <article class="offer">
+              <p class="offer-label">Free / $0</p>
+              <h3>Find the risk</h3>
+              <p>
+                Run the audit before a vulnerability becomes a customer problem.
+              </p>
+              <ul>
+                <li>Security audit for common AI-code mistakes</li>
+                <li>
+                  Secrets, auth, IDOR, injection, XSS, and bad config checks
+                </li>
+                <li>Dependency CVE and provenance checks</li>
+                <li>Basic ESLint, Prettier, Husky, and CI setup</li>
+              </ul>
+              <a
+                class="button button-secondary"
+                href="https://github.com/buildproven/qa-architect#quick-start"
+                >Start free</a
+              >
+            </article>
+
+            <article class="offer pro" id="pro">
+              <p class="offer-label">Pro / for production work</p>
+              <h3>Prove the change is ready</h3>
+              <p class="price">$29<span>/month · $290/year</span></p>
+              <ul>
+                <li>
+                  Everything in Free, with unlimited repositories and runs
+                </li>
+                <li>
+                  Verified remediation for supported Critical and High findings
+                </li>
+                <li>
+                  Exact-change PR and release assurance: PASS, BLOCK, or
+                  INCOMPLETE
+                </li>
+                <li>
+                  Full-history secret scanning and advanced security rules
+                </li>
+                <li>Risk-based test strategy and multi-language support</li>
+              </ul>
+              <!-- Replace this URL with the direct Polar checkout URL when available. -->
+              <a
+                class="button button-primary"
+                href="https://buildproven.ai/qa-architect#pro"
+                >Get Pro</a
+              >
+            </article>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="assurance-title">
+          <div class="assurance">
+            <div>
+              <p class="eyebrow">The paid difference</p>
+              <h2 id="assurance-title">
+                Not just a report. A shipping decision.
+              </h2>
+              <p>
+                Pro binds the evidence to the exact change under review, so your
+                team can see what passed, what blocks release, and what still
+                needs verification.
+              </p>
+            </div>
+            <div class="verdicts" aria-label="Release assurance outcomes">
+              <div class="verdict">
+                <strong>PASS</strong
+                ><span
+                  >Required checks and remediation evidence are complete.</span
+                >
+              </div>
+              <div class="verdict">
+                <strong>BLOCK</strong
+                ><span>A known high-risk finding still needs attention.</span>
+              </div>
+              <div class="verdict">
+                <strong>INCOMPLETE</strong
+                ><span>Evidence is missing, stale, or unavailable.</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="close" aria-labelledby="close-title">
+          <p class="eyebrow">Start where you are</p>
+          <h2 id="close-title">
+            Free finds the risk. Pro helps you ship with confidence.
+          </h2>
+          <p>
+            Try the audit on your current project. Upgrade when the code has
+            users, payments, or reputation attached to it.
+          </p>
+          <div class="actions">
+            <a
+              class="button button-primary"
+              href="https://github.com/buildproven/qa-architect#quick-start"
+              >Run the free audit</a
+            >
+            <a
+              class="button button-secondary"
+              href="https://buildproven.ai/qa-architect#pro"
+              >Get Pro</a
+            >
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>© BuildProven · QA Architect</span>
+        <span
+          ><a href="mailto:support@buildproven.ai">support@buildproven.ai</a> ·
+          <a href="https://github.com/buildproven/qa-architect"
+            >Open source CLI</a
+          ></span
+        >
+      </footer>
+    </div>
+  </body>
+</html>
