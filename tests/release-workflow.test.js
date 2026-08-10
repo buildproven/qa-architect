@@ -79,5 +79,15 @@ assert.match(
   /name: Run pre-release checks[\s\S]*run: npm run prerelease/,
   'release workflow must run the complete prerelease script before publishing'
 )
+assert.match(
+  releaseWorkflow,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*python3 -m venv[\s\S]*semgrep==\$SEMGREP_CLI_VERSION/,
+  'release workflow must install the pinned Semgrep CLI before prerelease checks'
+)
+assert.match(
+  releaseWorkflow,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*GITHUB_PATH/,
+  'release workflow must expose the Semgrep CLI to prerelease checks'
+)
 
 console.log('✅ Release workflow safety gates verified')

@@ -11,7 +11,7 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -43,6 +43,20 @@ jobs:
             echo "Tag $TAG_NAME does not match package version $expected"
             exit 1
           }
+
+      # The prerelease suite includes the assurance-pack precision benchmark,
+      # which intentionally fails closed when its semgrep engine is absent.
+      # Keep the release gate equivalent to the CI gate instead of silently
+      # publishing a package whose static assurance benchmark did not run.
+      - name: Install Semgrep CLI for prerelease checks
+        run: |
+          set -euo pipefail
+          SEMGREP_CLI_VERSION=1.96.0
+          python3 -m venv "$RUNNER_TEMP/semgrep-venv"
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --upgrade pip
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet "setuptools<81" "semgrep==$SEMGREP_CLI_VERSION"
+          echo "$RUNNER_TEMP/semgrep-venv/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version
 
       - name: Run pre-release checks
         run: npm run prerelease
