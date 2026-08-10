@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/buildproven/qa-architect/blob/main/config/preview-assurance-v1.schema.json",
+  "title": "QA Architect preview assurance configuration v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "publicPaths", "privatePaths"],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "allowProduction": { "type": "boolean", "default": false },
+    "deployment": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "revisionHeader": { "$ref": "#/$defs/headerName" },
+        "deploymentIdHeader": { "$ref": "#/$defs/headerName" }
+      }
+    },
+    "publicPaths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path" },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "privatePaths": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "unauthenticatedStatuses"],
+        "properties": {
+          "path": { "$ref": "#/$defs/path" },
+          "unauthenticatedStatuses": { "$ref": "#/$defs/statuses" }
+        }
+      }
+    },
+    "debugPaths": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/path" },
+      "uniqueItems": true
+    },
+    "redirectProbePath": { "$ref": "#/$defs/path" },
+    "errorProbePath": { "$ref": "#/$defs/path" },
+    "authorizationProbe": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "consent",
+        "userATokenEnv",
+        "userBTokenEnv",
+        "resourceIdField",
+        "forbiddenStatuses",
+        "create",
+        "read",
+        "mutate",
+        "cleanup"
+      ],
+      "properties": {
+        "consent": { "const": "state-changing-preview-probe-v1" },
+        "userATokenEnv": { "$ref": "#/$defs/envName" },
+        "userBTokenEnv": { "$ref": "#/$defs/envName" },
+        "resourceIdField": {
+          "type": "string",
+          "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+        },
+        "forbiddenStatuses": { "$ref": "#/$defs/statuses" },
+        "create": {
+          "allOf": [
+            { "$ref": "#/$defs/stateRequest" },
+            {
+              "type": "object",
+              "properties": { "method": { "enum": ["POST", "PUT"] } }
+            }
+          ]
+        },
+        "read": {
+          "allOf": [
+            { "$ref": "#/$defs/resourceRequest" },
+            {
+              "type": "object",
+              "properties": { "method": { "const": "GET" } }
+            }
+          ]
+        },
+        "mutate": {
+          "allOf": [
+            { "$ref": "#/$defs/resourceRequest" },
+            {
+              "type": "object",
+              "properties": {
+                "method": { "enum": ["POST", "PUT", "PATCH"] }
+              }
+            }
+          ]
+        },
+        "cleanup": {
+          "allOf": [
+            { "$ref": "#/$defs/resourceRequest" },
+            {
+              "type": "object",
+              "properties": { "method": { "const": "DELETE" } }
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "path": {
+      "type": "string",
+      "pattern": "^/(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\)(?!.*#)[^\\u0000-\\u001F\\u007F]*$"
+    },
+    "headerName": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9-]+$"
+    },
+    "envName": {
+      "type": "string",
+      "pattern": "^[A-Z_][A-Z0-9_]*$"
+    },
+    "statuses": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 100, "maximum": 599 },
+      "minItems": 1,
+      "uniqueItems": true
+    },
+    "stateRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "path", "successStatuses"],
+      "properties": {
+        "method": { "enum": ["POST", "PUT", "PATCH", "DELETE", "GET"] },
+        "path": { "$ref": "#/$defs/path" },
+        "successStatuses": { "$ref": "#/$defs/statuses" },
+        "body": {
+          "anyOf": [
+            { "type": "object" },
+            { "type": "array" },
+            { "type": "string" },
+            { "type": "number" },
+            { "type": "boolean" },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+    "resourceRequest": {
+      "allOf": [
+        { "$ref": "#/$defs/stateRequest" },
+        {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "\\{\\{resourceId\\}\\}"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

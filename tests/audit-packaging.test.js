@@ -144,7 +144,9 @@ test('versioned Web SaaS assurance pack ships with its runtime contract', () => 
   for (const expected of [
     'config/assurance-pack-v1.schema.json',
     'config/assurance-packs/web-saas-v1.json',
+    'config/preview-assurance-v1.schema.json',
     'lib/assurance/pack.js',
+    'lib/assurance/preview.js',
   ]) {
     assert.ok(
       packedFiles.includes(expected),

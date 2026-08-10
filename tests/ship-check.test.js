@@ -3,6 +3,7 @@
 'use strict'
 
 const assert = require('assert')
+const crypto = require('crypto')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
@@ -137,6 +138,9 @@ function runFixture(target, options = {}) {
     referencePaths: options.referencePaths || [],
     skipTests: options.skipTests || false,
     riskPolicyPath: options.riskPolicyPath,
+    previewUrl: options.previewUrl,
+    previewConfigPath: options.previewConfigPath,
+    previewEvidence: options.previewEvidence,
   })
   return { report, calls }
 }
@@ -226,6 +230,77 @@ test('a skipped required test produces INCOMPLETE', () => {
     report.results.find(result => result.id === 'tests').status,
     STATUS.SKIP
   )
+})
+
+test('preview evidence is required, revision-bound, and verdict-bearing', () => {
+  const target = fixture()
+  const configRoot = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'qaa-preview-config-')
+  )
+  const configPath = path.join(configRoot, 'preview.json')
+  const configSource = '{"schemaVersion":"1.0.0"}\n'
+  fs.writeFileSync(configPath, configSource)
+  const configSha256 = crypto
+    .createHash('sha256')
+    .update(configSource)
+    .digest('hex')
+  const evidence = status => ({
+    schemaVersion: '1.0.0',
+    checkVersion: '1.0.0',
+    status,
+    target: 'https://example-preview.vercel.app',
+    environment: {
+      classification: 'preview',
+      revisionBinding: 'verified',
+      deploymentIdSha256: null,
+    },
+    configSha256,
+    checks: [
+      {
+        id: 'deployment-revision-binding',
+        version: '1.0.0',
+        status,
+        summary: status,
+        observations: [],
+      },
+    ],
+    evaluatedAt: new Date().toISOString(),
+  })
+  const passedReport = runFixture(target, {
+    previewUrl: 'https://example-preview.vercel.app',
+    previewConfigPath: configPath,
+    previewEvidence: evidence('pass'),
+  }).report
+  assert.strictEqual(passedReport.verdict, VERDICT.PASS)
+  assert.ok(passedReport.requiredChecks.includes('preview-runtime'))
+  const validate = manifestValidator()
+  assert.strictEqual(
+    validate(passedReport),
+    true,
+    JSON.stringify(validate.errors)
+  )
+  assert.strictEqual(
+    verifyShipManifest(target.root, passedReport, {
+      previewConfigPath: configPath,
+    }).fresh,
+    true
+  )
+  fs.writeFileSync(configPath, '{"changed":true}\n')
+  assert.ok(
+    verifyShipManifest(target.root, passedReport, {
+      previewConfigPath: configPath,
+    }).reasons.includes('preview-config-changed')
+  )
+  const blocked = runFixture(target, {
+    previewUrl: 'https://example-preview.vercel.app',
+    previewEvidence: evidence('fail'),
+  }).report
+  assert.strictEqual(blocked.verdict, VERDICT.BLOCK)
+  const incomplete = runFixture(target, {
+    previewUrl: 'https://example-preview.vercel.app',
+  }).report
+  assert.strictEqual(incomplete.verdict, VERDICT.INCOMPLETE)
+  fs.rmSync(configRoot, { recursive: true, force: true })
 })
 
 test('a timed-out required test produces INCOMPLETE', () => {

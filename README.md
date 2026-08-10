@@ -112,6 +112,55 @@ verification steps, and known false-positive/false-negative limitations. A
 clean static scan is not a framework-security, tenant-isolation, or payments
 certification.
 
+Opt in to deployed-preview checks by passing an origin and a versioned config:
+
+```json
+{
+  "schemaVersion": "1.0.0",
+  "deployment": { "revisionHeader": "x-deployment-commit" },
+  "publicPaths": ["/", "/health"],
+  "privatePaths": [
+    { "path": "/dashboard", "unauthenticatedStatuses": [401, 403, 404] }
+  ],
+  "debugPaths": ["/.env", "/__debug", "/_next/static/chunks/main.js.map"],
+  "redirectProbePath": "/login?next=https://attacker.invalid",
+  "errorProbePath": "/api/error-probe"
+}
+```
+
+```bash
+npx create-qa-architect@latest --ship-check \
+  --base-sha <40-character-base-commit> \
+  --head "$(git rev-parse HEAD)" \
+  --preview-url https://my-branch.example.vercel.app \
+  --preview-config .qa-architect-preview.json \
+  --json
+```
+
+The strict `preview-assurance-v1` config declares public and private paths,
+optional debug/redirect/error paths, and the response header that binds the
+deployment to the expected commit. Missing revision metadata is reported as
+`INCOMPLETE`, never as a verified pass. The read-only probes issue only `GET`
+requests and check TLS, security headers, unexpected debug/source-map routes,
+cross-origin redirects, error leakage, and expected public/private behavior.
+
+An optional two-user authorization probe is state-changing. It runs only when
+the config contains the exact `state-changing-preview-probe-v1` consent string
+and the command also includes `--allow-preview-mutations`. Tokens are read from
+the configured environment-variable names. The probe creates one synthetic
+resource as user A, attempts the configured read and mutation as user B, and
+then sends the configured cleanup request as user A for only the exact returned
+resource ID. Authentication, network, and cleanup failures are `INCOMPLETE`.
+Production-like hosts are refused unless both the config sets
+`allowProduction: true` and the command includes
+`--allow-production-preview`.
+
+Evidence stores request method/origin/path/query-key names, status, safe header
+names, timestamps, durations, byte counts, and body/identifier hashes. It does
+not store authorization headers, tokens, request bodies, response bodies, PII,
+raw resource IDs, or raw deployment IDs. This is bounded verification, not DAST
+crawling, uptime monitoring, or permission for autonomous production testing.
+
 ## Quick Start
 
 ```bash
