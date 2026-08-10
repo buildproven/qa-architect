@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.15.0] - 2026-08-09
+
+### Added
+
+- **Preview deployment assurance:** opt-in runtime verification now checks
+  revision binding, security headers, redirects, public/private routes, and
+  a configured two-user authorization boundary against a deployed preview.
+- **Redacted Ship Check evidence:** preview requests and responses record
+  bounded, revision-bound evidence without tokens, bodies, PII, or raw
+  deployment/resource identifiers.
+
+### Fixed
+
+- **Production-mutation protection:** unknown hostnames are classified as
+  production by default; generic `preview`, `staging`, `dev`, `test`, and
+  similar labels can no longer bypass the explicit production-consent gate.
+
 ## [5.14.3] - 2026-07-29
 
 ### Added
