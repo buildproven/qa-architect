@@ -11,16 +11,23 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      SEMGREP_VERSION: '1.96.0'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup Python for pinned Semgrep
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12'
 
       # OIDC trusted publishing requires npm >= 11.5. We pin to 11.5.2 (the
       # first OIDC-stable release) instead of `npm@latest` to avoid the
@@ -44,8 +51,26 @@ jobs:
             exit 1
           }
 
+      # The prerelease suite includes the assurance-pack precision benchmark,
+      # which intentionally fails closed when its semgrep engine is absent.
+      # Keep the release gate equivalent to the CI gate instead of silently
+      # publishing a package whose static assurance benchmark did not run.
+      - name: Install Semgrep CLI for prerelease checks
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/semgrep-venv"
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --require-hashes \
+            --only-binary=:all: \
+            --requirement .github/semgrep-release-requirements.txt
+          test "$("$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version)" = "$SEMGREP_VERSION"
+          echo "$RUNNER_TEMP/semgrep-venv/bin" >> "$GITHUB_PATH"
+
       - name: Run pre-release checks
-        run: npm run prerelease
+        run: |
+          set -euo pipefail
+          test "$(command -v semgrep)" = "$RUNNER_TEMP/semgrep-venv/bin/semgrep"
+          test "$(semgrep --version)" = "$SEMGREP_VERSION"
+          npm run prerelease
         env:
           CI: 'true'
 

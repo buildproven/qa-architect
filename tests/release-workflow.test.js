@@ -11,6 +11,10 @@ const releaseWorkflow = fs.readFileSync(
   path.join(repoRoot, '.github/workflows/release.yml'),
   'utf8'
 )
+const semgrepRequirements = fs.readFileSync(
+  path.join(repoRoot, '.github/semgrep-release-requirements.txt'),
+  'utf8'
+)
 
 console.log('\nrelease workflow — publish safety gates')
 
@@ -76,8 +80,74 @@ assert.strictEqual(
 )
 assert.match(
   releaseWorkflow,
-  /name: Run pre-release checks[\s\S]*run: npm run prerelease/,
+  /name: Run pre-release checks[\s\S]*run: \|[\s\S]*npm run prerelease/,
   'release workflow must run the complete prerelease script before publishing'
+)
+assert.match(
+  releaseWorkflow,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*--require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
+  'release workflow must install the hash-locked Semgrep dependency set'
+)
+const requirementLines = semgrepRequirements
+  .split('\n')
+  .map(line => line.trim())
+  .filter(line => line && !line.startsWith('#'))
+assert.ok(
+  requirementLines.length > 0,
+  'Semgrep lockfile must contain requirements'
+)
+for (const line of requirementLines) {
+  assert.match(
+    line,
+    /^[A-Za-z0-9_.-]+==[^ ]+ --hash=sha256:[0-9a-f]{64}$/,
+    `Semgrep lock entry must have one exact SHA-256 hash: ${line}`
+  )
+}
+const semgrepLockVersion = requirementLines
+  .find(line => line.startsWith('semgrep=='))
+  ?.match(/^semgrep==([^ ]+)/)?.[1]
+assert.ok(semgrepLockVersion, 'Semgrep lockfile must pin the Semgrep version')
+const workflowSemgrepVersion = releaseWorkflow.match(
+  /SEMGREP_VERSION:\s*'([^']+)'/
+)?.[1]
+assert.ok(
+  workflowSemgrepVersion,
+  'release workflow must define one Semgrep version variable'
+)
+const releaseSemgrepVersions = [
+  ...releaseWorkflow.matchAll(/semgrep --version\)" = "\$SEMGREP_VERSION/g),
+].map(() => workflowSemgrepVersion)
+assert.ok(
+  releaseSemgrepVersions.length > 0,
+  'release workflow must verify the Semgrep version'
+)
+assert.ok(
+  releaseSemgrepVersions.every(version => version === semgrepLockVersion),
+  'release workflow Semgrep version checks must match the lockfile'
+)
+for (const match of releaseWorkflow.matchAll(
+  /uses: (actions\/[\w-]+)@([^\s]+)/g
+)) {
+  assert.match(
+    match[2],
+    /^[0-9a-f]{40}$/,
+    `trusted release action ${match[1]} must be pinned to a full commit SHA`
+  )
+}
+assert.match(
+  releaseWorkflow,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*semgrep" --version\)" = "\$SEMGREP_VERSION"/,
+  'release workflow must verify the installed Semgrep binary before exporting it'
+)
+assert.match(
+  releaseWorkflow,
+  /name: Run pre-release checks[\s\S]*command -v semgrep[\s\S]*RUNNER_TEMP\/semgrep-venv\/bin\/semgrep[\s\S]*semgrep --version[\s\S]*npm run prerelease/,
+  'prerelease checks must assert the exported Semgrep binary before running'
+)
+assert.ok(
+  releaseWorkflow.indexOf('name: Install Semgrep CLI for prerelease checks') <
+    releaseWorkflow.indexOf('name: Run pre-release checks'),
+  'release workflow must install Semgrep before running prerelease checks'
 )
 
 console.log('✅ Release workflow safety gates verified')
