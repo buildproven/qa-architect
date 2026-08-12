@@ -9,6 +9,9 @@ coverage/
 coverage/
 .playwright-mcp/
 
+# Fleet quality telemetry is generated locally and aggregated from each repo.
+data/quality-escapes.jsonl
+
 # QA Architect license files (never commit)
 .qa-architect/
 
