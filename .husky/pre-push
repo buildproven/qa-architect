@@ -5,6 +5,21 @@
 # inherited by subprocesses that operate outside this repository.
 unset $(git rev-parse --local-env-vars)
 
+# Git supplies one update per line on stdin. A push containing only
+# deletions changes no code, so running tests and security scans cannot add
+# assurance. Keep ordinary and new-branch pushes fail-closed.
+PUSH_UPDATES=""
+if [ ! -t 0 ]; then
+  PUSH_UPDATES=$(cat)
+fi
+if [ -n "$PUSH_UPDATES" ] && printf '%s\n' "$PUSH_UPDATES" | awk '
+  NF { saw = 1; if ($2 !~ /^0+$/) non_deletion = 1 }
+  END { exit !(saw && !non_deletion) }
+'; then
+  echo "✅ Remote branch deletion only — no code to validate."
+  exit 0
+fi
+
 echo "🔍 Running smart pre-push validation..."
 
 # Check if smart test strategy script exists
