@@ -1,6 +1,7 @@
 'use strict'
 
 const assert = require('assert')
+const { spawnSync } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
@@ -428,6 +429,26 @@ console.log('🧪 Testing Smart Strategy Generator...\n')
   assert(hook.includes('XSS'), 'Should include XSS detection')
   assert(hook.includes('innerHTML'), 'Should scan for innerHTML injection')
   assert(hook.includes('eval'), 'Should scan for eval injection')
+  assert(hook.includes('Remote branch deletion only'))
+
+  const deletionFixture = createTempProject()
+  const hookPath = path.join(deletionFixture, 'pre-push')
+  const markerPath = path.join(deletionFixture, 'strategy-ran')
+  fs.mkdirSync(path.join(deletionFixture, 'scripts'))
+  fs.writeFileSync(
+    path.join(deletionFixture, 'scripts', 'smart-test-strategy.sh'),
+    `touch ${JSON.stringify(markerPath)}\n`
+  )
+  fs.writeFileSync(hookPath, `#!/bin/bash\n${hook}`)
+  const deletion = spawnSync('bash', [hookPath], {
+    cwd: deletionFixture,
+    encoding: 'utf8',
+    input: `(delete) ${'0'.repeat(40)} refs/heads/old ${'1'.repeat(40)}\n`,
+  })
+  assert.strictEqual(deletion.status, 0, deletion.stderr)
+  assert.match(deletion.stdout, /Remote branch deletion only/)
+  assert(!fs.existsSync(markerPath), 'Deletion must not run the test strategy')
+  cleanup(deletionFixture)
   console.log('  ✅ Pre-push hook includes all security scans')
 }
 
