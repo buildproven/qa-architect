@@ -42,6 +42,31 @@ assert.match(
   /Revision-bound PR-to-release assurance:\s*PASS, BLOCK, or\s*INCOMPLETE/,
   'Pro pricing must state the release-assurance outcome'
 )
+assert.match(
+  html,
+  /Find the risk\. Prove the release\./,
+  'Landing hero must lead with the paid outcome'
+)
+assert.match(
+  html,
+  /Revision-bound release assurance/,
+  'Landing page must show a concrete Pro assurance artifact'
+)
+assert.match(
+  html,
+  /Best fit: a solo builder with weekly releases/,
+  'Landing page must explain who should pay'
+)
+assert.match(
+  html,
+  /four-week Merge Assurance pilot/,
+  'Landing page must expose the bounded team pilot without presenting it as a validated subscription'
+)
+assert.match(
+  html,
+  /A PASS means the configured checks and evidence are complete\./,
+  'Landing page must state the assurance boundary'
+)
 assert.ok(!html.includes('$49') && !html.includes('$490'))
 
 const beehiivPath = path.join(
@@ -85,6 +110,16 @@ assert.match(
   beehiivHtml,
   /PASS[\s\S]*BLOCK[\s\S]*INCOMPLETE/,
   'Beehiiv page must explain release-assurance outcomes'
+)
+assert.match(
+  beehiivHtml,
+  /Need a guided rollout across several repositories\?/,
+  'Beehiiv page must expose the bounded team pilot'
+)
+assert.match(
+  beehiivHtml,
+  /A PASS means the configured checks and evidence are complete\./,
+  'Beehiiv page must state the assurance boundary'
 )
 assert.ok(!beehiivHtml.includes('$49') && !beehiivHtml.includes('$490'))
 
