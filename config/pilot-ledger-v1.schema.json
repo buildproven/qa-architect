@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "records"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "reference",
+          "prospect",
+          "kind",
+          "date",
+          "outcome",
+          "objections",
+          "nextStep"
+        ],
+        "properties": {
+          "reference": { "type": "string", "minLength": 1 },
+          "prospect": { "type": "string", "minLength": 1 },
+          "kind": { "enum": ["discovery", "pilot"] },
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "outcome": { "enum": ["completed", "paid", "declined"] },
+          "objections": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          },
+          "nextStep": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
