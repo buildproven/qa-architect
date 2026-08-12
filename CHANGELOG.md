@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Merge Assurance pilot readiness:** a schema-validated private discovery and
+  pilot ledger separates offer testing from paid market validation and requires
+  five distinct discovery prospects before a paid pilot can validate demand.
+
+### Security
+
+- Removed the unused local `@lhci/cli` development dependency and its vulnerable
+  Lighthouse/Puppeteer/`extract-zip` chain. Generated customer Lighthouse
+  configuration remains supported through the existing QA Architect templates.
+
 ## [5.15.2] - 2026-08-10
 
 ### Fixed
