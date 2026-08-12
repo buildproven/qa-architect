@@ -85,23 +85,49 @@ assert.match(
 )
 assert.match(
   releaseWorkflow,
-  /name: Install Semgrep CLI for prerelease checks[\s\S]*--require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
+  /name: Install Semgrep CLI for prerelease checks[\s\S]*--no-deps --require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
   'release workflow must install the hash-locked Semgrep dependency set'
 )
-const requirementLines = semgrepRequirements
-  .split('\n')
-  .map(line => line.trim())
-  .filter(line => line && !line.startsWith('#'))
+assert.doesNotMatch(
+  semgrepRequirements,
+  /^mcp==/m,
+  'local-only Semgrep release checks must not install its vulnerable MCP server dependency'
+)
+const requirementLines = []
+let requirementLine = ''
+for (const rawLine of semgrepRequirements.split('\n')) {
+  const line = rawLine.trim()
+  if (!line || line.startsWith('#')) continue
+  requirementLine += `${requirementLine ? ' ' : ''}${line.replace(/ \\$/, '')}`
+  if (!line.endsWith(' \\')) {
+    requirementLines.push(requirementLine)
+    requirementLine = ''
+  }
+}
+assert.strictEqual(
+  requirementLine,
+  '',
+  'Semgrep lockfile must not end mid-entry'
+)
 assert.ok(
   requirementLines.length > 0,
   'Semgrep lockfile must contain requirements'
 )
 for (const line of requirementLines) {
+  const [requirement, ...hashes] = line.split(' ')
   assert.match(
-    line,
-    /^[A-Za-z0-9_.-]+==[^ ]+ --hash=sha256:[0-9a-f]{64}$/,
-    `Semgrep lock entry must have one exact SHA-256 hash: ${line}`
+    requirement,
+    /^[A-Za-z0-9_.-]+==[^ ]+$/,
+    `Semgrep lock entry must be exact and hash-locked: ${line}`
   )
+  assert.ok(hashes.length > 0, `Semgrep lock entry must have a hash: ${line}`)
+  for (const hash of hashes) {
+    assert.match(
+      hash,
+      /^--hash=sha256:[0-9a-f]{64}$/,
+      `Semgrep lock hash must be an exact SHA-256: ${hash}`
+    )
+  }
 }
 const semgrepLockVersion = requirementLines
   .find(line => line.startsWith('semgrep=='))

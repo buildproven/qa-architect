@@ -59,7 +59,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m venv "$RUNNER_TEMP/semgrep-venv"
-          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --require-hashes \
+          # Install only the explicitly hash-locked packages. Semgrep's MCP
+          # server dependency is deliberately absent: release checks use only
+          # local CLI scanning, and Semgrep 1.172.0 pins a vulnerable MCP SDK.
+          "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet --no-deps --require-hashes \
             --only-binary=:all: \
             --requirement .github/semgrep-release-requirements.txt
           test "$("$RUNNER_TEMP/semgrep-venv/bin/semgrep" --version)" = "$SEMGREP_VERSION"
