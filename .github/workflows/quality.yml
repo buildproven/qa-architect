@@ -627,6 +627,12 @@ jobs:
             exit 1
           }
 
+      # {{COMPREHENSIVE_MUTATION_GATE_BEGIN}}
+      - name: Run project mutation confidence gate
+        run: |
+          echo "🧬 Running the project-provided mutation command when configured..."
+          npm run --if-present test:mutation
+      # {{COMPREHENSIVE_MUTATION_GATE_END}}
       # {{QA_ARCHITECT_ONLY_BEGIN}}
       - name: Cache gitleaks binary for real download test
         if: runner.os == 'Linux'

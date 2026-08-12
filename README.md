@@ -251,6 +251,11 @@ surface; Pro is the evidence and repair loop used on every meaningful change.
 | Bundle size limits           | ❌   | ✅   |
 | Coverage thresholds          | ❌   | ✅   |
 
+Coverage thresholds measure exercised code, not whether a test would fail when
+behavior regresses. Comprehensive workflows also run a project-provided
+`test:mutation` command when present; teams should use it for mutation or
+behavioral-relevance checks rather than treating percentage coverage as proof.
+
 ### Pre-Launch Validation by Tier
 
 | Feature             | Free | Pro+ |
