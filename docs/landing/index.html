@@ -3,7 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>QA Architect — Security Audit for Vibe-Coded Apps</title>
+    <title>QA Architect — Find the risk. Prove the release.</title>
+    <meta
+      name="description"
+      content="QA Architect finds security risks in AI-generated code for free, then helps you prove whether an exact change is ready to merge and ship."
+    />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f1115'/%3E%3Ctext x='32' y='40' text-anchor='middle' font-family='monospace' font-size='22' font-weight='700' fill='%23e8a33d'%3EQA%3C/text%3E%3C/svg%3E"
+    />
     <style>
       @font-face {
         font-family: 'JBMono';
@@ -153,7 +161,7 @@
 
       /* ---------- Hero ---------- */
       .hero {
-        padding: 72px 0 56px;
+        padding: 72px 24px 56px;
       }
       .eyebrow {
         font-family: var(--mono);
@@ -476,6 +484,110 @@
         margin-top: 14px;
       }
 
+      /* Paid outcome */
+      .assurance-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+        gap: 20px;
+        align-items: stretch;
+      }
+      .assurance-copy {
+        padding: 28px 0;
+      }
+      .assurance-copy h2 {
+        max-width: 16ch;
+      }
+      .assurance-copy p {
+        color: var(--ink-dim);
+        max-width: 48ch;
+      }
+      .assurance-points {
+        list-style: none;
+        margin: 24px 0 0;
+        padding: 0;
+        display: grid;
+        gap: 16px;
+      }
+      .assurance-points li {
+        display: grid;
+        grid-template-columns: 28px 1fr;
+        gap: 12px;
+        align-items: start;
+      }
+      .assurance-points strong {
+        display: block;
+        font-size: 15px;
+        margin-bottom: 2px;
+      }
+      .assurance-points span {
+        color: var(--ink-dim);
+        font-size: 14px;
+      }
+      .point-mark {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--amber-strong);
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      .assurance-terminal {
+        min-height: 100%;
+      }
+      .assurance-terminal .terminal-body {
+        padding-bottom: 28px;
+      }
+      .assurance-terminal .t-verdict {
+        color: var(--green);
+      }
+      .evidence-line {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+        border-bottom: 1px solid var(--terminal-line);
+        padding: 8px 0;
+        color: var(--terminal-dim);
+      }
+      .evidence-line strong {
+        color: var(--terminal-text);
+        font-weight: 400;
+      }
+      .evidence-pass {
+        color: var(--green) !important;
+      }
+      .trust-note {
+        margin: 20px 0 0;
+        color: var(--ink-dim);
+        font-size: 13px;
+        max-width: 66ch;
+      }
+      .pilot-band {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 28px;
+        align-items: center;
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--amber);
+        background: var(--bg-raised);
+        padding: 24px 26px;
+      }
+      .pilot-band h3 {
+        margin: 0 0 7px;
+        font-size: 19px;
+      }
+      .pilot-band p {
+        margin: 0;
+        color: var(--ink-dim);
+        font-size: 14px;
+        max-width: 65ch;
+      }
+      .pilot-band .btn {
+        white-space: nowrap;
+      }
+
       /* Footer */
       footer {
         border-top: 1px solid var(--line);
@@ -494,6 +606,35 @@
         color: var(--ink);
       }
 
+      @media (max-width: 720px) {
+        .topbar .wrap {
+          align-items: flex-start;
+          flex-direction: column;
+          gap: 12px;
+          padding-top: 16px;
+          padding-bottom: 16px;
+        }
+        .topbar nav {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px 16px;
+        }
+        .topbar nav a {
+          margin-left: 0;
+          font-size: 13px;
+        }
+        .assurance-grid,
+        .pilot-band {
+          grid-template-columns: 1fr;
+        }
+        .assurance-copy {
+          padding: 0;
+        }
+        .pilot-band .btn {
+          width: 100%;
+        }
+      }
+
       .install-line {
         font-family: var(--mono);
         font-size: 13px;
@@ -509,7 +650,8 @@
           <span class="maker">by BuildProven</span>
         </div>
         <nav>
-          <a href="#coverage">Coverage</a>
+          <a href="#coverage">Free audit</a>
+          <a href="#assurance">Pro assurance</a>
           <a href="#pricing">Pricing</a>
           <a
             href="https://github.com/buildproven/qa-architect"
@@ -522,18 +664,18 @@
     </div>
 
     <div class="hero wrap">
-      <p class="eyebrow">npx create-qa-architect@latest --audit</p>
-      <h1>Find what your AI wrote wrong, before someone else does.</h1>
+      <p class="eyebrow">Security and release assurance for AI-built apps</p>
+      <h1>Find the risk. Prove the release.</h1>
       <p class="sub">
-        A security audit built for AI-generated codebases — catches the
-        vulnerability classes generic SAST tools miss, like secrets shipped in
-        the client bundle and unscoped data access across Prisma, Drizzle, and
-        Supabase.
+        AI can build an app that works and still leave behind exposed secrets,
+        broken permissions, or unsafe data access. QA Architect finds those
+        mistakes, then helps you decide whether the exact change in front of you
+        is ready to merge and ship.
       </p>
       <p class="stat-line">
-        <strong>45% of AI-generated code</strong> contains an OWASP Top-10
-        vulnerability, across 100+ LLMs tested (Veracode). This is what it looks
-        like against your own repo.
+        <strong>Free finds the risk.</strong> Pro binds the checks, findings,
+        and remediation evidence to one exact revision and reports
+        <strong>PASS, BLOCK, or INCOMPLETE.</strong>
       </p>
 
       <div class="terminal">
@@ -594,23 +736,23 @@
       </div>
 
       <div class="cta-row">
-        <a class="btn btn-primary" href="#pricing"
-          >Get QA Architect Pro — $29/mo</a
+        <a
+          class="btn btn-primary"
+          href="https://github.com/buildproven/qa-architect#quick-start"
+          >Run the free audit</a
         >
-        <a class="btn btn-ghost" href="#coverage"
-          >See what's free
-          <code>npx create-qa-architect@latest --audit</code></a
-        >
+        <a class="btn btn-ghost" href="#assurance">See what Pro proves</a>
       </div>
     </div>
 
     <section id="coverage">
       <div class="wrap">
         <p class="kicker">Coverage</p>
-        <h2>Run the audit free. Verify the remediation.</h2>
+        <h2>Start free with a real security audit.</h2>
         <p class="lede">
-          The scanner runs semgrep SAST plus an npm CVE audit, tuned for the
-          mistakes AI coding assistants actually make.
+          Free is not a teaser. It scans for the mistakes AI coding assistants
+          commonly leave behind and gives you file-and-line evidence you can act
+          on immediately.
         </p>
 
         <div class="cov-table">
@@ -674,13 +816,110 @@
       </div>
     </section>
 
+    <section id="assurance">
+      <div class="wrap">
+        <p class="kicker">What Pro is for</p>
+        <div class="assurance-grid">
+          <div class="assurance-copy">
+            <h2>Pro turns “we fixed it” into evidence.</h2>
+            <p>
+              When a change matters, a one-time scan is not enough. Pro checks
+              the exact revision under review, records the required evidence,
+              and makes missing or stale checks visible instead of calling them
+              safe.
+            </p>
+            <ul class="assurance-points">
+              <li>
+                <span class="point-mark">01</span>
+                <div>
+                  <strong>Review the exact change</strong>
+                  <span
+                    >Changed-code findings, risk policy, and base/head identity
+                    stay bound to the candidate.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <span class="point-mark">02</span>
+                <div>
+                  <strong>Verify the repair</strong>
+                  <span
+                    >Supported Critical/High findings get inspectable packets,
+                    focused tests, and commit-bound proof.</span
+                  >
+                </div>
+              </li>
+              <li>
+                <span class="point-mark">03</span>
+                <div>
+                  <strong>Make the release call</strong>
+                  <span
+                    >Ship Check reports PASS, BLOCK, or INCOMPLETE for the
+                    evidence that actually ran.</span
+                  >
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div
+            class="terminal assurance-terminal"
+            aria-label="Example Pro release assurance output"
+          >
+            <div class="terminal-head">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <div class="label">qa-architect — ship-check</div>
+            </div>
+            <div class="terminal-body">
+              <div class="cmd">
+                <span class="prompt">❯</span> npx create-qa-architect@latest
+                --ship-check --json
+              </div>
+              <div class="t-rule">
+                ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+              </div>
+              <div class="t-title">Revision-bound release assurance</div>
+              <div class="evidence-line">
+                <span>candidate</span><strong>8b71c2e → 2e4d9a1</strong>
+              </div>
+              <div class="evidence-line">
+                <span>changed-code gate</span
+                ><strong class="evidence-pass">PASS</strong>
+              </div>
+              <div class="evidence-line">
+                <span>remediation evidence</span
+                ><strong class="evidence-pass">VERIFIED</strong>
+              </div>
+              <div class="evidence-line">
+                <span>required checks</span
+                ><strong class="evidence-pass">COMPLETE</strong>
+              </div>
+              <div class="t-verdict" style="margin-top: 18px">
+                PASS — READY FOR REVIEW
+              </div>
+              <div class="terminal-note">
+                Evidence is bound to this candidate, not to a different
+                checkout.
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="trust-note">
+          A PASS means the configured checks and evidence are complete. It is
+          not a security certification or a promise that an application has no
+          bugs.
+        </p>
+      </div>
+    </section>
+
     <section id="pricing">
       <div class="wrap">
         <p class="kicker">Pricing</p>
-        <h2>Free finds the risk. Pro proves the change is ready to ship.</h2>
+        <h2>Choose the level of confidence your project needs.</h2>
         <p class="lede">
-          No seat minimums, no usage games. One repo or fifty — Pro is a flat
-          rate.
+          Free is for exploring and shipping a first project. Pro is for
+          repeated releases, multiple repositories, and changes that need an
+          evidence trail.
         </p>
 
         <div class="price-grid">
@@ -708,6 +947,7 @@
           </div>
 
           <div class="price-card featured">
+            <span id="pro" aria-hidden="true"></span>
             <p class="price-name">Pro</p>
             <p class="price-amount">$29<span>/mo</span></p>
             <p class="price-sub">or $290/yr — two months free</p>
@@ -723,7 +963,7 @@
               </li>
               <li>Advanced package provenance review signals</li>
               <li>Smart Test Strategy — risk-based pre-push validation</li>
-              <li>Ship Check, PR Risk Check, CI Doctor</li>
+              <li>Ship Check, PR Risk Check, and CI Doctor</li>
               <li>
                 Full-history secrets scan (Gitleaks) + ESLint security ruleset
               </li>
@@ -737,6 +977,33 @@
               Get Pro
             </a>
           </div>
+        </div>
+        <p class="trust-note">
+          Best fit: a solo builder with weekly releases or a small team shipping
+          AI-generated changes across more than one repository. If you only need
+          a one-time audit, stay on Free.
+        </p>
+      </div>
+    </section>
+
+    <section id="pilot">
+      <div class="wrap">
+        <div class="pilot-band">
+          <div>
+            <p class="kicker">For teams</p>
+            <h3>Need a guided rollout across several repositories?</h3>
+            <p>
+              We are testing a four-week Merge Assurance pilot for teams with
+              rising CI waste or unreliable review loops. It includes policy
+              setup, a canary repository, weekly evidence, and an operator
+              session. This is a pilot, not a security certification.
+            </p>
+          </div>
+          <a
+            class="btn btn-ghost"
+            href="mailto:support@buildproven.ai?subject=Merge%20Assurance%20pilot"
+            >Talk about a pilot</a
+          >
         </div>
       </div>
     </section>
