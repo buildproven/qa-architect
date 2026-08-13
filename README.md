@@ -205,10 +205,10 @@ npx create-qa-architect@latest
 
 ## Pricing
 
-| Tier     | Price             | What You Get                                                                                                                                                                                                             |
-| -------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Free** | $0                | Unlimited local security audit (`--audit`) and dependency evidence, plus linting/formatting and basic quality automation (1 private repo, 50 pre-push runs/mo)                                                           |
-| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, revision-bound PR-to-release assurance, advanced provenance signals, CI Doctor, full-history secret scan, Smart Test Strategy, multi-language, unlimited |
+| Tier     | Price             | What You Get                                                                                                                                                                                                                     |
+| -------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Free** | $0                | Unlimited local security audit (`--audit`) and dependency evidence, plus linting/formatting and basic quality automation (1 private repo, 50 pre-push runs/mo)                                                                   |
+| **Pro**  | $29/mo or $290/yr | **Everything in Free** + provider-neutral verified remediation, revision-bound PR-to-release assurance, advanced provenance signals, CI Doctor, full-history secret scan, evidence-backed test impact, multi-language, unlimited |
 
 > **Pro included in [BuildProven Starter Kit](https://buildproven.ai/starter-kit)**
 
@@ -238,6 +238,7 @@ surface; Pro is the evidence and repair loop used on every meaningful change.
 | Ship Check (release-readiness)       | ❌   | ✅  |
 | PR Risk Check (diff classifier)      | ❌   | ✅  |
 | CI Doctor (workflow waste detection) | ❌   | ✅  |
+| Evidence-backed affected tests       | ❌   | ✅  |
 | Full-history secrets scan            | ❌   | ✅  |
 
 ### Quality Tools by Tier
@@ -397,6 +398,39 @@ npx create-qa-architect@latest --analyze-ci
 ```
 
 Shows estimated GitHub Actions usage and provides optimization recommendations.
+
+### Generating affected-test policy (Pro feature)
+
+Inspect the repository first. This command changes no file:
+
+```bash
+npx create-qa-architect@latest --test-impact-plan
+```
+
+Write the repository policy:
+
+```bash
+npx create-qa-architect@latest --write-test-impact
+```
+
+Update the policy while preserving reviewed repository mappings:
+
+```bash
+npx create-qa-architect@latest --update-test-impact
+```
+
+The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
+Unknown impact uses the declared complete suite as an explicit safe fallback.
+Mapped, related-test, direct-test, and documentation-only changes stay focused.
+Plain Node same-name tests are suggestions only. Supply reviewed mappings
+with `--mapping-file <path>`. QA Architect does not install or replace CI for
+this feature. Use the shared `claude-kit` selector through the repository's
+normal `claude-setup` CI adapter. The generated pre-push hook stays fast and
+does not run the complete suite.
+
+On update, QA Architect replaces only a recognized legacy smart-test hook. It
+saves the old hook as `.husky/pre-push.qa-architect-legacy`. Restore that file
+as `.husky/pre-push` to roll back. Custom hooks are not changed.
 
 ### License
 
@@ -600,7 +634,7 @@ Pro tier ($29/mo or $290/yr) includes:
 
 - **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
-- Smart Test Strategy (risk-based pre-push validation)
+- Evidence-backed affected-test policy generation
 - Multi-language support (Python, Rust, Ruby, and Shell scripts)
 - Unlimited private repos and runs
 

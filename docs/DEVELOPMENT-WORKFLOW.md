@@ -161,3 +161,22 @@ npx create-qa-architect@latest --analyze-ci
 ```
 
 Shows estimated GitHub Actions usage and optimization recommendations.
+
+### Select affected tests (Pro)
+
+```bash
+# Inspect only. This command changes no file.
+npx create-qa-architect@latest --test-impact-plan
+
+# Write the repository policy.
+npx create-qa-architect@latest --write-test-impact
+
+# Update it while preserving reviewed mappings.
+npx create-qa-architect@latest --update-test-impact
+```
+
+The generator detects declared Vitest, Jest, plain Node, and Pytest suites.
+Source files without a sound dependency selector need repository-owned mappings.
+Pass reviewed mappings with `--mapping-file <path>`. QA Architect does not
+change CI for this feature. The shared `claude-kit` selector and the
+`claude-setup` repository adapter own execution.

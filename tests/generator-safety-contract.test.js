@@ -6,6 +6,7 @@ const os = require('os')
 const path = require('path')
 const { execFileSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
+const { generateSmartPrePushHook } = require('../lib/smart-strategy-generator')
 const {
   readProjectFile,
   writeProjectFile,
@@ -181,6 +182,47 @@ try {
 } finally {
   fs.rmSync(symlinkRepo, { recursive: true, force: true })
   fs.rmSync(outsideDirectory, { recursive: true, force: true })
+}
+
+const legacyHookRepo = createRepo({
+  name: 'legacy-hook-migration',
+  scripts: { test: 'node --test' },
+})
+try {
+  const husky = path.join(legacyHookRepo, '.husky')
+  fs.mkdirSync(husky)
+  const legacy = generateSmartPrePushHook()
+  fs.writeFileSync(path.join(husky, 'pre-push'), legacy)
+  runSetup(legacyHookRepo)
+  assert.strictEqual(
+    fs.readFileSync(path.join(husky, 'pre-push.qa-architect-legacy'), 'utf8'),
+    legacy
+  )
+  const upgraded = fs.readFileSync(path.join(husky, 'pre-push'), 'utf8')
+  assert(!upgraded.includes('smart-test-strategy.sh'))
+  assert(upgraded.includes('No affected-test selector'))
+  assert(!upgraded.includes('Running node --test'))
+} finally {
+  fs.rmSync(legacyHookRepo, { recursive: true, force: true })
+}
+
+const customizedLegacyHookRepo = createRepo({
+  name: 'customized-legacy-hook',
+  scripts: { test: 'node --test' },
+})
+try {
+  const husky = path.join(customizedLegacyHookRepo, '.husky')
+  fs.mkdirSync(husky)
+  const customized = `${generateSmartPrePushHook()}\necho "custom deploy check"\n`
+  fs.writeFileSync(path.join(husky, 'pre-push'), customized)
+  runSetup(customizedLegacyHookRepo)
+  assert.strictEqual(
+    fs.readFileSync(path.join(husky, 'pre-push'), 'utf8'),
+    customized
+  )
+  assert(!fs.existsSync(path.join(husky, 'pre-push.qa-architect-legacy')))
+} finally {
+  fs.rmSync(customizedLegacyHookRepo, { recursive: true, force: true })
 }
 
 console.log('✅ Generator safety contract regression tests passed')

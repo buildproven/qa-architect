@@ -1,134 +1,66 @@
-#!/bin/bash
+#!/bin/sh
+set -eu
 
-# Git hooks export GIT_DIR and related variables for this worktree. The test
-# strategy creates isolated fixture repositories, so those values must not be
-# inherited by subprocesses that operate outside this repository.
-unset $(git rev-parse --local-env-vars)
+repo_variables=$(git rev-parse --local-env-vars)
+for variable in $repo_variables; do
+  unset "$variable"
+done
 
-# Git supplies one update per line on stdin. A push containing only
-# deletions changes no code, so running tests and security scans cannot add
-# assurance. Keep ordinary and new-branch pushes fail-closed.
-PUSH_UPDATES=""
+updates=""
 if [ ! -t 0 ]; then
-  PUSH_UPDATES=$(cat)
+  updates=$(cat)
 fi
-if [ -n "$PUSH_UPDATES" ] && printf '%s\n' "$PUSH_UPDATES" | awk '
+if [ -n "$updates" ] && printf '%s\n' "$updates" | awk '
   NF { saw = 1; if ($2 !~ /^0+$/) non_deletion = 1 }
   END { exit !(saw && !non_deletion) }
 '; then
-  echo "✅ Remote branch deletion only — no code to validate."
+  echo "Pre-push: remote branch deletion only."
   exit 0
 fi
 
-echo "🔍 Running smart pre-push validation..."
+echo "Pre-push: lint."
+npm run lint --silent
 
-# Check if smart test strategy script exists
-if [ -f "scripts/smart-test-strategy.sh" ]; then
-  bash scripts/smart-test-strategy.sh
-else
-  # Fallback to basic validation
-  echo "📝 Linting..."
-  npm run lint || {
-    echo "❌ Lint failed! Fix errors before pushing."
-    exit 1
-  }
+echo "Pre-push: format check."
+npm run format:check --silent
 
-  echo "✨ Checking formatting..."
-  npm run format:check || {
-    echo "❌ Format check failed! Run 'npm run format' to fix."
-    exit 1
-  }
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Pre-push stopped: install gitleaks for the required local secret scan." >&2
+  exit 1
+fi
+echo "Pre-push: secret scan."
+gitleaks detect --no-git --redact --no-banner --exit-code=1
 
-  # Run tests if they exist
-  if node -e "const pkg=require('./package.json');process.exit(pkg.scripts.test?0:1)" 2>/dev/null; then
-    echo "🧪 Running tests..."
-    npm test || {
-      echo "❌ Tests failed! Fix failing tests before pushing."
-      exit 1
-    }
+base_ref=""
+if git rev-parse --verify --quiet '@{upstream}' >/dev/null; then
+  base_ref='@{upstream}'
+elif git rev-parse --verify --quiet origin/main >/dev/null; then
+  base_ref='origin/main'
+fi
+
+dependency_changed=true
+if [ -n "$base_ref" ]; then
+  base_sha=$(git merge-base "$base_ref" HEAD)
+  if git diff --quiet "$base_sha...HEAD" -- \
+    package.json package-lock.json npm-shrinkwrap.json \
+    pnpm-lock.yaml yarn.lock bun.lock bun.lockb; then
+    dependency_changed=false
   fi
-
-  echo "✅ Pre-push validation passed!"
 fi
 
-# Security scans (runs after main validation)
-echo ""
-echo "🔐 Running security scans..."
-
-# 1. Secret scanning with gitleaks
-if command -v gitleaks &> /dev/null; then
-  echo "  → Scanning for secrets..."
-  gitleaks detect --no-git --verbose --exit-code=1 || {
-    echo "❌ Secrets detected! Remove them before pushing."
-    exit 1
-  }
-else
-  echo "  ⚠️  gitleaks not installed - skipping secret scan"
-  echo "     Install: brew install gitleaks (Mac) or npm install -g gitleaks"
-fi
-
-# 2. Dependency audit
-echo "  → Checking dependencies..."
-# Detect package manager and use appropriate audit command
-if [ -f "pnpm-lock.yaml" ]; then
-  pnpm audit --audit-level=high || {
-    echo "❌ Vulnerable dependencies found! Run 'pnpm audit --fix' to resolve."
-    exit 1
-  }
-elif [ -f "yarn.lock" ]; then
-  yarn audit || {
-    echo "❌ Vulnerable dependencies found! Run 'yarn audit fix' to resolve."
-    exit 1
-  }
-else
-  npm audit --audit-level=high --omit=dev || echo "⚠️  Audit warnings (non-blocking)"
-fi
-
-# 3. XSS pattern detection
-echo "  → Scanning for XSS patterns..."
-if grep -rE "innerHTML.*\$\{" src/ app/ lib/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" 2>/dev/null; then
-  echo "❌ Potential XSS: innerHTML with interpolation found"
-  exit 1
-fi
-
-if grep -rE "eval\(.*\$\{" src/ app/ lib/ --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" 2>/dev/null; then
-  echo "❌ Potential code injection: eval with interpolation found"
-  exit 1
-fi
-
-echo "✅ Security scans passed!"
-
-# AI pattern checks (defensive coding)
-if [ -f "scripts/pattern-check.sh" ]; then
-  echo "  Running AI pattern checks..."
-  bash scripts/pattern-check.sh --all || {
-    echo "Pattern check failed!"
-    exit 1
-  }
-fi
-
-# Dead code detection (knip) — non-blocking warning
-if command -v npx &> /dev/null && grep -q '"knip"' package.json 2>/dev/null; then
-  echo "  Checking for dead code..."
-  npx knip --no-exit-code 2>/dev/null || true
-fi
-
-# Security scan (semgrep if installed, pattern-check fallback) — non-blocking unless SEMGREP_STRICT=1
-if [ -f "scripts/run-semgrep.sh" ]; then
-  echo "  Running security scan..."
-  if [ "${SEMGREP_STRICT:-0}" = "1" ]; then
-    bash scripts/run-semgrep.sh --ci || {
-      echo "Security scan found issues!"
-      exit 1
-    }
+if [ "$dependency_changed" = true ]; then
+  echo "Pre-push: dependency audit."
+  if [ -f pnpm-lock.yaml ]; then
+    pnpm audit --audit-level high --prod
+  elif [ -f yarn.lock ]; then
+    yarn audit --level high --groups dependencies
+  elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+    bun audit --audit-level high
   else
-    bash scripts/run-semgrep.sh || true
+    npm audit --audit-level=high --omit=dev
   fi
+else
+  echo "Pre-push: dependency files did not change."
 fi
 
-# Stray-file check — warn about untracked scratch files under source dirs that
-# diff-scoped CI never sees. Non-blocking warning.
-if [ -f "scripts/check-stray-files.js" ]; then
-  echo "  Checking for stray untracked files..."
-  node scripts/check-stray-files.js --warn || true
-fi
+echo "Pre-push passed. CI runs the revision-bound security and test gates."

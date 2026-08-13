@@ -73,6 +73,7 @@ const {
   mergeLintStaged,
 } = require('./lib/package-utils')
 const { showProgress } = require('./lib/ui-helpers')
+const { generateSmartPrePushHook } = require('./lib/smart-strategy-generator')
 const {
   NODE_VERSION,
   SCAN_LIMITS,
@@ -160,20 +161,10 @@ const { handleInteractiveMode } = require('./lib/commands/interactive-handler')
 const {
   getLicenseInfo,
   hasFeature,
-  showUpgradeMessage,
   checkUsageCaps,
   incrementUsage,
   ensureLicenseFresh,
 } = require('./lib/licensing')
-
-// Smart Test Strategy Generator (Pro/Team/Enterprise feature)
-const {
-  detectProjectType,
-  generateSmartStrategy,
-  writeSmartStrategy,
-  generateSmartPrePushHook,
-  getTestTierScripts,
-} = require('./lib/smart-strategy-generator')
 
 // Quality Tools Generator (Lighthouse, size-limit, axe-core, commitlint, coverage)
 const {
@@ -606,6 +597,10 @@ function parseArguments(rawArgs) {
   const isValidateConfigMode = sanitizedArgs.includes('--validate-config')
   const isActivateLicenseMode = sanitizedArgs.includes('--activate-license')
   const isAnalyzeCiMode = sanitizedArgs.includes('--analyze-ci')
+  const isTestImpactMode =
+    sanitizedArgs.includes('--test-impact-plan') ||
+    sanitizedArgs.includes('--write-test-impact') ||
+    sanitizedArgs.includes('--update-test-impact')
   const isPrelaunchMode = sanitizedArgs.includes('--prelaunch')
   const isDryRun = sanitizedArgs.includes('--dry-run')
   const isWorkflowMinimal = sanitizedArgs.includes('--workflow-minimal')
@@ -682,6 +677,7 @@ function parseArguments(rawArgs) {
     isValidateConfigMode,
     isActivateLicenseMode,
     isAnalyzeCiMode,
+    isTestImpactMode,
     isPrelaunchMode,
     isDryRun,
     ciProvider,
@@ -727,6 +723,7 @@ function parseArguments(rawArgs) {
     isActivateLicenseMode,
     isPrelaunchMode,
     isAnalyzeCiMode,
+    isTestImpactMode,
     isDryRun,
     ciProvider,
     enableSlackAlerts,
@@ -775,6 +772,7 @@ function parseArguments(rawArgs) {
       isActivateLicenseMode,
       isPrelaunchMode,
       isAnalyzeCiMode,
+      isTestImpactMode,
       isDryRun,
       ciProvider,
       enableSlackAlerts,
@@ -833,6 +831,10 @@ WORKFLOW TIERS (GitHub Actions optimization):
                             Use for npm libraries/CLI tools that support multiple Node versions
   --analyze-ci             Analyze GitHub Actions usage and get optimization tips (Pro)
   --analyze-ci --doctor    Add CI Doctor: flaky tests, duplicated jobs, waste detection (Pro)
+  --test-impact-plan       Inspect test impact and print a dry-run plan (Pro)
+  --write-test-impact      Write the repository test-impact policy (Pro)
+  --update-test-impact     Update the repository test-impact policy (Pro)
+  --mapping-file <path>    Reviewed mapping array inside the repository
 
 VIBE-CODE SECURITY AUDIT (Free):
   --audit                  Scan codebase for security vulnerabilities in AI-generated code
@@ -996,6 +998,13 @@ HELP:
   const proCommand = detectProCommand(sanitizedArgs)
   if (proCommand) {
     return runProCommand(proCommand, sanitizedArgs, args)
+  }
+
+  // Machine-readable test-impact output must not include the setup banner.
+  if (isTestImpactMode) {
+    const { handleTestImpact } = require('./lib/commands/test-impact')
+    process.exitCode = await handleTestImpact(sanitizedArgs)
+    return
   }
 
   // Handle dry-run mode and show mode banner
@@ -2317,23 +2326,34 @@ ${typeCheckHook}`
       }
 
       // Ensure Husky pre-push hook runs validation checks
+      let legacyPrePushMigration = false
       try {
         const huskyDir = path.join(process.cwd(), '.husky')
         if (!fs.existsSync(huskyDir)) {
           fs.mkdirSync(huskyDir, { recursive: true })
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
-        if (!fs.existsSync(prePushPath)) {
-          const detectedTestScript = projectProfile.scripts.test
-          const testFallback = detectedTestScript
-            ? `elif node -e "const pkg=require('./package.json');process.exit(pkg.scripts['${detectedTestScript}']?0:1)" 2>/dev/null; then
-  echo "🧪 Running ${detectedTestScript}..."
-  ${projectProfile.runScript(detectedTestScript)} || {
-    echo "❌ Tests failed! Fix failing tests before pushing."
-    exit 1
-  }
+        const existingPrePush = fs.existsSync(prePushPath)
+          ? fs.readFileSync(prePushPath, 'utf8')
+          : ''
+        const legacyGeneratedPrePush =
+          existingPrePush === generateSmartPrePushHook()
+        legacyPrePushMigration = legacyGeneratedPrePush
+        if (!existingPrePush || legacyGeneratedPrePush) {
+          if (legacyGeneratedPrePush) {
+            const backupPath = `${prePushPath}.qa-architect-legacy`
+            if (!fs.existsSync(backupPath)) {
+              fs.copyFileSync(
+                prePushPath,
+                backupPath,
+                fs.constants.COPYFILE_EXCL
+              )
+            }
+            console.log('✅ Retired the recognized legacy smart pre-push hook')
+          }
+          const testFallback = `else
+  echo "No affected-test selector is configured. Required CI remains the test authority."
 fi`
-            : 'fi'
           let hook = `echo "🔍 Running pre-push validation..."
 
 # Enforce Free tier pre-push cap (50/month)
@@ -2439,8 +2459,7 @@ if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:c
   }
 fi
 
-# Run tests on changed files only (delta testing - much faster)
-# Falls back to full test suite if test:changed doesn't exist
+# Run tests on changed files only. Never start the full suite as a fallback.
 if node -e "const pkg=require('./package.json');process.exit(pkg.scripts['test:changed']?0:1)" 2>/dev/null; then
   echo "🧪 Running tests on changed files..."
   npm run test:changed || {
@@ -2460,6 +2479,7 @@ echo "✅ Pre-push validation passed!"
         }
         huskySpinner.succeed('Husky git hooks configured')
       } catch (e) {
+        if (legacyPrePushMigration) throw e
         huskySpinner.warn('Could not create Husky pre-push hook')
         console.warn('⚠️ Could not create Husky pre-push hook:', e.message)
       }
@@ -2774,65 +2794,13 @@ Quality checks are automated via GitHub Actions:
         }
       }
 
-      // Smart Test Strategy (Pro/Team/Enterprise feature)
-      const smartStrategyEnabled = hasFeature('smartTestStrategy')
-      if (smartStrategyEnabled) {
-        const smartSpinner = showProgress('Setting up Smart Test Strategy...')
-
-        try {
-          // Detect project type and generate customized strategy
-          const projectType = detectProjectType(process.cwd())
-          const { script, projectTypeName } = generateSmartStrategy({
-            projectPath: process.cwd(),
-            projectName: packageJson.name || path.basename(process.cwd()),
-            projectType,
-          })
-
-          // Write smart strategy script
-          writeSmartStrategy(process.cwd(), script)
-          console.log(`✅ Added Smart Test Strategy (${projectTypeName})`)
-
-          // Update pre-push hook to use smart strategy
-          const huskyDir = path.join(process.cwd(), '.husky')
-          const prePushPath = path.join(huskyDir, 'pre-push')
-          const smartPrePush = generateSmartPrePushHook()
-          fs.writeFileSync(prePushPath, smartPrePush)
-          fs.chmodSync(prePushPath, 0o755)
-          console.log('✅ Updated pre-push hook to use smart strategy')
-
-          // Add test tier scripts to package.json
-          const testTierScripts = getTestTierScripts()
-          const PackageJson = checkNodeVersionAndLoadPackageJson()
-          const pkgJson = await PackageJson.load(process.cwd())
-          pkgJson.content.scripts = mergeScripts(
-            pkgJson.content.scripts || {},
-            testTierScripts
-          )
-          await pkgJson.save()
-          console.log(
-            '✅ Added test tier scripts (test:fast, test:medium, test:comprehensive)'
-          )
-
-          smartSpinner.succeed('Smart Test Strategy configured')
-
-          console.log('\n💎 Smart Test Strategy Benefits:')
-          console.log('   • 70% faster pre-push validation on average')
-          console.log('   • Risk-based test selection')
-          console.log('   • Adapts to branch, time of day, and change size')
-          console.log(
-            '   • Override with SKIP_SMART=1, FORCE_COMPREHENSIVE=1, or FORCE_MINIMAL=1'
-          )
-        } catch (error) {
-          smartSpinner.warn('Could not set up Smart Test Strategy')
-          console.warn('⚠️ Smart Test Strategy setup error:', error.message)
-        }
-      } else {
-        // Show upgrade message for Free tier users
-        console.log('\n💡 Smart Test Strategy is available with Pro tier:')
-        console.log('   • 70% faster pre-push validation')
-        console.log('   • Intelligent risk-based test selection')
-        console.log('   • Saves 10-20 hours/month per developer')
-        showUpgradeMessage('Smart Test Strategy')
+      // The legacy risk heuristic used change size and time of day and could
+      // start a complete suite as a fallback. Do not install it. Pro users can
+      // generate the evidence-backed policy after the base setup is complete.
+      if (hasFeature('smartTestStrategy')) {
+        console.log(
+          'Test impact: run --test-impact-plan, then write the reviewed canary.'
+        )
       }
 
       // Quality Tools Integration

@@ -20,7 +20,6 @@ const {
 // const {
 //   getSecurityScripts
 // } = require('../lib/security-enhancements')
-const { getTestTierScripts } = require('../lib/smart-strategy-generator')
 const {
   getQualityToolsScripts,
   getQualityToolsDependencies,
@@ -329,7 +328,7 @@ try {
   defaultScripts['security:audit'] = 'npm audit --audit-level high --omit=dev'
   defaultScripts['validate:pre-push'] = 'npm run lint'
   const enhancedScripts = {}
-  const smartStrategyScripts = getTestTierScripts()
+  const smartStrategyScripts = {}
   const qualityToolsScripts = getQualityToolsScripts({
     lighthouse: true,
     sizeLimit: true,

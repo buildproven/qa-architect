@@ -4,7 +4,7 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { execFileSync, execSync } = require('child_process')
+const { execFileSync, execSync, spawnSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
 const {
   addGitlink,
@@ -71,9 +71,9 @@ function runGeneratedPreCommit(directory, pathPrefix = '') {
 }
 
 function runGeneratedPrePush(directory, licenseDirectory) {
-  execFileSync('sh', [path.join(directory, '.husky', 'pre-push')], {
+  return spawnSync('sh', [path.join(directory, '.husky', 'pre-push')], {
     cwd: directory,
-    stdio: 'pipe',
+    encoding: 'utf8',
     env: {
       ...process.env,
       NODE_ENV: 'test',
@@ -98,6 +98,21 @@ try {
   )
 } finally {
   fs.rmSync(nonGitProject, { recursive: true, force: true })
+}
+
+const emptyGitmodulesRepo = createRepo({
+  name: 'empty-gitmodules-fixture',
+  version: '1.0.0',
+})
+try {
+  fs.writeFileSync(path.join(emptyGitmodulesRepo, '.gitmodules'), '')
+  assert.deepStrictEqual(
+    detectProjectProfile(emptyGitmodulesRepo).submodulePaths,
+    [],
+    'An empty .gitmodules file must mean that no submodules are configured'
+  )
+} finally {
+  fs.rmSync(emptyGitmodulesRepo, { recursive: true, force: true })
 }
 
 const pnpmRepo = createRepo({
@@ -381,10 +396,13 @@ for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
   try {
     fs.writeFileSync(path.join(testScriptRepo, 'package-lock.json'), '{}\n')
     const licenseDirectory = runSetup(testScriptRepo, { developer: false })
-    runGeneratedPrePush(testScriptRepo, licenseDirectory)
-    assert(
-      fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)),
-      `Generated pre-push hook must execute detected ${detectedTestScript}`
+    const prePush = runGeneratedPrePush(testScriptRepo, licenseDirectory)
+    assert.strictEqual(prePush.status, 0)
+    assert(!fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)))
+    assert.match(
+      prePush.stdout,
+      /No affected-test selector is configured/,
+      'Generated pre-push hook must explain the CI safety net'
     )
     fs.rmSync(licenseDirectory, { recursive: true, force: true })
   } finally {
