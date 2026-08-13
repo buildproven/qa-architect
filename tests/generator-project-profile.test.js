@@ -397,12 +397,12 @@ for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
     fs.writeFileSync(path.join(testScriptRepo, 'package-lock.json'), '{}\n')
     const licenseDirectory = runSetup(testScriptRepo, { developer: false })
     const prePush = runGeneratedPrePush(testScriptRepo, licenseDirectory)
-    assert.strictEqual(prePush.status, 1)
+    assert.strictEqual(prePush.status, 0)
     assert(!fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)))
     assert.match(
       prePush.stdout,
       /No affected-test selector is configured/,
-      'Generated pre-push hook must stop and explain the missing selector'
+      'Generated pre-push hook must explain the CI safety net'
     )
     fs.rmSync(licenseDirectory, { recursive: true, force: true })
   } finally {

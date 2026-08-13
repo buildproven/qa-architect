@@ -73,6 +73,7 @@ const {
   mergeLintStaged,
 } = require('./lib/package-utils')
 const { showProgress } = require('./lib/ui-helpers')
+const { generateSmartPrePushHook } = require('./lib/smart-strategy-generator')
 const {
   NODE_VERSION,
   SCAN_LIMITS,
@@ -2336,9 +2337,7 @@ ${typeCheckHook}`
           ? fs.readFileSync(prePushPath, 'utf8')
           : ''
         const legacyGeneratedPrePush =
-          existingPrePush.includes('Running smart pre-push validation') &&
-          existingPrePush.includes('scripts/smart-test-strategy.sh') &&
-          existingPrePush.includes('Fallback to basic validation')
+          existingPrePush === generateSmartPrePushHook()
         legacyPrePushMigration = legacyGeneratedPrePush
         if (!existingPrePush || legacyGeneratedPrePush) {
           if (legacyGeneratedPrePush) {
@@ -2353,8 +2352,7 @@ ${typeCheckHook}`
             console.log('✅ Retired the recognized legacy smart pre-push hook')
           }
           const testFallback = `else
-  echo "No affected-test selector is configured. Install the reviewed test-impact policy."
-  exit 1
+  echo "No affected-test selector is configured. Required CI remains the test authority."
 fi`
           let hook = `echo "🔍 Running pre-push validation..."
 
