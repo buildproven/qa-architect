@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.0] - 2026-08-13
+
 ### Added
 
+- **Evidence-backed test impact:** Pro installations now generate an explicit
+  test-impact policy and canary workflow. The policy maps changed code to
+  relevant tests and fails closed when it cannot prove the selection.
+- **Release Assurance:** Free and Pro product surfaces now explain the shipped
+  audit, remediation, and release-readiness contract.
 - **Merge Assurance pilot readiness:** a schema-validated private discovery and
   pilot ledger separates offer testing from paid market validation and requires
   five distinct discovery prospects before a paid pilot can validate demand.
@@ -18,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the unused local `@lhci/cli` development dependency and its vulnerable
   Lighthouse/Puppeteer/`extract-zip` chain. Generated customer Lighthouse
   configuration remains supported through the existing QA Architect templates.
+
+### Changed
+
+- QA Architect's own pull-request and push checks now use the protected-base,
+  commit-pinned affected-test selector. Scheduled and manual audits still run
+  the complete suite.
+- Generated pre-push hooks no longer run the complete suite when the affected
+  set is unknown. They report the missing policy evidence instead.
 
 ## [5.15.2] - 2026-08-10
 
