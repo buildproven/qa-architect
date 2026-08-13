@@ -15,6 +15,14 @@ const semgrepRequirements = fs.readFileSync(
   path.join(repoRoot, '.github/semgrep-release-requirements.txt'),
   'utf8'
 )
+const semgrepCompiler = fs.readFileSync(
+  path.join(repoRoot, 'scripts/compile-semgrep-release-requirements.sh'),
+  'utf8'
+)
+const semgrepOverrides = fs.readFileSync(
+  path.join(repoRoot, '.github/semgrep-release-overrides.txt'),
+  'utf8'
+)
 
 console.log('\nrelease workflow — publish safety gates')
 
@@ -92,6 +100,16 @@ assert.match(
   semgrepRequirements,
   /^mcp==1\.27\.2 /m,
   'Semgrep release checks must override its vulnerable MCP pin with the fixed version'
+)
+assert.match(
+  semgrepOverrides,
+  /^mcp==1\.27\.2$/m,
+  'Semgrep release override must pin the fixed MCP version'
+)
+assert.match(
+  semgrepCompiler,
+  /--overrides "\$OVERRIDES"/,
+  'Semgrep lock compiler must apply the security override file'
 )
 const requirementLines = []
 let requirementLine = ''
