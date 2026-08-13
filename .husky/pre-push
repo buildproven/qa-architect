@@ -1,11 +1,12 @@
-#!/bin/bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 # Git hooks can export repository-local variables. Do not pass them to tools
 # that create or inspect a different repository.
-while IFS= read -r variable; do
+repo_variables=$(git rev-parse --local-env-vars)
+for variable in $repo_variables; do
   unset "$variable"
-done < <(git rev-parse --local-env-vars)
+done
 
 updates=""
 if [ ! -t 0 ]; then

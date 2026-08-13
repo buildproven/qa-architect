@@ -9,7 +9,8 @@ const hook = fs.readFileSync(
   'utf8'
 )
 
-assert(hook.includes('set -euo pipefail'))
+assert(hook.startsWith('#!/bin/sh\nset -eu'))
+assert(!hook.includes('< <('))
 assert(hook.includes('git diff --quiet'))
 assert(hook.includes('npm audit --audit-level=high --omit=dev'))
 assert(!hook.includes('smart-test-strategy.sh'))
