@@ -383,8 +383,14 @@ for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
     const licenseDirectory = runSetup(testScriptRepo, { developer: false })
     runGeneratedPrePush(testScriptRepo, licenseDirectory)
     assert(
-      fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)),
-      `Generated pre-push hook must execute detected ${detectedTestScript}`
+      !fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)),
+      `Generated pre-push hook must not run the complete ${detectedTestScript} suite as a fallback`
+    )
+    assert(
+      fs
+        .readFileSync(path.join(testScriptRepo, '.husky/pre-push'), 'utf8')
+        .includes('CI will select tests'),
+      'Generated pre-push hook must name the affected-test authority'
     )
     fs.rmSync(licenseDirectory, { recursive: true, force: true })
   } finally {

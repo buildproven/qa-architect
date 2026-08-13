@@ -161,3 +161,15 @@ npx create-qa-architect@latest --analyze-ci
 ```
 
 Shows estimated GitHub Actions usage and optimization recommendations.
+
+### Select affected tests (Pro)
+
+```bash
+# Inspect only. This command changes no file.
+npx create-qa-architect@latest --test-impact-plan
+
+# Write a policy and canary with an immutable shared runtime.
+npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
+```
+
+Keep the current workflow until the canary proves gate and result parity.

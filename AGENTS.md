@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-QA Architect is a CLI tool (`create-qa-architect`) that bootstraps quality automation for JS/TS/Python/Shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Free includes the local audit and basic working-tree security gate; Pro adds advanced/full-history security scanning, Smart Test Strategy, verified remediation, release assurance, and multi-language support.
+QA Architect is a CLI tool (`create-qa-architect`) that bootstraps quality automation for JS/TS/Python/Shell script projects. One command adds ESLint, Prettier, Husky, lint-staged, and GitHub Actions. Free includes the local audit and basic working-tree security gate; Pro adds advanced/full-history security scanning, evidence-backed test impact, verified remediation, release assurance, and multi-language support.
 
 ## Commands
 
@@ -45,7 +45,7 @@ setup.js                    # Main CLI entry - argument parsing, orchestration
 ├── lib/
 │   ├── licensing.js        # Tier system (FREE/PRO), feature gating
 │   ├── project-maturity.js # Detects project stage (minimal→production-ready)
-│   ├── smart-strategy-generator.js  # Risk-based test selection (Pro)
+│   ├── smart-strategy-generator.js  # Legacy compatibility; not installed
 │   ├── dependency-monitoring-*.js   # Dependabot config generation
 │   ├── commands/           # Command handlers (validate, deps, analyze-ci)
 │   ├── validation/         # Validators (security, docs, config)
@@ -59,7 +59,7 @@ setup.js                    # Main CLI entry - argument parsing, orchestration
 ### License Tiers
 
 - **FREE**: Local security audit, basic linting/formatting, 1 private repo, 50 pre-push runs/month
-- **PRO**: Advanced/full-history security scanning, verified remediation, release assurance, Smart Test Strategy, unlimited
+- **PRO**: Advanced/full-history security scanning, verified remediation, release assurance, evidence-backed test impact, unlimited
 - Check tier: `hasFeature('smartTestStrategy')` or `getLicenseInfo()` in `lib/licensing.js`
 
 ### Workflow Tiers
