@@ -42,6 +42,8 @@ const vitest = fixture({
     devDependencies: { vitest: '^3.0.0' },
   }),
   'package-lock.json': '{}\n',
+  'vitest.config.js': "import './test.config.shared.js'\nexport default {}\n",
+  'test.config.shared.js': 'module.exports = {}\n',
   '.github/workflows/ci.yml': `name: CI
 on: pull_request
 jobs:
@@ -58,6 +60,10 @@ try {
   assert.deepStrictEqual(plan.blockers, [])
   assert.deepStrictEqual(plan.inventory.installCommands, [
     'npm ci --ignore-scripts',
+  ])
+  assert.deepStrictEqual(plan.inventory.runnerControlFiles, [
+    'test.config.shared.js',
+    'vitest.config.js',
   ])
   assert.deepStrictEqual(plan.policy.audits[0].commands, [
     { executable: 'npm', args: ['run', 'test'] },
@@ -86,7 +92,9 @@ try {
   assert(workflow.includes('name: Run selected tests'))
   assert(workflow.includes('needs: [plan, run-selected, audit]'))
   assert(workflow.includes('npm ci --ignore-scripts'))
-  assert(workflow.includes('Verify protected package scripts'))
+  assert(workflow.includes('Verify protected test controls'))
+  assert(workflow.includes('--policy-sha256'))
+  assert(workflow.includes('Runner control changed:'))
   assert(workflow.includes('TRUSTED_PLAN: ${{ needs.plan.outputs.plan }}'))
   assert(workflow.includes('persist-credentials: false'))
   assert(!workflow.includes('@latest'))
@@ -269,6 +277,58 @@ try {
   )
 } finally {
   fs.rmSync(update, { recursive: true, force: true })
+}
+
+const rollback = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'vitest run' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+})
+try {
+  const plan = buildPolicy(rollback)
+  const original = buildWorkflow(plan, runtimeSha)
+  writeGeneratedFiles(rollback, plan, original)
+  const originalPolicy = fs.readFileSync(
+    path.join(rollback, '.buildproven/test-impact.json'),
+    'utf8'
+  )
+  let replacements = 0
+  assert.throws(
+    () =>
+      writeGeneratedFiles(rollback, plan, buildWorkflow(plan, 'c'.repeat(40)), {
+        update: true,
+        rename(from, to) {
+          replacements += 1
+          if (replacements === 2)
+            throw new Error('simulated replacement failure')
+          fs.renameSync(from, to)
+        },
+      }),
+    /simulated replacement failure/
+  )
+  assert.strictEqual(
+    fs.readFileSync(
+      path.join(rollback, '.buildproven/test-impact.json'),
+      'utf8'
+    ),
+    originalPolicy
+  )
+  assert.strictEqual(
+    fs.readFileSync(
+      path.join(rollback, '.github/workflows/test-impact.yml'),
+      'utf8'
+    ),
+    original
+  )
+  assert(
+    !fs
+      .readdirSync(rollback, { recursive: true })
+      .some(file => /\.qa-architect-.*\.(?:tmp|bak)$/.test(file))
+  )
+} finally {
+  fs.rmSync(rollback, { recursive: true, force: true })
 }
 
 console.log('Test-impact generator tests passed.')

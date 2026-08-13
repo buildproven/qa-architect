@@ -29,12 +29,14 @@ for an explicit audit reason.
   Run candidate installation and tests in a separate read-only job. Install
   packages without lifecycle scripts. Pass the immutable plan through a job
   output. Do not place the protected policy or planner in the candidate job.
-- Reject candidate package-script changes until a reviewed protected policy
-  update has merged. This prevents an audit command such as `npm run test` from
-  resolving to a candidate no-op.
+- Reject candidate package-script changes and runner-control changes until a
+  reviewed protected policy update has merged. The protected control set
+  includes local files imported by Jest or Vitest configuration. This prevents
+  a script or runner configuration from turning an audit into a no-op.
 - Permit an explicit update operation only when both existing targets have the
-  QA Architect ownership marker and policy schema. Stage both new files before
-  replacement so a runtime pin can be rotated or rolled back safely.
+  QA Architect ownership marker and policy schema. Stage and back up both files.
+  Restore the original pair if replacement fails. Bind the workflow to the
+  exact policy digest so an interrupted update fails closed.
 - Preserve existing workflows and status contexts. The generated workflow is a
   canary until gate parity and branch-protection migration are complete.
 - Print a short result by default. JSON is explicit.

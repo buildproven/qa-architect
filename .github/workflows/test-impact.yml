@@ -48,11 +48,12 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
-      - name: Verify protected package scripts
+      - name: Verify protected test controls
         if: github.event_name == 'pull_request_target'
         env:
           CANDIDATE_PACKAGE: candidate/package.json
           PROTECTED_PACKAGE: protected/package.json
+          RUNNER_CONTROLS_BASE64: 'W10='
         run: |
           node - <<'NODE'
           const fs = require('node:fs')
@@ -63,6 +64,19 @@ jobs:
           const protectedScripts = readScripts(process.env.PROTECTED_PACKAGE)
           if (JSON.stringify(candidate) !== JSON.stringify(protectedScripts)) {
             throw new Error('Package scripts changed. Merge a reviewed policy update before this change.')
+          }
+          const controls = JSON.parse(Buffer.from(
+            process.env.RUNNER_CONTROLS_BASE64,
+            'base64'
+          ).toString('utf8'))
+          for (const file of controls) {
+            const candidateControl = 'candidate/' + file
+            const protectedControl = 'protected/' + file
+            if (!fs.existsSync(candidateControl) ||
+                !fs.existsSync(protectedControl) ||
+                !fs.readFileSync(candidateControl).equals(fs.readFileSync(protectedControl))) {
+              throw new Error('Runner control changed: ' + file + '. Merge a reviewed policy update first.')
+            }
           }
           NODE
       - name: Create affected-test plan
@@ -77,7 +91,7 @@ jobs:
             git fetch --no-tags --depth=1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$BASE_SHA"
           fi
           mapfile -d '' changed < <(git diff --name-only -z "$BASE_SHA" "$HEAD_SHA")
-          plan=$(node ../runtime/scripts/test-impact.js --policy-root ../protected -- "${changed[@]}" | jq -c .)
+          plan=$(node ../runtime/scripts/test-impact.js --policy-root ../protected --policy-sha256 0b81fc7b41701cc461d47801b819095b36648282f040d10eb3ac28becee9447c -- "${changed[@]}" | jq -c .)
           if [ "$(jq -r .mode <<<"$plan")" = unmapped ]; then
             jq -r .remediation <<<"$plan" >&2
             exit 2
