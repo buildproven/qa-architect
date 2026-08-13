@@ -635,7 +635,7 @@ jobs:
           git -C "$KIT_ROOT" checkout --quiet --detach FETCH_HEAD
           test "$(git -C "$KIT_ROOT" rev-parse HEAD)" = "$CLAUDE_KIT_SHA"
 
-          git diff --name-only --diff-filter=ACDMR -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed-paths"
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" > "$RUNNER_TEMP/changed-paths"
           mapfile -d '' changed < "$RUNNER_TEMP/changed-paths"
           timeout 300 node "$KIT_ROOT/scripts/test-impact.js" \
             --execute --policy-root "$POLICY_ROOT" -- "${changed[@]}"

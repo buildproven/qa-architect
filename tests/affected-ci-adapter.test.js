@@ -19,7 +19,8 @@ assert(workflow.includes('git show "$BASE_SHA:.buildproven/test-impact.json"'))
 assert(workflow.includes('--execute --policy-root "$POLICY_ROOT"'))
 assert(workflow.includes('Base test-impact policy is absent'))
 assert(workflow.includes("github.repository != 'buildproven/qa-architect'"))
-assert(workflow.includes('--diff-filter=ACDMR'))
+assert(!workflow.includes('--diff-filter='))
+assert(workflow.includes('git diff --name-only -z "$BASE_SHA" "$HEAD_SHA"'))
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-affected-delete-'))
 try {
@@ -44,12 +45,39 @@ try {
   })
   const changed = execFileSync(
     'git',
-    ['diff', '--name-only', '--diff-filter=ACDMR', 'HEAD~1', 'HEAD'],
+    ['diff', '--name-only', 'HEAD~1', 'HEAD'],
     { cwd: fixture, encoding: 'utf8' }
   )
     .trim()
     .split('\n')
   assert.deepStrictEqual(changed, ['lib/mapped.js'])
+
+  fs.writeFileSync(
+    path.join(fixture, 'mapped-target.js'),
+    'module.exports = 2\n'
+  )
+  fs.writeFileSync(
+    path.join(fixture, 'lib', 'typed.js'),
+    'module.exports = 2\n'
+  )
+  execFileSync('git', ['add', '.'], { cwd: fixture })
+  execFileSync('git', ['commit', '--quiet', '-m', 'add regular file'], {
+    cwd: fixture,
+  })
+  fs.unlinkSync(path.join(fixture, 'lib', 'typed.js'))
+  fs.symlinkSync('../mapped-target.js', path.join(fixture, 'lib', 'typed.js'))
+  execFileSync('git', ['add', '.'], { cwd: fixture })
+  execFileSync('git', ['commit', '--quiet', '-m', 'change file type'], {
+    cwd: fixture,
+  })
+  const typeChanged = execFileSync(
+    'git',
+    ['diff', '--name-only', 'HEAD~1', 'HEAD'],
+    { cwd: fixture, encoding: 'utf8' }
+  )
+    .trim()
+    .split('\n')
+  assert.deepStrictEqual(typeChanged, ['lib/typed.js'])
 } finally {
   fs.rmSync(fixture, { recursive: true, force: true })
 }
