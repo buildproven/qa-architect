@@ -25,8 +25,10 @@ for an explicit audit reason.
   `claude-kit` commit supplied by the operator. Pull requests run the affected
   plan. Schedule and manual events run the declared complete commands.
 - Load the pull-request controller from the protected base. Check out the exact
-  candidate with read-only permissions and no stored credentials. Do not expose
-  secrets or use caches in this job.
+  candidate and protected policy into separate directories with read-only
+  permissions and no stored credentials. Plan with the protected policy and run
+  selected commands in the candidate directory. Do not expose secrets or use
+  caches in this job.
 - Preserve existing workflows and status contexts. The generated workflow is a
   canary until gate parity and branch-protection migration are complete.
 - Print a short result by default. JSON is explicit.

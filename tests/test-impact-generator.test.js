@@ -76,6 +76,11 @@ try {
       'ref: ${{ github.event.pull_request.head.sha || github.sha }}'
     )
   )
+  assert(workflow.includes('path: candidate'))
+  assert(workflow.includes('- name: Check out protected policy'))
+  assert(workflow.includes('path: protected'))
+  assert(workflow.includes('--policy-root ../protected'))
+  assert(workflow.includes('working-directory: candidate'))
   assert(workflow.includes('persist-credentials: false'))
   assert(!workflow.includes('@latest'))
   const files = writeGeneratedFiles(vitest, plan, workflow)

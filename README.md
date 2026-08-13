@@ -418,8 +418,9 @@ The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
 Unknown impact stops with a mapping request. It does not start the complete
 suite. Keep the existing workflow during the canary. Change branch protection
 only after the old and new gates have the same result contract.
-The canary controller comes from the protected base and runs without secrets,
-write permission, stored credentials, or caches.
+The canary controller and selector policy come from the protected base. Selected
+commands run in an isolated candidate checkout without secrets, write permission,
+stored credentials, or caches.
 
 ### License
 

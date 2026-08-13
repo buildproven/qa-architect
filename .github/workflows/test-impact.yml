@@ -25,35 +25,50 @@ jobs:
         with:
           repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: candidate
           fetch-depth: 0
+          persist-credentials: false
+      - name: Check out protected policy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.pull_request.base.sha || github.sha }}
+          path: protected
           persist-credentials: false
       - name: Set up Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24'
       - name: Set up the declared package manager
-        if: ${{ hashFiles('package.json') != '' }}
+        if: ${{ hashFiles('candidate/package.json') != '' }}
+        working-directory: candidate
         run: |
           true
       - name: Check out the pinned planner
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: buildproven/claude-kit
-          ref: 0fbf4c389b698471da158e83f06fd8f01e8e8eaa
-          path: .buildproven/runtime
+          ref: b208c8690426df390a45d122439caf59642e4c3f
+          path: runtime
           persist-credentials: false
       - name: Install declared dependencies
+        working-directory: candidate
         run: |
           npm ci
       - name: Run affected tests
         if: github.event_name == 'pull_request_target'
+        working-directory: candidate
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          if ! git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            git fetch --no-tags --depth=1 "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git" "$BASE_SHA"
+          fi
           mapfile -d '' changed < <(git diff --name-only -z "$BASE_SHA" "$HEAD_SHA")
-          node .buildproven/runtime/scripts/test-impact.js --execute -- "${changed[@]}"
+          node ../runtime/scripts/test-impact.js --execute --policy-root ../protected -- "${changed[@]}"
       - name: Run complete selector audit
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        working-directory: candidate
         run: |
           'npm' 'run' 'test'
