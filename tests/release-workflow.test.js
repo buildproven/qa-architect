@@ -88,10 +88,10 @@ assert.match(
   /name: Install Semgrep CLI for prerelease checks[\s\S]*--no-deps --require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
   'release workflow must install the hash-locked Semgrep dependency set'
 )
-assert.doesNotMatch(
+assert.match(
   semgrepRequirements,
-  /^mcp==/m,
-  'local-only Semgrep release checks must not install its vulnerable MCP server dependency'
+  /^mcp==1\.27\.2 /m,
+  'Semgrep release checks must override its vulnerable MCP pin with the fixed version'
 )
 const requirementLines = []
 let requirementLine = ''
