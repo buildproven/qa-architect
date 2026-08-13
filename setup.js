@@ -831,9 +831,9 @@ WORKFLOW TIERS (GitHub Actions optimization):
   --analyze-ci             Analyze GitHub Actions usage and get optimization tips (Pro)
   --analyze-ci --doctor    Add CI Doctor: flaky tests, duplicated jobs, waste detection (Pro)
   --test-impact-plan       Inspect test impact and print a dry-run plan (Pro)
-  --write-test-impact      Write the policy and canary workflow (Pro)
-  --update-test-impact     Update owned policy and workflow files (Pro)
-  --runtime-sha <commit>   Immutable claude-kit commit for write or update
+  --write-test-impact      Write the repository test-impact policy (Pro)
+  --update-test-impact     Update the repository test-impact policy (Pro)
+  --mapping-file <path>    Reviewed mapping array inside the repository
 
 VIBE-CODE SECURITY AUDIT (Free):
   --audit                  Scan codebase for security vulnerabilities in AI-generated code

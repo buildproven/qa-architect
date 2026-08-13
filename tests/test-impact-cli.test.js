@@ -41,39 +41,26 @@ try {
   assert(!fs.existsSync(path.join(root, '.buildproven')))
 
   const written = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [setup, '--write-test-impact', '--runtime-sha', 'b'.repeat(40), '--json'],
-      { cwd: root, env, encoding: 'utf8' }
-    )
+    execFileSync(process.execPath, [setup, '--write-test-impact', '--json'], {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+    })
   )
   assert.strictEqual(written.mode, 'write')
-  assert.strictEqual(written.files.length, 2)
+  assert.strictEqual(written.files.length, 1)
   assert(fs.existsSync(path.join(root, '.buildproven/test-impact.json')))
-  assert(fs.existsSync(path.join(root, '.github/workflows/test-impact.yml')))
+  assert(!fs.existsSync(path.join(root, '.github/workflows/test-impact.yml')))
 
   const updated = JSON.parse(
-    execFileSync(
-      process.execPath,
-      [
-        setup,
-        '--update-test-impact',
-        '--runtime-sha',
-        'd'.repeat(40),
-        '--json',
-      ],
-      { cwd: root, env, encoding: 'utf8' }
-    )
+    execFileSync(process.execPath, [setup, '--update-test-impact', '--json'], {
+      cwd: root,
+      env,
+      encoding: 'utf8',
+    })
   )
   assert.strictEqual(updated.mode, 'update')
-  assert(
-    fs
-      .readFileSync(
-        path.join(root, '.github/workflows/test-impact.yml'),
-        'utf8'
-      )
-      .includes(`ref: ${'d'.repeat(40)}`)
-  )
+  assert.strictEqual(updated.files.length, 1)
 } finally {
   fs.rmSync(root, { recursive: true, force: true })
   fs.rmSync(license, { recursive: true, force: true })
@@ -95,7 +82,7 @@ try {
   )
   const result = spawnSync(
     process.execPath,
-    [setup, '--write-test-impact', '--runtime-sha', 'c'.repeat(40), '--json'],
+    [setup, '--write-test-impact', '--json'],
     {
       cwd: unsafe,
       env: { ...env, QAA_LICENSE_DIR: unsafeLicense },

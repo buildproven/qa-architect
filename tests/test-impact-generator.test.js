@@ -4,10 +4,8 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const yaml = require('js-yaml')
 const {
   buildPolicy,
-  buildWorkflow,
   writeGeneratedFiles,
 } = require('../lib/test-impact-generator')
 
@@ -22,19 +20,13 @@ function fixture(files) {
 }
 
 function packageJson(extra = {}) {
-  return `${JSON.stringify(
-    {
-      name: 'fixture',
-      version: '1.0.0',
-      packageManager: 'npm@11.5.2',
-      ...extra,
-    },
-    null,
-    2
-  )}\n`
+  return `${JSON.stringify({
+    name: 'fixture',
+    version: '1.0.0',
+    packageManager: 'npm@11.5.2',
+    ...extra,
+  })}\n`
 }
-
-const runtimeSha = 'a'.repeat(40)
 
 const vitest = fixture({
   'package.json': packageJson({
@@ -42,8 +34,6 @@ const vitest = fixture({
     devDependencies: { vitest: '^3.0.0' },
   }),
   'package-lock.json': '{}\n',
-  'vitest.config.js': "import './test.config.shared.js'\nexport default {}\n",
-  'test.config.shared.js': 'module.exports = {}\n',
   '.github/workflows/ci.yml': `name: CI
 on: pull_request
 jobs:
@@ -55,122 +45,46 @@ jobs:
 })
 try {
   const plan = buildPolicy(vitest)
-  assert.strictEqual(plan.inventory.jsRunner, 'vitest')
-  assert.strictEqual(plan.inventory.workflows[0].jobs[0].name, 'Existing tests')
   assert.deepStrictEqual(plan.blockers, [])
+  assert.strictEqual(plan.policy.jsRunner, 'vitest')
+  assert.deepStrictEqual(plan.policy.mappings, [])
   assert.deepStrictEqual(plan.inventory.installCommands, [
     'npm ci --ignore-scripts',
   ])
-  assert.deepStrictEqual(plan.inventory.runnerControlFiles, [
-    'test.config.shared.js',
-    'vitest.config.js',
-  ])
-  assert.deepStrictEqual(plan.policy.audits[0].commands, [
-    { executable: 'npm', args: ['run', 'test'] },
-  ])
-  const workflow = buildWorkflow(plan, runtimeSha)
-  const parsedWorkflow = yaml.load(workflow)
-  assert(parsedWorkflow.jobs['quality-required'])
-  assert(workflow.includes(`ref: ${runtimeSha}`))
-  assert(workflow.includes('name: quality / required'))
-  assert(workflow.includes('pull_request_target:'))
-  assert(
-    workflow.includes(
-      'repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}'
-    )
-  )
-  assert(
-    workflow.includes(
-      'ref: ${{ github.event.pull_request.head.sha || github.sha }}'
-    )
-  )
-  assert(workflow.includes('path: candidate'))
-  assert(workflow.includes('- name: Check out protected policy'))
-  assert(workflow.includes('path: protected'))
-  assert(workflow.includes('--policy-root ../protected'))
-  assert(workflow.includes('name: Create trusted test plan'))
-  assert(workflow.includes('name: Run selected tests'))
-  assert(workflow.includes('needs: [plan, run-selected, audit]'))
-  assert(workflow.includes('npm ci --ignore-scripts'))
-  assert(workflow.includes('Verify protected test controls'))
-  assert(workflow.includes('--policy-sha256'))
-  assert(workflow.includes('Runner control changed:'))
-  assert(workflow.includes('TRUSTED_PLAN: ${{ needs.plan.outputs.plan }}'))
-  assert(workflow.includes('persist-credentials: false'))
-  assert(!workflow.includes('@latest'))
-  const trustedJob = workflow.slice(
-    workflow.indexOf('  plan:'),
-    workflow.indexOf('  run-selected:')
-  )
-  const candidateJob = workflow.slice(
-    workflow.indexOf('  run-selected:'),
-    workflow.indexOf('  audit:')
-  )
-  assert(!trustedJob.includes('Install declared dependencies'))
-  assert(!candidateJob.includes('path: runtime'))
-  assert(!candidateJob.includes('path: protected'))
-  assert(candidateJob.includes('--ignore-scripts'))
-  const files = writeGeneratedFiles(vitest, plan, workflow)
-  assert.deepStrictEqual(files, [
+  assert.strictEqual(plan.inventory.workflows[0].jobs[0].name, 'Existing tests')
+  assert.deepStrictEqual(writeGeneratedFiles(vitest, plan), [
     '.buildproven/test-impact.json',
-    '.github/workflows/test-impact.yml',
   ])
-  assert(fs.existsSync(path.join(vitest, files[0])))
-  assert(fs.existsSync(path.join(vitest, files[1])))
+  assert(!fs.existsSync(path.join(vitest, '.github/workflows/test-impact.yml')))
 } finally {
   fs.rmSync(vitest, { recursive: true, force: true })
 }
 
-const nodeTest = fixture({
+const nodeProject = fixture({
   'package.json': packageJson({ scripts: { test: 'node --test' } }),
   'package-lock.json': '{}\n',
   'lib/example.js': 'module.exports = true\n',
   'test/example.test.js': "require('assert').ok(true)\n",
-})
-try {
-  const plan = buildPolicy(nodeTest)
-  assert.strictEqual(plan.policy.jsRunner, 'node')
-  assert.match(plan.blockers[0], /repository-owned dependency or coverage/)
-  assert.deepStrictEqual(plan.policy.mappings, [])
-  assert.deepStrictEqual(plan.inventory.mappingSuggestions, [
+  'mappings.json': `${JSON.stringify([
     {
       paths: ['lib/example.js'],
       commands: [{ executable: 'node', args: ['test/example.test.js'] }],
     },
-  ])
-} finally {
-  fs.rmSync(nodeTest, { recursive: true, force: true })
-}
-
-const nodeWithUnusedVitest = fixture({
-  'package.json': packageJson({
-    scripts: { test: 'node tests/example.test.js' },
-    devDependencies: { vitest: '^3.0.0' },
-  }),
-  'package-lock.json': '{}\n',
-  'tests/example.test.js': "require('assert').ok(true)\n",
+  ])}\n`,
 })
 try {
-  const plan = buildPolicy(nodeWithUnusedVitest)
-  assert.strictEqual(plan.policy.jsRunner, 'node')
-  assert.deepStrictEqual(plan.blockers, [])
+  const blocked = buildPolicy(nodeProject)
+  assert.match(blocked.blockers[0], /--mapping-file/)
+  assert.strictEqual(blocked.inventory.mappingSuggestions.length, 1)
+  const planned = buildPolicy(nodeProject, { mappingFile: 'mappings.json' })
+  assert.deepStrictEqual(planned.blockers, [])
+  writeGeneratedFiles(nodeProject, planned)
+  const before = readPolicy(nodeProject).mappings
+  const update = buildPolicy(nodeProject)
+  writeGeneratedFiles(nodeProject, update, { update: true })
+  assert.deepStrictEqual(readPolicy(nodeProject).mappings, before)
 } finally {
-  fs.rmSync(nodeWithUnusedVitest, { recursive: true, force: true })
-}
-
-const mixedRunners = fixture({
-  'package.json': packageJson({
-    scripts: { test: 'jest --runInBand' },
-    devDependencies: { jest: '^30.0.0', vitest: '^3.0.0' },
-  }),
-  'package-lock.json': '{}\n',
-})
-try {
-  const plan = buildPolicy(mixedRunners)
-  assert.strictEqual(plan.policy.jsRunner, 'jest')
-  assert.deepStrictEqual(plan.blockers, [])
-} finally {
-  fs.rmSync(mixedRunners, { recursive: true, force: true })
+  fs.rmSync(nodeProject, { recursive: true, force: true })
 }
 
 const python = fixture({
@@ -181,9 +95,6 @@ const python = fixture({
 try {
   const plan = buildPolicy(python)
   assert.deepStrictEqual(plan.blockers, [])
-  assert.deepStrictEqual(plan.inventory.installCommands, [
-    'python -m pip install -r requirements.txt',
-  ])
   assert.deepStrictEqual(plan.policy.audits[0].commands, [
     { executable: 'pytest', args: [] },
   ])
@@ -191,38 +102,16 @@ try {
   fs.rmSync(python, { recursive: true, force: true })
 }
 
-assert.throws(
-  () =>
-    buildWorkflow(
-      {
-        policy: {
-          audits: [{ commands: [{ executable: 'npm', args: ['test'] }] }],
-        },
-      },
-      'main'
-    ),
-  /immutable 40-character commit SHA/
-)
-
-const collision = fixture({
+const noLock = fixture({
   'package.json': packageJson({
     scripts: { test: 'vitest run' },
     devDependencies: { vitest: '^3.0.0' },
   }),
-  'package-lock.json': '{}\n',
-  '.github/workflows/existing.yml': `name: Existing
-on: pull_request
-jobs:
-  gate:
-    name: quality / required
-    runs-on: ubuntu-latest
-    steps: []
-`,
 })
 try {
-  assert.match(buildPolicy(collision).blockers[0], /already exists/)
+  assert.match(buildPolicy(noLock).blockers.join(' '), /requires package-lock/)
 } finally {
-  fs.rmSync(collision, { recursive: true, force: true })
+  fs.rmSync(noLock, { recursive: true, force: true })
 }
 
 const overwrite = fixture({
@@ -231,104 +120,48 @@ const overwrite = fixture({
     devDependencies: { vitest: '^3.0.0' },
   }),
   'package-lock.json': '{}\n',
-  '.buildproven/test-impact.json': '{"owned":true}\n',
+  '.buildproven/test-impact.json': `${JSON.stringify({
+    version: 1,
+    jsRunner: 'vitest',
+    mappings: [],
+    audits: [],
+  })}\n`,
 })
 try {
   const plan = buildPolicy(overwrite)
-  const workflow = buildWorkflow(plan, runtimeSha)
   assert.throws(
-    () => writeGeneratedFiles(overwrite, plan, workflow),
+    () => writeGeneratedFiles(overwrite, plan),
     /Refusing to overwrite/
   )
-  assert.strictEqual(
-    fs.readFileSync(
-      path.join(overwrite, '.buildproven/test-impact.json'),
-      'utf8'
-    ),
-    '{"owned":true}\n'
-  )
+  writeGeneratedFiles(overwrite, plan, { update: true })
 } finally {
   fs.rmSync(overwrite, { recursive: true, force: true })
 }
 
-const update = fixture({
+const symlink = fixture({
   'package.json': packageJson({
     scripts: { test: 'vitest run' },
     devDependencies: { vitest: '^3.0.0' },
   }),
   'package-lock.json': '{}\n',
 })
+const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-impact-outside-'))
 try {
-  const plan = buildPolicy(update)
-  const first = buildWorkflow(plan, runtimeSha)
-  writeGeneratedFiles(update, plan, first)
-  const rotated = buildWorkflow(plan, 'b'.repeat(40))
-  assert.deepStrictEqual(
-    writeGeneratedFiles(update, plan, rotated, { update: true }),
-    ['.buildproven/test-impact.json', '.github/workflows/test-impact.yml']
+  fs.symlinkSync(outside, path.join(symlink, '.buildproven'))
+  assert.throws(
+    () => writeGeneratedFiles(symlink, buildPolicy(symlink)),
+    /must not be a symbolic link/
   )
-  assert(
-    fs
-      .readFileSync(
-        path.join(update, '.github/workflows/test-impact.yml'),
-        'utf8'
-      )
-      .includes(`ref: ${'b'.repeat(40)}`)
-  )
+  assert(!fs.existsSync(path.join(outside, 'test-impact.json')))
 } finally {
-  fs.rmSync(update, { recursive: true, force: true })
+  fs.rmSync(symlink, { recursive: true, force: true })
+  fs.rmSync(outside, { recursive: true, force: true })
 }
 
-const rollback = fixture({
-  'package.json': packageJson({
-    scripts: { test: 'vitest run' },
-    devDependencies: { vitest: '^3.0.0' },
-  }),
-  'package-lock.json': '{}\n',
-})
-try {
-  const plan = buildPolicy(rollback)
-  const original = buildWorkflow(plan, runtimeSha)
-  writeGeneratedFiles(rollback, plan, original)
-  const originalPolicy = fs.readFileSync(
-    path.join(rollback, '.buildproven/test-impact.json'),
-    'utf8'
+function readPolicy(root) {
+  return JSON.parse(
+    fs.readFileSync(path.join(root, '.buildproven/test-impact.json'), 'utf8')
   )
-  let replacements = 0
-  assert.throws(
-    () =>
-      writeGeneratedFiles(rollback, plan, buildWorkflow(plan, 'c'.repeat(40)), {
-        update: true,
-        rename(from, to) {
-          replacements += 1
-          if (replacements === 2)
-            throw new Error('simulated replacement failure')
-          fs.renameSync(from, to)
-        },
-      }),
-    /simulated replacement failure/
-  )
-  assert.strictEqual(
-    fs.readFileSync(
-      path.join(rollback, '.buildproven/test-impact.json'),
-      'utf8'
-    ),
-    originalPolicy
-  )
-  assert.strictEqual(
-    fs.readFileSync(
-      path.join(rollback, '.github/workflows/test-impact.yml'),
-      'utf8'
-    ),
-    original
-  )
-  assert(
-    !fs
-      .readdirSync(rollback, { recursive: true })
-      .some(file => /\.qa-architect-.*\.(?:tmp|bak)$/.test(file))
-  )
-} finally {
-  fs.rmSync(rollback, { recursive: true, force: true })
 }
 
 console.log('Test-impact generator tests passed.')

@@ -407,29 +407,24 @@ Inspect the repository first. This command changes no file:
 npx create-qa-architect@latest --test-impact-plan
 ```
 
-Write the repository policy and canary workflow only with an immutable
-`claude-kit` commit:
+Write the repository policy:
 
 ```bash
-npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
+npx create-qa-architect@latest --write-test-impact
 ```
 
-Rotate or roll back an owned generated policy and runtime pin with an explicit
-update:
+Update the policy while preserving reviewed repository mappings:
 
 ```bash
-npx create-qa-architect@latest --update-test-impact --runtime-sha <40-character-commit>
+npx create-qa-architect@latest --update-test-impact
 ```
 
 The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
 Unknown impact stops with a mapping request. It does not start the complete
-suite. Keep the existing workflow during the canary. Change branch protection
-only after the old and new gates have the same result contract.
-The canary creates its plan in a trusted job from the protected policy. It runs
-candidate code in a separate job without secrets, write permission, lifecycle
-scripts, stored credentials, or caches. Plain Node same-name tests are suggestions
-only. Add repository-owned mappings with dependency, coverage, or architecture
-evidence.
+suite. Plain Node same-name tests are suggestions only. Supply reviewed mappings
+with `--mapping-file <path>`. QA Architect does not install or replace CI for
+this feature. Use the shared `claude-kit` selector through the repository's
+normal `claude-setup` CI adapter.
 
 ### License
 
@@ -633,8 +628,7 @@ Pro tier ($29/mo or $290/yr) includes:
 
 - **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
-- Evidence-backed affected-test policy and canary workflow
-- Evidence-backed affected-test policy and canary workflow generation
+- Evidence-backed affected-test policy generation
 - Multi-language support (Python, Rust, Ruby, and Shell scripts)
 - Unlimited private repos and runs
 

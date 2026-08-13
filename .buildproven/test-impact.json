@@ -352,9 +352,11 @@
     {
       "paths": [
         ".buildproven/test-impact.json",
-        ".github/workflows/test-impact.yml",
+        ".github/workflows/**/*.yml",
+        ".github/workflows/**/*.yaml",
         "package.json",
         "package-lock.json",
+        "npm-shrinkwrap.json",
         "pnpm-lock.yaml",
         "yarn.lock",
         "bun.lock",

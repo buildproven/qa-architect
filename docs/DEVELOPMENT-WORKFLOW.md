@@ -168,16 +168,15 @@ Shows estimated GitHub Actions usage and optimization recommendations.
 # Inspect only. This command changes no file.
 npx create-qa-architect@latest --test-impact-plan
 
-# Write a policy and canary with an immutable shared runtime.
-npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
+# Write the repository policy.
+npx create-qa-architect@latest --write-test-impact
 
-# Rotate or roll back owned generated files.
-npx create-qa-architect@latest --update-test-impact --runtime-sha <40-character-commit>
+# Update it while preserving reviewed mappings.
+npx create-qa-architect@latest --update-test-impact
 ```
 
-Keep the current workflow until the canary proves gate and result parity.
 The generator detects declared Vitest, Jest, plain Node, and Pytest suites.
 Source files without a sound dependency selector need repository-owned mappings.
-The pull-request plan comes from the protected policy in a trusted job. Candidate
-installation and tests run in a separate job. Do not add secrets, write
-permission, lifecycle scripts, stored credentials, or caches to that job.
+Pass reviewed mappings with `--mapping-file <path>`. QA Architect does not
+change CI for this feature. The shared `claude-kit` selector and the
+`claude-setup` repository adapter own execution.
