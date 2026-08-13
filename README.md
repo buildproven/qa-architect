@@ -424,7 +424,8 @@ Unknown impact stops with a mapping request. It does not start the complete
 suite. Plain Node same-name tests are suggestions only. Supply reviewed mappings
 with `--mapping-file <path>`. QA Architect does not install or replace CI for
 this feature. Use the shared `claude-kit` selector through the repository's
-normal `claude-setup` CI adapter.
+normal `claude-setup` CI adapter. Until that selector exists, the generated
+pre-push hook keeps the declared complete suite as a safe fallback.
 
 ### License
 

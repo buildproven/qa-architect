@@ -71,6 +71,12 @@ const nodeProject = fixture({
       commands: [{ executable: 'node', args: ['test/example.test.js'] }],
     },
   ])}\n`,
+  'more-mappings.json': `${JSON.stringify([
+    {
+      paths: ['lib/other.js'],
+      commands: [{ executable: 'node', args: ['test/other.test.js'] }],
+    },
+  ])}\n`,
 })
 try {
   const blocked = buildPolicy(nodeProject)
@@ -80,9 +86,18 @@ try {
   assert.deepStrictEqual(planned.blockers, [])
   writeGeneratedFiles(nodeProject, planned)
   const before = readPolicy(nodeProject).mappings
-  const update = buildPolicy(nodeProject)
+  const update = buildPolicy(nodeProject, {
+    mappingFile: 'more-mappings.json',
+    update: true,
+  })
   writeGeneratedFiles(nodeProject, update, { update: true })
-  assert.deepStrictEqual(readPolicy(nodeProject).mappings, before)
+  assert.deepStrictEqual(readPolicy(nodeProject).mappings, [
+    ...before,
+    {
+      paths: ['lib/other.js'],
+      commands: [{ executable: 'node', args: ['test/other.test.js'] }],
+    },
+  ])
 } finally {
   fs.rmSync(nodeProject, { recursive: true, force: true })
 }
@@ -100,6 +115,27 @@ try {
   ])
 } finally {
   fs.rmSync(python, { recursive: true, force: true })
+}
+
+const mixedMissingPythonInstall = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'vitest run' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+  'pyproject.toml': '[tool.pytest.ini_options]\n',
+})
+try {
+  assert.match(
+    buildPolicy(mixedMissingPythonInstall).blockers.join(' '),
+    /Python tests need requirements.txt/
+  )
+  assert.doesNotMatch(
+    buildPolicy(mixedMissingPythonInstall).blockers.join(' '),
+    /npm ci requires/
+  )
+} finally {
+  fs.rmSync(mixedMissingPythonInstall, { recursive: true, force: true })
 }
 
 const noLock = fixture({

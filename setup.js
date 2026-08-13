@@ -2332,8 +2332,18 @@ ${typeCheckHook}`
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
         if (!fs.existsSync(prePushPath)) {
-          const testFallback = `else
-  echo "No affected-test selector is configured. CI will select tests."
+          const detectedTestScript = projectProfile.scripts.test
+          const testFallback = detectedTestScript
+            ? `else
+  echo "No affected-test selector is configured. Running ${detectedTestScript}."
+  ${projectProfile.runScript(detectedTestScript)} || {
+    echo "❌ Tests failed! Fix failing tests before pushing."
+    exit 1
+  }
+fi`
+            : `else
+  echo "No affected-test selector or declared test script is configured."
+  exit 1
 fi`
           let hook = `echo "🔍 Running pre-push validation..."
 

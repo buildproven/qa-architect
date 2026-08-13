@@ -1,8 +1,6 @@
 #!/bin/sh
 set -eu
 
-# Git hooks can export repository-local variables. Do not pass them to tools
-# that create or inspect a different repository.
 repo_variables=$(git rev-parse --local-env-vars)
 for variable in $repo_variables; do
   unset "$variable"
@@ -20,21 +18,46 @@ if [ -n "$updates" ] && printf '%s\n' "$updates" | awk '
   exit 0
 fi
 
+echo "Pre-push: lint."
+npm run lint --silent
+
+if command -v gitleaks >/dev/null 2>&1; then
+  echo "Pre-push: secret scan."
+  gitleaks detect --no-git --redact --no-banner --exit-code=1
+else
+  echo "Pre-push: gitleaks is absent. Required CI secret scan remains authoritative."
+fi
+
 base_ref=""
 if git rev-parse --verify --quiet '@{upstream}' >/dev/null; then
   base_ref='@{upstream}'
 elif git rev-parse --verify --quiet origin/main >/dev/null; then
   base_ref='origin/main'
+fi
+
+dependency_changed=true
+if [ -n "$base_ref" ]; then
+  base_sha=$(git merge-base "$base_ref" HEAD)
+  if git diff --quiet "$base_sha...HEAD" -- \
+    package.json package-lock.json npm-shrinkwrap.json \
+    pnpm-lock.yaml yarn.lock bun.lock bun.lockb; then
+    dependency_changed=false
+  fi
+fi
+
+if [ "$dependency_changed" = true ]; then
+  echo "Pre-push: dependency audit."
+  if [ -f pnpm-lock.yaml ]; then
+    pnpm audit --audit-level high --prod
+  elif [ -f yarn.lock ]; then
+    yarn audit --level high --groups dependencies
+  elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+    bun audit --audit-level high
+  else
+    npm audit --audit-level=high --omit=dev
+  fi
 else
-  echo "Pre-push: no base ref. CI will select affected tests."
-  exit 0
+  echo "Pre-push: dependency files did not change."
 fi
 
-base_sha=$(git merge-base "$base_ref" HEAD)
-if git diff --quiet "$base_sha...HEAD" -- package.json package-lock.json; then
-  echo "Pre-push: no dependency audit needed. CI will select affected tests."
-  exit 0
-fi
-
-echo "Pre-push: dependency files changed. Running the production audit."
-npm audit --audit-level=high --omit=dev
+echo "Pre-push passed. CI runs the revision-bound security and test gates."

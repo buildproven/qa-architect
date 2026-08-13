@@ -15,10 +15,14 @@ an explicit repository mapping.
   dependency evidence.
 - Accept reviewed mappings from `--mapping-file <path>` inside the repository.
 - Preserve repository mappings during an explicit update.
+- Merge an update mapping file with existing reviewed mappings. Reject a
+  conflicting definition for the same paths.
 - Write only `.buildproven/test-impact.json`.
 - Reject symbolic-link output paths and paths outside the repository.
 - Leave CI installation and execution to the shared `claude-setup` adapter and
   the single `claude-kit` selector.
+- Until a consumer installs that selector, its generated pre-push hook keeps the
+  declared complete suite as a safe migration fallback.
 - Print a short result by default. JSON output is explicit.
 
 ## Acceptance evidence

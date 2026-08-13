@@ -34,7 +34,7 @@ const baseScripts = {
   'validate:docs': 'npx create-qa-architect@latest --validate-docs',
   'validate:comprehensive': 'npx create-qa-architect@latest --comprehensive',
   'validate:all': 'npm run validate:comprehensive && npm run security:audit',
-  'validate:pre-push': `npm run test:patterns --if-present && npm run test:commands --if-present && if node -e "const pkg=require('./package.json');process.exit(pkg.scripts&&pkg.scripts['test:changed']?0:1)" 2>/dev/null; then npm run test:changed; else echo "No affected-test selector is configured. CI will select tests."; fi`,
+  'validate:pre-push': `npm run test:patterns --if-present && npm run test:commands --if-present && if node -e "const pkg=require('./package.json');process.exit(pkg.scripts&&pkg.scripts['test:changed']?0:1)" 2>/dev/null; then npm run test:changed; else echo "No affected-test selector is configured. Running the declared suite."; npm test --if-present; fi`,
 }
 
 const normalizeStylelintTargets = stylelintTargets => {
