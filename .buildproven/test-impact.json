@@ -282,15 +282,6 @@
       ]
     },
     {
-      "paths": ["setup.js"],
-      "commands": [
-        {
-          "executable": "node",
-          "args": ["tests/setup.test.js"]
-        }
-      ]
-    },
-    {
       "paths": ["webhook-handler.js"],
       "commands": [
         {
@@ -352,9 +343,11 @@
     {
       "paths": [
         ".buildproven/test-impact.json",
+        ".husky/**",
         ".github/workflows/**/*.yml",
         ".github/workflows/**/*.yaml",
         "package.json",
+        "setup.js",
         "package-lock.json",
         "npm-shrinkwrap.json",
         "pnpm-lock.yaml",

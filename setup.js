@@ -2325,24 +2325,35 @@ ${typeCheckHook}`
       }
 
       // Ensure Husky pre-push hook runs validation checks
+      let legacyPrePushMigration = false
       try {
         const huskyDir = path.join(process.cwd(), '.husky')
         if (!fs.existsSync(huskyDir)) {
           fs.mkdirSync(huskyDir, { recursive: true })
         }
         const prePushPath = path.join(huskyDir, 'pre-push')
-        if (!fs.existsSync(prePushPath)) {
-          const detectedTestScript = projectProfile.scripts.test
-          const testFallback = detectedTestScript
-            ? `else
-  echo "No affected-test selector is configured. Running ${detectedTestScript}."
-  ${projectProfile.runScript(detectedTestScript)} || {
-    echo "❌ Tests failed! Fix failing tests before pushing."
-    exit 1
-  }
-fi`
-            : `else
-  echo "No affected-test selector or declared test script is configured."
+        const existingPrePush = fs.existsSync(prePushPath)
+          ? fs.readFileSync(prePushPath, 'utf8')
+          : ''
+        const legacyGeneratedPrePush =
+          existingPrePush.includes('Running smart pre-push validation') &&
+          existingPrePush.includes('scripts/smart-test-strategy.sh') &&
+          existingPrePush.includes('Fallback to basic validation')
+        legacyPrePushMigration = legacyGeneratedPrePush
+        if (!existingPrePush || legacyGeneratedPrePush) {
+          if (legacyGeneratedPrePush) {
+            const backupPath = `${prePushPath}.qa-architect-legacy`
+            if (!fs.existsSync(backupPath)) {
+              fs.copyFileSync(
+                prePushPath,
+                backupPath,
+                fs.constants.COPYFILE_EXCL
+              )
+            }
+            console.log('✅ Retired the recognized legacy smart pre-push hook')
+          }
+          const testFallback = `else
+  echo "No affected-test selector is configured. Install the reviewed test-impact policy."
   exit 1
 fi`
           let hook = `echo "🔍 Running pre-push validation..."
@@ -2470,6 +2481,7 @@ echo "✅ Pre-push validation passed!"
         }
         huskySpinner.succeed('Husky git hooks configured')
       } catch (e) {
+        if (legacyPrePushMigration) throw e
         huskySpinner.warn('Could not create Husky pre-push hook')
         console.warn('⚠️ Could not create Husky pre-push hook:', e.message)
       }

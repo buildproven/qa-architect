@@ -428,6 +428,10 @@ this feature. Use the shared `claude-kit` selector through the repository's
 normal `claude-setup` CI adapter. The generated pre-push hook stays fast and
 does not run the complete suite.
 
+On update, QA Architect replaces only a recognized legacy smart-test hook. It
+saves the old hook as `.husky/pre-push.qa-architect-legacy`. Restore that file
+as `.husky/pre-push` to roll back. Custom hooks are not changed.
+
 ### License
 
 **Commercial License (freemium)** — free tier covers the basic CLI; Pro features require a paid subscription. See [LICENSE](LICENSE).

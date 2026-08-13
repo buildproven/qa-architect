@@ -156,6 +156,45 @@ try {
   fs.rmSync(noLock, { recursive: true, force: true })
 }
 
+const unrelatedRunner = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'mocha tests' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+})
+try {
+  const plan = buildPolicy(unrelatedRunner)
+  assert.strictEqual(plan.policy.jsRunner, 'none')
+  assert.match(plan.blockers.join(' '), /supported runner/)
+} finally {
+  fs.rmSync(unrelatedRunner, { recursive: true, force: true })
+}
+
+const workflowSymlink = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'vitest run' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+  '.github/workflows/inside.yml': 'name: inside\njobs: {}\n',
+})
+const externalWorkflow = path.join(os.tmpdir(), `qaa-workflow-${process.pid}`)
+try {
+  fs.writeFileSync(externalWorkflow, 'name: external\njobs: {}\n')
+  fs.symlinkSync(
+    externalWorkflow,
+    path.join(workflowSymlink, '.github/workflows/outside.yml')
+  )
+  assert.match(
+    buildPolicy(workflowSymlink).blockers.join(' '),
+    /must be a regular, non-symbolic file/
+  )
+} finally {
+  fs.rmSync(workflowSymlink, { recursive: true, force: true })
+  fs.rmSync(externalWorkflow, { force: true })
+}
+
 const overwrite = fixture({
   'package.json': packageJson({
     scripts: { test: 'vitest run' },

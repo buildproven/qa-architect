@@ -24,6 +24,8 @@ declared complete test command as an explicit safe fallback.
 - Leave CI installation and execution to the shared `claude-setup` adapter and
   the single `claude-kit` selector.
 - Keep the generated pre-push hook fast. It does not run the complete suite.
+- On update, back up and replace only an exact recognized legacy smart-test
+  hook. Preserve all user-owned hooks.
 - Print a short result by default. JSON output is explicit.
 
 ## Acceptance evidence

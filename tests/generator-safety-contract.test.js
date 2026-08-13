@@ -183,4 +183,26 @@ try {
   fs.rmSync(outsideDirectory, { recursive: true, force: true })
 }
 
+const legacyHookRepo = createRepo({
+  name: 'legacy-hook-migration',
+  scripts: { test: 'node --test' },
+})
+try {
+  const husky = path.join(legacyHookRepo, '.husky')
+  fs.mkdirSync(husky)
+  const legacy = `echo "Running smart pre-push validation"\nif [ -f "scripts/smart-test-strategy.sh" ]; then\n  bash scripts/smart-test-strategy.sh\nelse\n  # Fallback to basic validation\n  npm test\nfi\n`
+  fs.writeFileSync(path.join(husky, 'pre-push'), legacy)
+  runSetup(legacyHookRepo)
+  assert.strictEqual(
+    fs.readFileSync(path.join(husky, 'pre-push.qa-architect-legacy'), 'utf8'),
+    legacy
+  )
+  const upgraded = fs.readFileSync(path.join(husky, 'pre-push'), 'utf8')
+  assert(!upgraded.includes('smart-test-strategy.sh'))
+  assert(upgraded.includes('No affected-test selector'))
+  assert(!upgraded.includes('Running node --test'))
+} finally {
+  fs.rmSync(legacyHookRepo, { recursive: true, force: true })
+}
+
 console.log('✅ Generator safety contract regression tests passed')
