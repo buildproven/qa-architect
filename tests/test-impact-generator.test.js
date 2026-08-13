@@ -65,6 +65,17 @@ try {
   assert(parsedWorkflow.jobs['quality-required'])
   assert(workflow.includes(`ref: ${runtimeSha}`))
   assert(workflow.includes('name: quality / required'))
+  assert(workflow.includes('pull_request_target:'))
+  assert(
+    workflow.includes(
+      'repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}'
+    )
+  )
+  assert(
+    workflow.includes(
+      'ref: ${{ github.event.pull_request.head.sha || github.sha }}'
+    )
+  )
   assert(workflow.includes('persist-credentials: false'))
   assert(!workflow.includes('@latest'))
   const files = writeGeneratedFiles(vitest, plan, workflow)
@@ -81,15 +92,37 @@ try {
 const nodeTest = fixture({
   'package.json': packageJson({ scripts: { test: 'node --test' } }),
   'package-lock.json': '{}\n',
+  'lib/example.js': 'module.exports = true\n',
   'test/example.test.js': "require('assert').ok(true)\n",
 })
 try {
   const plan = buildPolicy(nodeTest)
-  assert.strictEqual(plan.policy.jsRunner, 'none')
-  assert.strictEqual(plan.blockers.length, 1)
-  assert.match(plan.blockers[0], /path mappings/)
+  assert.strictEqual(plan.policy.jsRunner, 'node')
+  assert.deepStrictEqual(plan.blockers, [])
+  assert.deepStrictEqual(plan.policy.mappings, [
+    {
+      paths: ['lib/example.js'],
+      commands: [{ executable: 'node', args: ['test/example.test.js'] }],
+    },
+  ])
 } finally {
   fs.rmSync(nodeTest, { recursive: true, force: true })
+}
+
+const nodeWithUnusedVitest = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'node tests/example.test.js' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+  'tests/example.test.js': "require('assert').ok(true)\n",
+})
+try {
+  const plan = buildPolicy(nodeWithUnusedVitest)
+  assert.strictEqual(plan.policy.jsRunner, 'node')
+  assert.deepStrictEqual(plan.blockers, [])
+} finally {
+  fs.rmSync(nodeWithUnusedVitest, { recursive: true, force: true })
 }
 
 const mixedRunners = fixture({

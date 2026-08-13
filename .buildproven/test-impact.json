@@ -1,0 +1,379 @@
+{
+  "version": 1,
+  "jsRunner": "node",
+  "mappings": [
+    {
+      "paths": ["lib/blob-storage.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/blob-storage.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/analyze-ci.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/analyze-ci.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/audit.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/audit.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/ci-doctor.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/ci-doctor.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/history-scan.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/history-scan.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/pr-assurance.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/pr-assurance.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/pr-check.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/pr-check.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/remediation.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/remediation.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/commands/ship-check.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/ship-check.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/dependency-monitoring-basic.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/dependency-monitoring-basic.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/dependency-monitoring-premium.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/dependency-monitoring-premium.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/error-reporter.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/error-reporter.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/lazy-loader.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/lazy-loader.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/licensing.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/licensing.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/package-provenance.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/package-provenance.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/prelaunch-validator.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/prelaunch-validator.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/project-maturity.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/project-maturity.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/quality-tools-generator.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/quality-tools-generator.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/result-types.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/result-types.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/setup-enhancements.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/setup-enhancements.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/smart-strategy-generator.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/smart-strategy-generator.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/telemetry.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/telemetry.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/template-loader.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/template-loader.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/test-impact-generator.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/test-impact-generator.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/ui-helpers.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/ui-helpers.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/validation/base-validator.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/base-validator.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/validation/cache-manager.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/cache-manager.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/validation/validation-factory.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/validation-factory.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/validation/workflow-validation.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/workflow-validation.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["scripts/risk-policy-gate.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/risk-policy-gate.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["scripts/validate-command-patterns.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/validate-command-patterns.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["setup.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/setup.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["webhook-handler.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/webhook-handler.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": [".husky/pre-push"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/pre-push-efficiency.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["AGENTS.md", "README.md", "docs/**/*.md"],
+      "commands": [
+        {
+          "executable": "npm",
+          "args": ["run", "docs:check"]
+        }
+      ]
+    },
+    {
+      "paths": [
+        "config/defaults.js",
+        "lib/commands/index.js",
+        "lib/commands/test-impact.js"
+      ],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/test-impact-generator.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/test-impact-cli.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/template-content-validation.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/project-profile.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/generator-project-profile.test.js"]
+        }
+      ]
+    }
+  ],
+  "audits": [
+    {
+      "paths": [
+        ".buildproven/test-impact.json",
+        ".github/workflows/test-impact.yml",
+        "package.json",
+        "package-lock.json",
+        "pnpm-lock.yaml",
+        "yarn.lock",
+        "bun.lock",
+        "bun.lockb",
+        "pyproject.toml",
+        "pytest.ini",
+        "setup.cfg",
+        "tox.ini",
+        "requirements*.txt",
+        "vitest.config.*",
+        "jest.config.*"
+      ],
+      "reason": "test dependency, runner, workflow, or selector policy changed",
+      "commands": [
+        {
+          "executable": "npm",
+          "args": ["run", "test"]
+        }
+      ]
+    }
+  ]
+}

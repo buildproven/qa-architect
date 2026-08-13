@@ -173,3 +173,7 @@ npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-c
 ```
 
 Keep the current workflow until the canary proves gate and result parity.
+The generator detects declared Vitest, Jest, plain Node, and Pytest suites.
+Source files without a sound dependency selector need repository-owned mappings.
+The pull-request controller comes from the protected base and has read-only
+permissions. Do not add secrets, write permission, or caches to that job.

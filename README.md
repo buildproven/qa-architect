@@ -414,10 +414,12 @@ Write the repository policy and canary workflow only with an immutable
 npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
 ```
 
-The generator uses only declared test and install commands. Unknown impact
-stops with a mapping request. It does not start the complete suite. Keep the
-existing workflow during the canary. Change branch protection only after the
-old and new gates have the same result contract.
+The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
+Unknown impact stops with a mapping request. It does not start the complete
+suite. Keep the existing workflow during the canary. Change branch protection
+only after the old and new gates have the same result contract.
+The canary controller comes from the protected base and runs without secrets,
+write permission, stored credentials, or caches.
 
 ### License
 

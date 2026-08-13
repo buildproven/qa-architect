@@ -67,7 +67,7 @@ try {
       name: 'unsafe-fixture',
       version: '1.0.0',
       packageManager: 'npm@11.5.2',
-      scripts: { test: 'node --test' },
+      scripts: { test: 'custom-test-runner' },
     })}\n`
   )
   const result = spawnSync(

@@ -100,6 +100,21 @@ try {
   fs.rmSync(nonGitProject, { recursive: true, force: true })
 }
 
+const emptyGitmodulesRepo = createRepo({
+  name: 'empty-gitmodules-fixture',
+  version: '1.0.0',
+})
+try {
+  fs.writeFileSync(path.join(emptyGitmodulesRepo, '.gitmodules'), '')
+  assert.deepStrictEqual(
+    detectProjectProfile(emptyGitmodulesRepo).submodulePaths,
+    [],
+    'An empty .gitmodules file must mean that no submodules are configured'
+  )
+} finally {
+  fs.rmSync(emptyGitmodulesRepo, { recursive: true, force: true })
+}
+
 const pnpmRepo = createRepo({
   name: 'next-pnpm-fixture',
   private: true,
