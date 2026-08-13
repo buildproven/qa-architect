@@ -18,17 +18,23 @@ for an explicit audit reason.
 - Treat Python source, shell, workflow, configuration, and an unsupported
   JavaScript source or unsupported runner as unmapped until the repository
   supplies a mapping. Plain Node mode can run changed JavaScript test files.
-- For plain Node suites, generate exact source-to-test mappings when source and
-  test base names match. Leave all other source paths unmapped.
+- For plain Node suites, show same-name tests only as review suggestions. A file
+  name is not dependency evidence. Keep source paths unmapped until the
+  repository supplies mappings supported by imports, coverage, or architecture.
 - Write `.buildproven/test-impact.json` in the target repository.
 - Write `.github/workflows/test-impact.yml` only with an immutable
   `claude-kit` commit supplied by the operator. Pull requests run the affected
   plan. Schedule and manual events run the declared complete commands.
-- Load the pull-request controller from the protected base. Check out the exact
-  candidate and protected policy into separate directories with read-only
-  permissions and no stored credentials. Plan with the protected policy and run
-  selected commands in the candidate directory. Do not expose secrets or use
-  caches in this job.
+- Create the plan in a trusted job that does not install or run candidate code.
+  Run candidate installation and tests in a separate read-only job. Install
+  packages without lifecycle scripts. Pass the immutable plan through a job
+  output. Do not place the protected policy or planner in the candidate job.
+- Reject candidate package-script changes until a reviewed protected policy
+  update has merged. This prevents an audit command such as `npm run test` from
+  resolving to a candidate no-op.
+- Permit an explicit update operation only when both existing targets have the
+  QA Architect ownership marker and policy schema. Stage both new files before
+  replacement so a runtime pin can be rotated or rolled back safely.
 - Preserve existing workflows and status contexts. The generated workflow is a
   canary until gate parity and branch-protection migration are complete.
 - Print a short result by default. JSON is explicit.
@@ -37,10 +43,12 @@ for an explicit audit reason.
 
 - JavaScript, Python, mixed, documentation-only, and unknown fixtures.
 - The generator rejects mutable runtime references and missing test commands.
+- Plain Node basename matches remain suggestions, not trusted mappings.
 - Dry-run changes no file.
 - Write mode creates valid policy and workflow files without changing existing
   workflows.
 - The workflow uses read-only permissions, exact refs, no stored credentials,
-  a protected-base controller, and one stable result job.
+  isolated trusted planning, lifecycle-free installation, and one stable result
+  job.
 - A controlled failing fixture makes the selected command fail, then pass after
   restoration.

@@ -598,7 +598,8 @@ function parseArguments(rawArgs) {
   const isAnalyzeCiMode = sanitizedArgs.includes('--analyze-ci')
   const isTestImpactMode =
     sanitizedArgs.includes('--test-impact-plan') ||
-    sanitizedArgs.includes('--write-test-impact')
+    sanitizedArgs.includes('--write-test-impact') ||
+    sanitizedArgs.includes('--update-test-impact')
   const isPrelaunchMode = sanitizedArgs.includes('--prelaunch')
   const isDryRun = sanitizedArgs.includes('--dry-run')
   const isWorkflowMinimal = sanitizedArgs.includes('--workflow-minimal')
@@ -831,7 +832,8 @@ WORKFLOW TIERS (GitHub Actions optimization):
   --analyze-ci --doctor    Add CI Doctor: flaky tests, duplicated jobs, waste detection (Pro)
   --test-impact-plan       Inspect test impact and print a dry-run plan (Pro)
   --write-test-impact      Write the policy and canary workflow (Pro)
-  --runtime-sha <commit>   Immutable claude-kit commit for --write-test-impact
+  --update-test-impact     Update owned policy and workflow files (Pro)
+  --runtime-sha <commit>   Immutable claude-kit commit for write or update
 
 VIBE-CODE SECURITY AUDIT (Free):
   --audit                  Scan codebase for security vulnerabilities in AI-generated code

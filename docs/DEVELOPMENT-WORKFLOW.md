@@ -170,11 +170,14 @@ npx create-qa-architect@latest --test-impact-plan
 
 # Write a policy and canary with an immutable shared runtime.
 npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
+
+# Rotate or roll back owned generated files.
+npx create-qa-architect@latest --update-test-impact --runtime-sha <40-character-commit>
 ```
 
 Keep the current workflow until the canary proves gate and result parity.
 The generator detects declared Vitest, Jest, plain Node, and Pytest suites.
 Source files without a sound dependency selector need repository-owned mappings.
-The pull-request controller and selector policy come from the protected base.
-The candidate has a separate checkout. Do not add secrets, write permission,
-stored credentials, or caches to that job.
+The pull-request plan comes from the protected policy in a trusted job. Candidate
+installation and tests run in a separate job. Do not add secrets, write
+permission, lifecycle scripts, stored credentials, or caches to that job.

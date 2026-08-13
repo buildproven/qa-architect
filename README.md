@@ -414,13 +414,22 @@ Write the repository policy and canary workflow only with an immutable
 npx create-qa-architect@latest --write-test-impact --runtime-sha <40-character-commit>
 ```
 
+Rotate or roll back an owned generated policy and runtime pin with an explicit
+update:
+
+```bash
+npx create-qa-architect@latest --update-test-impact --runtime-sha <40-character-commit>
+```
+
 The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
 Unknown impact stops with a mapping request. It does not start the complete
 suite. Keep the existing workflow during the canary. Change branch protection
 only after the old and new gates have the same result contract.
-The canary controller and selector policy come from the protected base. Selected
-commands run in an isolated candidate checkout without secrets, write permission,
-stored credentials, or caches.
+The canary creates its plan in a trusted job from the protected policy. It runs
+candidate code in a separate job without secrets, write permission, lifecycle
+scripts, stored credentials, or caches. Plain Node same-name tests are suggestions
+only. Add repository-owned mappings with dependency, coverage, or architecture
+evidence.
 
 ### License
 

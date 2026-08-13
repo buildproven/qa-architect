@@ -51,6 +51,29 @@ try {
   assert.strictEqual(written.files.length, 2)
   assert(fs.existsSync(path.join(root, '.buildproven/test-impact.json')))
   assert(fs.existsSync(path.join(root, '.github/workflows/test-impact.yml')))
+
+  const updated = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [
+        setup,
+        '--update-test-impact',
+        '--runtime-sha',
+        'd'.repeat(40),
+        '--json',
+      ],
+      { cwd: root, env, encoding: 'utf8' }
+    )
+  )
+  assert.strictEqual(updated.mode, 'update')
+  assert(
+    fs
+      .readFileSync(
+        path.join(root, '.github/workflows/test-impact.yml'),
+        'utf8'
+      )
+      .includes(`ref: ${'d'.repeat(40)}`)
+  )
 } finally {
   fs.rmSync(root, { recursive: true, force: true })
   fs.rmSync(license, { recursive: true, force: true })
