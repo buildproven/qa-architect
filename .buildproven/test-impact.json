@@ -300,6 +300,18 @@
       ]
     },
     {
+      "paths": [
+        ".github/workflows/quality.yml",
+        "tests/affected-ci-adapter.test.js"
+      ],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/affected-ci-adapter.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["AGENTS.md", "README.md", "docs/**/*.md"],
       "commands": [
         {
