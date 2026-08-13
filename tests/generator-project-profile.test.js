@@ -4,7 +4,7 @@ const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { execFileSync, execSync } = require('child_process')
+const { execFileSync, execSync, spawnSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
 const {
   addGitlink,
@@ -71,9 +71,9 @@ function runGeneratedPreCommit(directory, pathPrefix = '') {
 }
 
 function runGeneratedPrePush(directory, licenseDirectory) {
-  execFileSync('sh', [path.join(directory, '.husky', 'pre-push')], {
+  return spawnSync('sh', [path.join(directory, '.husky', 'pre-push')], {
     cwd: directory,
-    stdio: 'pipe',
+    encoding: 'utf8',
     env: {
       ...process.env,
       NODE_ENV: 'test',
@@ -396,16 +396,13 @@ for (const detectedTestScript of ['test', 'test:unit', 'test:ci']) {
   try {
     fs.writeFileSync(path.join(testScriptRepo, 'package-lock.json'), '{}\n')
     const licenseDirectory = runSetup(testScriptRepo, { developer: false })
-    runGeneratedPrePush(testScriptRepo, licenseDirectory)
-    assert(
-      fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)),
-      `Generated pre-push hook must keep ${detectedTestScript} until an affected selector exists`
-    )
-    assert(
-      fs
-        .readFileSync(path.join(testScriptRepo, '.husky/pre-push'), 'utf8')
-        .includes('No affected-test selector is configured. Running'),
-      'Generated pre-push hook must explain the safe fallback'
+    const prePush = runGeneratedPrePush(testScriptRepo, licenseDirectory)
+    assert.strictEqual(prePush.status, 1)
+    assert(!fs.existsSync(path.join(testScriptRepo, `${markerName}.ran`)))
+    assert.match(
+      prePush.stdout,
+      /No affected-test selector is configured/,
+      'Generated pre-push hook must stop and explain the missing selector'
     )
     fs.rmSync(licenseDirectory, { recursive: true, force: true })
   } finally {
