@@ -3,8 +3,8 @@
 ## Requirement
 
 Generate the repository-owned version 1 `claude-kit` test-impact policy. Do not
-fork the selector or install CI. Unknown impact must remain visible and require
-an explicit repository mapping.
+fork the selector or install CI. Unknown impact must remain visible and run the
+declared complete test command as an explicit safe fallback.
 
 ## Design
 
@@ -18,11 +18,12 @@ an explicit repository mapping.
 - Merge an update mapping file with existing reviewed mappings. Reject a
   conflicting definition for the same paths.
 - Write only `.buildproven/test-impact.json`.
+- Emit the declared complete gate as `fallback`. The shared selector uses it
+  only when uncovered paths remain.
 - Reject symbolic-link output paths and paths outside the repository.
 - Leave CI installation and execution to the shared `claude-setup` adapter and
   the single `claude-kit` selector.
-- Until a consumer installs that selector, its generated pre-push hook keeps the
-  declared complete suite as a safe migration fallback.
+- Keep the generated pre-push hook fast. It does not run the complete suite.
 - Print a short result by default. JSON output is explicit.
 
 ## Acceptance evidence

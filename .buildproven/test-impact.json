@@ -377,5 +377,11 @@
         }
       ]
     }
+  ],
+  "fallback": [
+    {
+      "executable": "npm",
+      "args": ["run", "test"]
+    }
   ]
 }

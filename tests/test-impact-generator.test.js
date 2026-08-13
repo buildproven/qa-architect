@@ -48,6 +48,9 @@ try {
   assert.deepStrictEqual(plan.blockers, [])
   assert.strictEqual(plan.policy.jsRunner, 'vitest')
   assert.deepStrictEqual(plan.policy.mappings, [])
+  assert.deepStrictEqual(plan.policy.fallback, [
+    { executable: 'npm', args: ['run', 'test'] },
+  ])
   assert.deepStrictEqual(plan.inventory.installCommands, [
     'npm ci --ignore-scripts',
   ])
@@ -111,6 +114,9 @@ try {
   const plan = buildPolicy(python)
   assert.deepStrictEqual(plan.blockers, [])
   assert.deepStrictEqual(plan.policy.audits[0].commands, [
+    { executable: 'pytest', args: [] },
+  ])
+  assert.deepStrictEqual(plan.policy.fallback, [
     { executable: 'pytest', args: [] },
   ])
 } finally {

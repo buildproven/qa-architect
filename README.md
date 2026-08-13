@@ -420,12 +420,13 @@ npx create-qa-architect@latest --update-test-impact
 ```
 
 The generator supports declared Vitest, Jest, plain Node, and Pytest suites.
-Unknown impact stops with a mapping request. It does not start the complete
-suite. Plain Node same-name tests are suggestions only. Supply reviewed mappings
+Unknown impact uses the declared complete suite as an explicit safe fallback.
+Mapped, related-test, direct-test, and documentation-only changes stay focused.
+Plain Node same-name tests are suggestions only. Supply reviewed mappings
 with `--mapping-file <path>`. QA Architect does not install or replace CI for
 this feature. Use the shared `claude-kit` selector through the repository's
-normal `claude-setup` CI adapter. Until that selector exists, the generated
-pre-push hook keeps the declared complete suite as a safe fallback.
+normal `claude-setup` CI adapter. The generated pre-push hook stays fast and
+does not run the complete suite.
 
 ### License
 

@@ -3,11 +3,10 @@ name: Quality Checks
 # Industry best practice: "Fail fast locally, verify comprehensively remotely"
 #
 # Local (pre-commit): Lint + format (staged files) - instant feedback
-# Local (pre-push): Type check + tests (changed files) - catches logic bugs
-# CI (this workflow): Full test suite + E2E + security - comprehensive verification
+# Local (pre-push): Lint + format + secrets + changed dependency audit
+# CI (this workflow): Required full tests, Semgrep, and other security checks
 #
-# Note: Lint/format NOT duplicated here - pre-commit already did it
-# This avoids redundant work and reduces CI costs
+# The local gate stays fast. CI is the full safety net for this generator repo.
 
 on:
   push: # Kept: catches direct pushes and scheduled scans

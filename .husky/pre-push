@@ -21,12 +21,15 @@ fi
 echo "Pre-push: lint."
 npm run lint --silent
 
-if command -v gitleaks >/dev/null 2>&1; then
-  echo "Pre-push: secret scan."
-  gitleaks detect --no-git --redact --no-banner --exit-code=1
-else
-  echo "Pre-push: gitleaks is absent. Required CI secret scan remains authoritative."
+echo "Pre-push: format check."
+npm run format:check --silent
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "Pre-push stopped: install gitleaks for the required local secret scan." >&2
+  exit 1
 fi
+echo "Pre-push: secret scan."
+gitleaks detect --no-git --redact --no-banner --exit-code=1
 
 base_ref=""
 if git rev-parse --verify --quiet '@{upstream}' >/dev/null; then
