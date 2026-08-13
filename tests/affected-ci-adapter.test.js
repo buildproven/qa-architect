@@ -13,14 +13,18 @@ const workflow = fs.readFileSync(
 
 assert(workflow.includes('fetch-depth: 0'))
 assert(
-  workflow.includes('CLAUDE_KIT_SHA: 05a42b5f655dc0b558a1a8286e03c27216032d05')
+  workflow.includes('CLAUDE_KIT_SHA: 80c21bdbe2c21128d5e46b38818f0c0625f474e3')
 )
 assert(workflow.includes('git show "$BASE_SHA:.buildproven/test-impact.json"'))
-assert(workflow.includes('--execute --policy-root "$POLICY_ROOT"'))
+assert(
+  workflow.includes('merge-base --is-ancestor "$CLAUDE_KIT_SHA" FETCH_HEAD')
+)
+assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
+assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))
 assert(workflow.includes('Base test-impact policy is absent'))
 assert(workflow.includes("github.repository != 'buildproven/qa-architect'"))
 assert(!workflow.includes('--diff-filter='))
-assert(workflow.includes('git diff --name-only -z "$BASE_SHA" "$HEAD_SHA"'))
+assert(!workflow.includes('git diff --name-only -z "$BASE_SHA" "$HEAD_SHA"'))
 
 const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-affected-delete-'))
 try {
