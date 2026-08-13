@@ -312,6 +312,22 @@
       ]
     },
     {
+      "paths": [
+        ".github/semgrep-release-overrides.txt",
+        ".github/semgrep-release-requirements.in",
+        ".github/semgrep-release-requirements.txt",
+        ".github/workflows/release.yml",
+        "scripts/compile-semgrep-release-requirements.sh",
+        "tests/release-workflow.test.js"
+      ],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/release-workflow.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["AGENTS.md", "README.md", "docs/**/*.md"],
       "commands": [
         {

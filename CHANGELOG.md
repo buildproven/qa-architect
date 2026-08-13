@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.1] - 2026-08-13
+
+### Fixed
+
+- **Trusted release startup:** the hash-locked Semgrep environment now
+  overrides Semgrep's vulnerable MCP pin with MCP 1.27.2. Semgrep imports this
+  dependency at CLI startup even when release checks do not use MCP transport.
+
 ## [5.16.0] - 2026-08-13
 
 ### Added
