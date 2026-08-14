@@ -156,9 +156,16 @@ function assertValidYamlStructure(content, tier) {
   )
   assert(
     content.includes(
-      '"${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner'
+      '"${GITLEAKS_DIR}/gitleaks" git --redact --no-banner --log-opts="$BASE_SHA..$HEAD_SHA" .'
     ),
-    `${tier} workflow must run blocking gitleaks secret scanning`
+    `${tier} workflow must run blocking, changed-history gitleaks scanning on pull requests`
+  )
+  assert(
+    content.includes(
+      'quality-only: ${{ steps.change-scope.outputs.quality-only }}'
+    ) &&
+      content.includes("needs.detect-maturity.outputs.quality-only != 'true'"),
+    `${tier} workflow must skip application jobs for generated quality-only changes`
   )
   assert(
     !content.includes('gitleaks@latest'),
