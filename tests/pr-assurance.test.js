@@ -83,6 +83,15 @@ function finding(line = 2) {
 }
 
 async function main() {
+  const assuranceSource = fs.readFileSync(
+    path.join(__dirname, '..', 'lib', 'commands', 'pr-assurance.js'),
+    'utf8'
+  )
+  assert(
+    !/spawnSync\s*\(\s*executable/.test(assuranceSource),
+    'PR assurance must dispatch only literal, allowlisted executables'
+  )
+
   const Ajv = /** @type {any} */ (AjvImport.default || AjvImport)
   const addFormats = /** @type {(ajv: any) => void} */ (
     addFormatsImport.default || addFormatsImport
