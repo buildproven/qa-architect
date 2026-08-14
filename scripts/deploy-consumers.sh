@@ -11,7 +11,7 @@ PROJECTS_DIRS=(
   "$HOME/Projects/products"
   "$HOME/Projects/personal"
 )
-QA_ARCHITECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+QA_ARCHITECT_DIR="${QA_ARCHITECT_DIR_OVERRIDE:-$(cd "$(dirname "$0")/.." && pwd)}"
 QA_VERSION="$(node -p "require('$QA_ARCHITECT_DIR/package.json').version")"
 ROLLOUT_FILES=(
   ".github/workflows/quality.yml"
@@ -71,6 +71,33 @@ fi
 if [ "$SKIP_CANARY" = true ] && [ "$CANARY_ONLY" = true ]; then
   echo "ERROR: --skip-canary and --canary-only cannot be combined." >&2
   exit 2
+fi
+
+verify_release_source() {
+  local expected_tag="v$QA_VERSION" head_sha tag_sha dirty
+  head_sha="$(git -C "$QA_ARCHITECT_DIR" rev-parse HEAD 2>/dev/null || true)"
+  tag_sha="$(git -C "$QA_ARCHITECT_DIR" rev-parse --verify "refs/tags/$expected_tag^{}" 2>/dev/null || true)"
+  dirty="$(git -C "$QA_ARCHITECT_DIR" status --porcelain --untracked-files=all 2>/dev/null || true)"
+
+  if [ -n "$dirty" ]; then
+    echo "ERROR: rollout PR source is dirty; release and use a clean tagged checkout." >&2
+    return 1
+  fi
+  if [ -z "$tag_sha" ]; then
+    echo "ERROR: rollout PR source tag $expected_tag is missing; release first." >&2
+    return 1
+  fi
+  if [ "$head_sha" != "$tag_sha" ]; then
+    echo "ERROR: rollout PR source is not exact release $expected_tag." >&2
+    echo "  HEAD: $head_sha" >&2
+    echo "  TAG:  $tag_sha" >&2
+    echo "Release the current QA Architect head before fleet rollout." >&2
+    return 1
+  fi
+}
+
+if [ "$CREATE_PRS" = true ]; then
+  verify_release_source
 fi
 
 cleanup_rollout_root() {
