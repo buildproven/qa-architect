@@ -628,6 +628,11 @@ jobs:
           KIT_ROOT="$RUNNER_TEMP/claude-kit"
           mkdir -p "$POLICY_ROOT/.buildproven" "$KIT_ROOT"
           git show "$BASE_SHA:.buildproven/test-impact.json" > "$POLICY_ROOT/.buildproven/test-impact.json"
+          if ! cmp -s "$POLICY_ROOT/.buildproven/test-impact.json" .buildproven/test-impact.json; then
+            echo "Test-impact policy changed. Running the complete selector-policy audit."
+            timeout 300 npm test
+            exit 0
+          fi
           git -C "$KIT_ROOT" init --quiet
           git -C "$KIT_ROOT" remote add origin https://github.com/buildproven/claude-kit.git
           git -C "$KIT_ROOT" fetch --quiet --filter=blob:none origin main

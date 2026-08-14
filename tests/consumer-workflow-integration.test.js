@@ -108,12 +108,20 @@ function assertValidYamlStructure(content, tier) {
   )
   assert(content.includes('tests:'), `${tier} workflow must have tests job`)
   assert(
-    content.includes('CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69'),
+    content.includes(
+      'CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69'
+    ),
     `${tier} workflow must pin the shared affected-test selector`
   )
   assert(
     content.includes("hashFiles('.buildproven/test-impact.json') != ''"),
     `${tier} workflow must run affected tests when a policy exists`
+  )
+  assert(
+    content.includes(
+      'Test-impact policy changed. Running the complete selector-policy audit.'
+    ),
+    `${tier} workflow must audit a changed selector policy with the complete test command`
   )
   assert(
     content.includes('security:'),

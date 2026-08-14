@@ -22,6 +22,12 @@ assert(
 assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
 assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))
 assert(workflow.includes('Base test-impact policy is absent'))
+assert(workflow.includes('Test-impact policy changed'))
+assert(
+  workflow.includes(
+    'cmp -s "$POLICY_ROOT/.buildproven/test-impact.json" .buildproven/test-impact.json'
+  )
+)
 assert(workflow.includes("hashFiles('.buildproven/test-impact.json') != ''"))
 assert(workflow.includes("hashFiles('.buildproven/test-impact.json') == ''"))
 assert(
