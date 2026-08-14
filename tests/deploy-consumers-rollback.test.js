@@ -4,7 +4,7 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const assert = require('assert')
-const { execSync } = require('child_process')
+const { execSync, spawnSync } = require('child_process')
 
 /**
  * Regression test for deploy-consumers.sh push/commit-failure rollback.
@@ -40,6 +40,74 @@ function git(cwd, cmd) {
     encoding: 'utf8',
     stdio: ['pipe', 'pipe', 'pipe'],
   }).trim()
+}
+
+function checkoutSnapshot(cwd) {
+  const files = execSync(
+    "find . -type f -not -path './.git/*' -print0 | sort -z | xargs -0 shasum -a 256",
+    { cwd, encoding: 'utf8', shell: '/bin/bash' }
+  )
+  return {
+    head: git(cwd, 'rev-parse HEAD'),
+    index: git(cwd, 'write-tree'),
+    status: git(cwd, 'status --porcelain --untracked-files=all'),
+    files,
+  }
+}
+
+function testDryRunDoesNotMutateConsumer() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-validation-test-'))
+  try {
+    const projects = path.join(root, 'Projects')
+    const consumer = path.join(projects, 'buildproven')
+    fs.mkdirSync(path.join(consumer, '.github', 'workflows'), {
+      recursive: true,
+    })
+    git(consumer, 'init -b main -q')
+    git(consumer, 'config user.email test@example.com')
+    git(consumer, 'config user.name Test')
+    fs.writeFileSync(
+      path.join(consumer, 'package.json'),
+      '{"name":"validation-consumer","version":"1.0.0","private":true}\n'
+    )
+    fs.writeFileSync(
+      path.join(consumer, '.github', 'workflows', 'quality.yml'),
+      'name: Quality\n# WORKFLOW_MODE: minimal\n'
+    )
+    git(consumer, 'add .')
+    git(consumer, 'commit -q -m "initial"')
+    fs.writeFileSync(path.join(consumer, 'user-untracked.txt'), 'keep me\n')
+
+    const before = checkoutSnapshot(consumer)
+    const result = spawnSync(
+      'bash',
+      [DEPLOY_SCRIPT, '--canary-only', '--verbose'],
+      {
+        env: { ...process.env, HOME: root },
+        encoding: 'utf8',
+      }
+    )
+    assert.strictEqual(
+      result.status,
+      0,
+      `dry-run validation failed:\n${result.stdout}\n${result.stderr}`
+    )
+    const output = result.stdout
+    const after = checkoutSnapshot(consumer)
+
+    assert.deepStrictEqual(
+      after,
+      before,
+      'default validation must leave HEAD, index, status, tracked files, and untracked files unchanged'
+    )
+    assert.ok(output.includes('PASS: Validated'))
+    assert.ok(output.includes('Proposed changes:'))
+    console.log(
+      '  ✓ dry run validates an isolated copy and leaves the consumer unchanged'
+    )
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
 }
 
 async function testRollbackContract() {
@@ -125,6 +193,7 @@ async function testRollbackContract() {
     )
 
     console.log('  ✓ push rejection rolls back to a clean, non-ahead tree')
+    testDryRunDoesNotMutateConsumer()
     console.log('\n✅ deploy-consumers.sh rollback contract holds\n')
   } finally {
     // Delete the literal mktemp path — never a $(dirname ...) of a variable.

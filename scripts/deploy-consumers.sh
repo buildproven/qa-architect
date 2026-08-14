@@ -257,6 +257,19 @@ wait_for_ci() {
   return 1
 }
 
+# Remove one validation directory created by mktemp. This does not use rm -rf,
+# and it refuses every path outside the dedicated temporary-directory shape.
+cleanup_validation_copy() {
+  local validation_root="$1"
+  case "$validation_root" in
+    */qa-consumer-validation.*) find "$validation_root" -depth -delete ;;
+    *)
+      echo "  ERROR: refused unsafe validation cleanup path: $validation_root" >&2
+      return 1
+      ;;
+  esac
+}
+
 # Function to deploy to a single repo
 # Args: $1 = repo_dir, $2 = is_canary (true/false)
 deploy_to_repo() {
@@ -264,6 +277,8 @@ deploy_to_repo() {
   local is_canary="${2:-false}"
   local repo_name
   repo_name="$(basename "$repo_dir")"
+  local target_repo_dir="$repo_dir"
+  local validation_root=""
 
   echo "--- $repo_name $([ "$is_canary" = true ] && echo "(CANARY)" || echo "") ---"
 
@@ -271,6 +286,20 @@ deploy_to_repo() {
   if [ ! -f "$repo_dir/package.json" ]; then
     echo "  SKIP: No package.json"
     return 2  # Return code 2 = skipped
+  fi
+
+  # Validation must not write to the consumer checkout. A local shared clone is
+  # cheap because it reuses Git objects, but it has its own index and worktree.
+  # Generate and validate there, then delete only the exact mktemp directory.
+  if [ "$PUSH" = false ]; then
+    validation_root="$(mktemp -d -t qa-consumer-validation.XXXXXX)"
+    target_repo_dir="$validation_root/repo"
+    if ! git clone --shared --quiet "$repo_dir" "$target_repo_dir"; then
+      echo "  FAIL: Could not create isolated validation copy"
+      cleanup_validation_copy "$validation_root"
+      return 1
+    fi
+    git -C "$target_repo_dir" checkout --quiet --detach "$(git -C "$repo_dir" rev-parse HEAD)"
   fi
 
   # Resolve the default branch up front (used by the push preflight and the
@@ -345,36 +374,40 @@ deploy_to_repo() {
 
   # Regenerate workflow (must cd to consumer dir — setup.js uses process.cwd())
   echo "  Regenerating workflow (tier: $existing_tier)..."
-  if (cd "$repo_dir" && QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
+  if (cd "$target_repo_dir" && QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
     2>&1 | { [ "$VERBOSE" = true ] && cat || tail -1; }); then
     :
   else
     echo "  FAIL: Workflow generation failed"
+    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
     return 1
   fi
 
-  local workflow_file="$repo_dir/.github/workflows/quality.yml"
+  local workflow_file="$target_repo_dir/.github/workflows/quality.yml"
 
   # Validate: no node_modules/create-qa-architect references
   if grep -q "node_modules/create-qa-architect" "$workflow_file"; then
     echo "  FAIL: Contains node_modules/create-qa-architect references"
+    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
     return 1
   fi
 
   # Validate: no section markers leaked
   if grep -qE '\{\{(QA_ARCHITECT_ONLY|FULL_DETECTION|FULL_REPORT)_(BEGIN|END)\}\}' "$workflow_file"; then
     echo "  FAIL: Contains section markers"
+    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
     return 1
   fi
 
   # Validate: valid YAML (requires node + js-yaml)
   if ! node -e "require('$QA_ARCHITECT_DIR/node_modules/js-yaml').load(require('fs').readFileSync('$workflow_file','utf8'))" 2>/dev/null; then
     echo "  FAIL: Invalid YAML"
+    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
     return 1
   fi
 
   # Remove stale devDep if present
-  if grep -q '"create-qa-architect"' "$repo_dir/package.json" 2>/dev/null; then
+  if grep -q '"create-qa-architect"' "$target_repo_dir/package.json" 2>/dev/null; then
     echo "  Removing stale create-qa-architect devDependency..."
     if [ "$PUSH" = true ]; then
       (cd "$repo_dir" && npm uninstall create-qa-architect 2>/dev/null || true)
@@ -384,6 +417,14 @@ deploy_to_repo() {
   fi
 
   echo "  PASS: Validated"
+
+  if [ "$PUSH" = false ]; then
+    echo "  Proposed changes:"
+    git -C "$target_repo_dir" status --short | sed 's/^/    /'
+    cleanup_validation_copy "$validation_root"
+    echo ""
+    return 0
+  fi
 
   # Commit and push if --push. The push preflight above already guaranteed we
   # started from a fully clean tree on the verified default branch, so anything
