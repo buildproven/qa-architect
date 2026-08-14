@@ -6,6 +6,7 @@ const os = require('os')
 const path = require('path')
 const { execFileSync, execSync, spawnSync } = require('child_process')
 const { detectProjectProfile } = require('../lib/project-profile')
+const { version: packageVersion } = require('../package.json')
 const {
   addGitlink,
   initializeFixtureRepository,
@@ -226,12 +227,15 @@ try {
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run build'))
   assert(!workflowAfterFirstRun.includes("test-count: '0'"))
   assert.strictEqual(
-    [...workflowAfterFirstRun.matchAll(/create-qa-architect@latest/g)].length,
+    workflowAfterFirstRun.split(`create-qa-architect@${packageVersion}`)
+      .length - 1,
     1,
     'Only the licensed PR assurance job may execute the published CLI'
   )
   assert(
-    workflowAfterFirstRun.includes('npx create-qa-architect@latest --pr-check')
+    workflowAfterFirstRun.includes(
+      `npx create-qa-architect@${packageVersion} --pr-check`
+    )
   )
   assert(workflowAfterFirstRun.includes('permissions:\n  contents: read'))
   assert(

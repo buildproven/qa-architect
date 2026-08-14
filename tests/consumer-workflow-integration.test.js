@@ -16,6 +16,7 @@ const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
 const yaml = require(path.join(__dirname, '../node_modules/js-yaml'))
+const { version: packageVersion } = require('../package.json')
 
 console.log('🧪 Testing consumer workflow integration...\n')
 
@@ -61,6 +62,8 @@ const CONSUMER_FORBIDDEN_CONTENT = [
   ...QA_ARCHITECT_ONLY_CONTENT,
   'node_modules/create-qa-architect',
   'npx --yes create-qa-architect',
+  'create-qa-architect@latest',
+  'semgrep/semgrep-action',
 ]
 
 const SECTION_MARKERS = [
@@ -150,6 +153,18 @@ function assertValidYamlStructure(content, tier) {
   assert(
     !content.includes('gitleaks@latest'),
     `${tier} workflow must not execute mutable gitleaks code`
+  )
+  assert(
+    content.includes(
+      'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b'
+    ) &&
+      content.includes('semgrep scan') &&
+      content.includes('--error'),
+    `${tier} workflow must use the digest-pinned, blocking Semgrep image`
+  )
+  assert(
+    !content.includes('pip install --quiet "setuptools<81"'),
+    `${tier} blocking security job must not install mutable Python packages`
   )
 }
 
@@ -549,6 +564,13 @@ bbb
   )
   const free = injectWorkflowMode(template, 'minimal', { prAssurance: false })
   const pro = injectWorkflowMode(template, 'minimal', { prAssurance: true })
+  const staleTemplate = template.replace(
+    /create-qa-architect@[0-9A-Za-z.+-]+/g,
+    'create-qa-architect@0.0.0-beta.1+stale'
+  )
+  const generatedFromStale = injectWorkflowMode(staleTemplate, 'minimal', {
+    prAssurance: true,
+  })
   assert(
     !free.includes('  pr-assurance:'),
     'Free workflow must omit Pro assurance'
@@ -580,8 +602,18 @@ bbb
   )
   assert(pro.includes('--head'), 'Pro assurance must bind the exact head')
   assert(
-    pro.includes('create-qa-architect@latest'),
-    'Consumer must use the published CLI'
+    pro.includes(`create-qa-architect@${packageVersion}`),
+    'Consumer must use the exact published CLI version'
+  )
+  assert(
+    generatedFromStale.includes(`create-qa-architect@${packageVersion}`) &&
+      !generatedFromStale.includes('beta.1') &&
+      !generatedFromStale.includes('+stale'),
+    'Package version replacement must remove stale prerelease and build suffixes'
+  )
+  assert(
+    !pro.includes('create-qa-architect@latest'),
+    'Consumer must not execute a mutable QA Architect release'
   )
   assert(
     pro.includes('security-events: write'),
