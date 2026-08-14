@@ -105,6 +105,43 @@ function testDryRunDoesNotMutateConsumer() {
       '  ✓ dry run validates an isolated copy and leaves the consumer unchanged'
     )
 
+    const externalWorkflow = path.join(root, 'shared-quality.yml')
+    fs.writeFileSync(
+      externalWorkflow,
+      'name: Shared Quality\n# WORKFLOW_MODE: minimal\n# must remain unchanged\n'
+    )
+    const workflowPath = path.join(
+      consumer,
+      '.github',
+      'workflows',
+      'quality.yml'
+    )
+    fs.unlinkSync(workflowPath)
+    fs.symlinkSync(externalWorkflow, workflowPath)
+    git(consumer, 'add .github/workflows/quality.yml')
+    git(consumer, 'commit -q -m "track workflow symlink"')
+    const externalBefore = fs.readFileSync(externalWorkflow, 'utf8')
+    const symlinkResult = spawnSync('bash', [DEPLOY_SCRIPT, '--canary-only'], {
+      env: { ...process.env, HOME: root },
+      encoding: 'utf8',
+    })
+    assert.notStrictEqual(symlinkResult.status, 0)
+    assert.ok(
+      symlinkResult.stdout.includes('writable path contains a symlink'),
+      `${symlinkResult.stdout}\n${symlinkResult.stderr}`
+    )
+    assert.strictEqual(
+      fs.readFileSync(externalWorkflow, 'utf8'),
+      externalBefore
+    )
+    fs.unlinkSync(workflowPath)
+    fs.writeFileSync(workflowPath, 'name: Quality\n# WORKFLOW_MODE: minimal\n')
+    git(consumer, 'add .github/workflows/quality.yml')
+    git(consumer, 'commit -q -m "restore regular workflow"')
+    console.log(
+      '  ✓ dry run rejects tracked writable symlinks without following them'
+    )
+
     fs.writeFileSync(path.join(consumer, 'user-untracked.txt'), 'keep me\n')
     const dirtyBefore = checkoutSnapshot(consumer)
     const dirtyResult = spawnSync('bash', [DEPLOY_SCRIPT, '--canary-only'], {

@@ -270,6 +270,37 @@ cleanup_validation_copy() {
   esac
 }
 
+ACTIVE_VALIDATION_ROOT=""
+
+cleanup_active_validation_copy() {
+  [ -n "$ACTIVE_VALIDATION_ROOT" ] || return 0
+  local validation_root="$ACTIVE_VALIDATION_ROOT"
+  ACTIVE_VALIDATION_ROOT=""
+  cleanup_validation_copy "$validation_root"
+}
+
+trap 'cleanup_active_validation_copy || true' EXIT
+trap 'cleanup_active_validation_copy || true; exit 130' INT TERM
+
+# setup.js writes only the reviewed allowlist. Reject a checkout when any
+# existing component of one of those paths is a symlink, because writes through
+# a tracked absolute symlink can escape the isolated validation directory.
+validate_writable_paths() {
+  local repo_root="$1" relative current component
+  for relative in "${ALLOWLIST_FILES[@]}"; do
+    current="$repo_root"
+    IFS='/' read -r -a components <<< "$relative"
+    for component in "${components[@]}"; do
+      current="$current/$component"
+      if [ -L "$current" ]; then
+        echo "  REFUSE VALIDATION: writable path contains a symlink: $relative"
+        return 1
+      fi
+      [ -e "$current" ] || break
+    done
+  done
+}
+
 # Function to deploy to a single repo
 # Args: $1 = repo_dir, $2 = is_canary (true/false)
 deploy_to_repo() {
@@ -307,16 +338,21 @@ deploy_to_repo() {
       return 1
     fi
     validation_root="$(mktemp -d -t qa-consumer-validation.XXXXXX)"
+    ACTIVE_VALIDATION_ROOT="$validation_root"
     target_repo_dir="$validation_root/repo"
     if ! git clone --shared --quiet --no-checkout "$repo_dir" "$target_repo_dir"; then
       echo "  FAIL: Could not create isolated validation copy"
-      cleanup_validation_copy "$validation_root" || true
+      cleanup_active_validation_copy || true
       return 1
     fi
     if ! git -C "$target_repo_dir" checkout --quiet --detach "$source_head"; then
       echo "  FAIL: Could not check out the exact consumer HEAD in the isolated validation copy"
-      cleanup_validation_copy "$validation_root" || true
+      cleanup_active_validation_copy || true
       return 1
+    fi
+    if ! validate_writable_paths "$target_repo_dir"; then
+      cleanup_active_validation_copy || true
+      return 3
     fi
   fi
 
@@ -397,7 +433,7 @@ deploy_to_repo() {
     :
   else
     echo "  FAIL: Workflow generation failed"
-    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
+    [ -n "$validation_root" ] && cleanup_active_validation_copy
     return 1
   fi
 
@@ -406,21 +442,21 @@ deploy_to_repo() {
   # Validate: no node_modules/create-qa-architect references
   if grep -q "node_modules/create-qa-architect" "$workflow_file"; then
     echo "  FAIL: Contains node_modules/create-qa-architect references"
-    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
+    [ -n "$validation_root" ] && cleanup_active_validation_copy
     return 1
   fi
 
   # Validate: no section markers leaked
   if grep -qE '\{\{(QA_ARCHITECT_ONLY|FULL_DETECTION|FULL_REPORT)_(BEGIN|END)\}\}' "$workflow_file"; then
     echo "  FAIL: Contains section markers"
-    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
+    [ -n "$validation_root" ] && cleanup_active_validation_copy
     return 1
   fi
 
   # Validate: valid YAML (requires node + js-yaml)
   if ! node -e "require('$QA_ARCHITECT_DIR/node_modules/js-yaml').load(require('fs').readFileSync('$workflow_file','utf8'))" 2>/dev/null; then
     echo "  FAIL: Invalid YAML"
-    [ -n "$validation_root" ] && cleanup_validation_copy "$validation_root"
+    [ -n "$validation_root" ] && cleanup_active_validation_copy
     return 1
   fi
 
@@ -439,7 +475,7 @@ deploy_to_repo() {
   if [ "$PUSH" = false ]; then
     echo "  Proposed changes:"
     git -C "$target_repo_dir" status --short | sed 's/^/    /'
-    if ! cleanup_validation_copy "$validation_root"; then
+    if ! cleanup_active_validation_copy; then
       echo "  FAIL: Could not clean the isolated validation copy"
       return 1
     fi
