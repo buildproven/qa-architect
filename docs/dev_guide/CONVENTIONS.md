@@ -133,8 +133,9 @@ node setup.js --dry-run
 npm run prerelease
 
 # Deploy to consumer repos (after publishing)
-./scripts/deploy-consumers.sh           # validate only
-./scripts/deploy-consumers.sh --push    # regenerate + commit + push
+./scripts/deploy-consumers.sh --canary <repo> --canary-only       # validate
+./scripts/deploy-consumers.sh --canary <repo> --canary-only --pr  # prepare protected PR
+./scripts/deploy-consumers.sh --skip-canary --pr                  # remaining PRs after canary merge
 ```
 
 ## Agent Gotchas
