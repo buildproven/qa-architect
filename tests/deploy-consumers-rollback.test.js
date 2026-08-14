@@ -276,7 +276,7 @@ function testPullRequestRequiresExactCleanRelease() {
     assert.notStrictEqual(untagged.status, 0)
     assert.match(untagged.stderr, /release first/)
 
-    git(source, 'tag', `v${QA_VERSION}`, 'HEAD^')
+    git(source, 'tag', `v${QA_VERSION}`, 'HEAD^{tree}')
     const wrongTag = run(
       root,
       ['--canary', 'canary', '--canary-only', '--pr'],

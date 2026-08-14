@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.5] - 2026-08-14
+
+### Fixed
+
+- **Trusted release fixture:** exact-release rollout tests now construct their
+  mismatched-tag case without assuming the release checkout contains a parent
+  commit, so the prerelease suite works in GitHub's depth-one tag checkout.
+
 ## [5.16.4] - 2026-08-14
 
 ### Added
