@@ -63,6 +63,53 @@ try {
   fs.rmSync(vitest, { recursive: true, force: true })
 }
 
+for (const [
+  manager,
+  version,
+  lockfile,
+  testScript,
+  childScript,
+  expectedRunner,
+] of [
+  [
+    'npm',
+    '11.5.2',
+    'package-lock.json',
+    'npm run test:unit',
+    'node test/unit.test.js',
+    'node',
+  ],
+  [
+    'pnpm',
+    '10.12.1',
+    'pnpm-lock.yaml',
+    'pnpm test:unit',
+    'vitest run',
+    'vitest',
+  ],
+  ['yarn', '4.9.2', 'yarn.lock', 'yarn test:unit', 'jest', 'jest'],
+  ['bun', '1.2.20', 'bun.lock', 'bun run test:unit', 'vitest run', 'vitest'],
+]) {
+  const composed = fixture({
+    'package.json': packageJson({
+      packageManager: `${manager}@${version}`,
+      scripts: {
+        test: `${testScript} && ${manager} run test:cycle`,
+        'test:unit': childScript,
+        'test:cycle': `${manager} run test`,
+      },
+    }),
+    [lockfile]: '{}\n',
+  })
+  try {
+    const plan = buildPolicy(composed)
+    assert.strictEqual(plan.policy.jsRunner, expectedRunner)
+    assert.doesNotMatch(plan.blockers.join(' '), /supported runner/)
+  } finally {
+    fs.rmSync(composed, { recursive: true, force: true })
+  }
+}
+
 const nodeProject = fixture({
   'package.json': packageJson({ scripts: { test: 'node --test' } }),
   'package-lock.json': '{}\n',
