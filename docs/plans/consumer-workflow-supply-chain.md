@@ -14,4 +14,11 @@
 1. Repair the QA Architect template and its contract tests.
 2. Validate generated free and Pro workflows.
 3. Release QA Architect through trusted publishing.
-4. Resume the affected-test fleet rollout only from the fixed release.
+4. Generate consumer changes from each remote default branch in an isolated
+   temporary clone. Never write to a developer checkout or default branch.
+5. Limit each rollout PR to `.github/workflows/quality.yml` and
+   `.buildproven/test-impact.json`; discard unrelated setup output.
+6. Require an explicit generated consumer as the canary. Never change a staged
+   rollout into a skip-canary rollout implicitly.
+7. Merge the green canary through its normal protection before opening the
+   remaining consumer PRs.

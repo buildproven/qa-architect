@@ -77,7 +77,7 @@ Defaults to **minimal CI** to avoid unexpected GitHub Actions costs. Selectable 
 - Never use `\s*` in YAML cleanup regexes — use `[ \t]*` (prevents line collapse)
 - Conditional content uses section markers (`# {{NAME_BEGIN/END}}`) stripped by `stripSection()`
 - `CONSUMER_FORBIDDEN_CONTENT` in `consumer-workflow-integration.test.js` gates consumer output
-- Validate: `node tests/consumer-workflow-integration.test.js` | Deploy: `./scripts/deploy-consumers.sh --push`
+- Validate: `node tests/consumer-workflow-integration.test.js` | Prepare canary PR: `./scripts/deploy-consumers.sh --canary <repo> --canary-only --pr`
 
 ## Key Files
 
@@ -93,7 +93,7 @@ Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre
 
 ## Publishing
 
-**Uses GitHub trusted publishing — do NOT run `npm publish` manually.** Push version bump to `main`; `release.yml` handles npm publish automatically (no OTP needed). After publishing, deploy consumers: `./scripts/deploy-consumers.sh --push`.
+**Uses GitHub trusted publishing — do NOT run `npm publish` manually.** Push version bump to `main`; `release.yml` handles npm publish automatically (no OTP needed). After publishing, validate a named canary and prepare its protected PR with `./scripts/deploy-consumers.sh --canary <repo> --canary-only --pr`.
 
 ## Coding Style & Testing Conventions
 

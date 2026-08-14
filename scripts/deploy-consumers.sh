@@ -1,299 +1,152 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# deploy-consumers.sh — Auto-discover and update ALL consumer repos with staged rollout
-#
-# Usage:
-#   ./scripts/deploy-consumers.sh                      # Dry run (validate only)
-#   ./scripts/deploy-consumers.sh --canary-only --push # Deploy ONLY to canary, wait for CI
-#   ./scripts/deploy-consumers.sh --push               # Full rollout: canary first, then rest
-#   ./scripts/deploy-consumers.sh --skip-canary --push # Emergency: bypass canary (use with caution)
-#
-# Staged Rollout Process:
-#   1. Deploy to canary repo (buildproven) first
-#   2. Wait for CI to complete on canary (up to 10 minutes)
-#   3. If CI passes, deploy to remaining repos
-#   4. If CI fails, abort rollout (prevents cascading failures)
-#
-# Auto-discovers repos by scanning ~/Projects, ~/Projects/internal, ~/Projects/products,
-# and ~/Projects/personal for .github/workflows/quality.yml files containing the
-# WORKFLOW_MODE marker from qa-architect.
+# Prepare narrow QA Architect rollout changes without writing to consumer
+# checkouts or default branches. The default mode validates and reports. --pr
+# creates one feature branch and pull request per selected consumer.
 
-# Scan these directories for consumer repos (space-separated)
-PROJECTS_DIRS=("$HOME/Projects" "$HOME/Projects/internal" "$HOME/Projects/products" "$HOME/Projects/personal")
-QA_ARCHITECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-CANARY_REPO="buildproven"
-
-# Files setup.js --update is known to legitimately regenerate. Widened from
-# the original three (quality.yml/package.json/package-lock.json) after
-# auditing real diffs across older consumers predating each file's addition
-# to the template — every entry here was reviewed and is a genuine, safe
-# change, not accidental drift. quality-python.yml can be legitimately
-# *deleted* (not just modified) by setup.js's stale-workflow cleanup when a
-# repo no longer has Python source. Used for both the post-generation
-# allowlist guard and the commit/no-op-check file list — keep in sync so
-# widening the allowlist can't silently un-widen what actually gets committed.
-ALLOWLIST_FILES=(
-  ".github/workflows/quality.yml"
-  ".github/workflows/quality-python.yml"
-  "package.json"
-  "package-lock.json"
-  ".husky/pre-push"
-  ".prettierignore"
-  ".stylelintignore"
-  "scripts/smart-test-strategy.sh"
-  "commitlint.config.cjs"
+PROJECTS_DIRS=(
+  "$HOME/Projects"
+  "$HOME/Projects/internal"
+  "$HOME/Projects/products"
+  "$HOME/Projects/personal"
 )
-PUSH=false
-TIER="minimal"
-VERBOSE=false
+QA_ARCHITECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+QA_VERSION="$(node -p "require('$QA_ARCHITECT_DIR/package.json').version")"
+ROLLOUT_FILES=(
+  ".github/workflows/quality.yml"
+  ".buildproven/test-impact.json"
+)
+
+CREATE_PRS=false
+CANARY_REPO=""
 CANARY_ONLY=false
 SKIP_CANARY=false
-CI_TIMEOUT=600  # 10 minutes in seconds
-CI_POLL_INTERVAL=15  # Check every 15 seconds
+VERBOSE=false
+TIER=""
+ACTIVE_ROLLOUT_ROOT=""
 
-# Parse args
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --push) PUSH=true; shift ;;
-    --tier) TIER="$2"; shift 2 ;;
-    --verbose) VERBOSE=true; shift ;;
-    --canary-only) CANARY_ONLY=true; shift ;;
-    --skip-canary) SKIP_CANARY=true; shift ;;
-    --help|-h)
-      cat <<EOF
+usage() {
+  cat <<'EOF'
 Usage: deploy-consumers.sh [OPTIONS]
 
 OPTIONS:
-  --push            Commit and push changes (default: dry run)
-  --canary-only     Deploy ONLY to canary repo, wait for CI green
-  --skip-canary     Skip canary validation (emergency use only)
-  --tier <tier>     Workflow tier to apply (default: minimal)
-  --verbose         Show detailed output
+  --canary <repo>   Required canary consumer unless --skip-canary is explicit
+  --canary-only     Process only the selected canary
+  --skip-canary     Process all consumers without a canary gate
+  --pr              Create feature branches and pull requests
+  --tier <tier>     Override each consumer's current workflow tier
+  --verbose         Show generator output and discarded setup changes
   --help, -h        Show this help
 
-STAGED ROLLOUT:
-  Default behavior (--push):
-    1. Deploy to canary (buildproven)
-    2. Wait for CI to pass (up to 10 minutes)
-    3. Deploy to remaining repos
+The default is a non-mutating validation. Rollout PRs contain only:
+  .github/workflows/quality.yml
+  .buildproven/test-impact.json
 
-  Canary-only mode (--canary-only --push):
-    Deploy to canary only, validate CI passes
-
-  Skip canary (--skip-canary --push):
-    Deploy to all repos simultaneously (emergency only)
-
-EXAMPLES:
-  # Dry run (no changes)
-  ./scripts/deploy-consumers.sh
-
-  # Canary validation
-  ./scripts/deploy-consumers.sh --canary-only --push
-
-  # Full rollout (staged)
-  ./scripts/deploy-consumers.sh --push
-
-  # Emergency bypass (use with caution)
-  ./scripts/deploy-consumers.sh --skip-canary --push
+Direct default-branch push is not supported.
 EOF
-      exit 0
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --canary) CANARY_REPO="${2:-}"; shift 2 ;;
+    --canary-only) CANARY_ONLY=true; shift ;;
+    --skip-canary) SKIP_CANARY=true; shift ;;
+    --pr) CREATE_PRS=true; shift ;;
+    --push)
+      echo "ERROR: --push was removed; use --pr and normal branch protection." >&2
+      exit 2
       ;;
-    *) echo "Unknown option: $1"; exit 1 ;;
+    --tier) TIER="${2:-}"; shift 2 ;;
+    --verbose) VERBOSE=true; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
 done
 
-echo "=== QA Architect Consumer Deployment ==="
-echo "Mode: $([ "$PUSH" = true ] && echo "PUSH (will commit + push)" || echo "DRY RUN (validate only)")"
-echo "Tier: $TIER"
-echo "Canary repo: $CANARY_REPO"
-if [ "$CANARY_ONLY" = true ]; then
-  echo "⚠️  CANARY-ONLY mode: will deploy to $CANARY_REPO only"
-elif [ "$SKIP_CANARY" = true ]; then
-  echo "⚠️  SKIP-CANARY mode: bypassing canary validation (emergency use)"
-else
-  echo "Staged rollout: canary first, then remaining repos"
+if [ "$SKIP_CANARY" = false ] && [ -z "$CANARY_REPO" ]; then
+  echo "ERROR: select a canary with --canary <repo>, or explicitly use --skip-canary." >&2
+  exit 2
 fi
-echo ""
+if [ "$SKIP_CANARY" = true ] && [ "$CANARY_ONLY" = true ]; then
+  echo "ERROR: --skip-canary and --canary-only cannot be combined." >&2
+  exit 2
+fi
 
-# Discover consumer repos: any repo with quality.yml containing WORKFLOW_MODE marker
-# Excludes qa-architect itself
-#
-# A single GitHub repo may be checked out locally more than once (e.g. several
-# linked worktrees of the same feature-branch work, as with claude-kit or
-# buildproven). Deploying to the same origin twice in one run is wasteful and
-# can race two pushes against the same remote branch, so discovery dedupes by
-# origin URL and keeps exactly one local dir per remote repo.
+cleanup_rollout_root() {
+  local rollout_root="$1"
+  case "$rollout_root" in
+    */qa-consumer-rollout.*) find "$rollout_root" -depth -delete ;;
+    *)
+      echo "ERROR: refused unsafe rollout cleanup path: $rollout_root" >&2
+      return 1
+      ;;
+  esac
+}
+
+cleanup_active_rollout_root() {
+  [ -n "$ACTIVE_ROLLOUT_ROOT" ] || return 0
+  local rollout_root="$ACTIVE_ROLLOUT_ROOT"
+  ACTIVE_ROLLOUT_ROOT=""
+  cleanup_rollout_root "$rollout_root"
+}
+
+trap 'cleanup_active_rollout_root || true' EXIT
+trap 'cleanup_active_rollout_root || true; exit 130' INT TERM
+
+canonical_primary_checkout() {
+  local repo_dir="$1" git_dir common_dir
+  git_dir="$(git -C "$repo_dir" rev-parse --path-format=absolute --git-dir 2>/dev/null || true)"
+  common_dir="$(git -C "$repo_dir" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+  [ -n "$git_dir" ] && [ "$git_dir" = "$common_dir" ]
+}
+
 declare -A SEEN_ORIGINS
 CONSUMERS=()
 CANARY_DIR=""
 for projects_dir in "${PROJECTS_DIRS[@]}"; do
   [ -d "$projects_dir" ] || continue
-  for workflow in "$projects_dir"/*/".github/workflows/quality.yml"; do
-  [ -f "$workflow" ] || continue
-  repo_dir="$(dirname "$(dirname "$(dirname "$workflow")")")"
-  repo_name="$(basename "$repo_dir")"
-
-  # Skip qa-architect itself, including its worktree/bare layout. The source repo
-  # may live in a sibling working tree (e.g. qa-architect-main) while a bare repo
-  # sits at qa-architect/, so a basename match against QA_ARCHITECT_DIR alone
-  # misses the bare dir.
-  case "$repo_name" in qa-architect | qa-architect-*) continue ;; esac
-
-  # Skip anything that is not a normal working tree (bare repos, git internals).
-  # You cannot regenerate a workflow file where there is no checkout, and the
-  # deploy must never operate on a bare repo.
-  if [ "$(git -C "$repo_dir" rev-parse --is-bare-repository 2>/dev/null)" != "false" ] ||
-    [ "$(git -C "$repo_dir" rev-parse --is-inside-work-tree 2>/dev/null)" != "true" ]; then
-    continue
-  fi
-
-  # Check for WORKFLOW_MODE marker (proves it was generated by qa-architect)
-  if grep -q "WORKFLOW_MODE:" "$workflow" 2>/dev/null; then
-    origin_url="$(git -C "$repo_dir" remote get-url origin 2>/dev/null || echo "")"
-    if [ -n "$origin_url" ] && [ -n "${SEEN_ORIGINS[$origin_url]:-}" ]; then
-      echo "  SKIP (duplicate checkout of ${SEEN_ORIGINS[$origin_url]}): $repo_dir"
-      continue
-    fi
-    [ -n "$origin_url" ] && SEEN_ORIGINS[$origin_url]="$origin_url"
-
-    if [ "$repo_name" = "$CANARY_REPO" ]; then
+  for workflow in "$projects_dir"/*/.github/workflows/quality.yml; do
+    [ -f "$workflow" ] || continue
+    repo_dir="$(dirname "$(dirname "$(dirname "$workflow")")")"
+    repo_name="$(basename "$repo_dir")"
+    case "$repo_name" in qa-architect|qa-architect-*) continue ;; esac
+    canonical_primary_checkout "$repo_dir" || continue
+    grep -q 'WORKFLOW_MODE:' "$workflow" 2>/dev/null || continue
+    origin_url="$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)"
+    [ -n "$origin_url" ] || continue
+    [ -z "${SEEN_ORIGINS[$origin_url]:-}" ] || continue
+    SEEN_ORIGINS[$origin_url]="$repo_dir"
+    if [ -n "$CANARY_REPO" ] && [ "$repo_name" = "$CANARY_REPO" ]; then
       CANARY_DIR="$repo_dir"
     else
       CONSUMERS+=("$repo_dir")
     fi
-  fi
   done
 done
 
-# Ensure canary was found and is actually still qa-architect-generated. A repo
-# can retain a stale WORKFLOW_MODE-less "Quality"/"Quality Checks" workflow of
-# its own (hand-written or long since forked) — that must never silently gate
-# every other repo's rollout, which is what an unconditional exit-1 here did
-# when CANARY_REPO drifted off the template.
-if [ -z "$CANARY_DIR" ]; then
-  if [ "$CANARY_ONLY" = true ]; then
-    echo "❌ ERROR: --canary-only requested but '$CANARY_REPO' isn't a deployable canary"
-    echo "   (not found, or no longer runs the qa-architect template). Nothing to do."
-    exit 1
-  fi
-  echo "⚠️  Canary repo '$CANARY_REPO' not found (or no longer runs the qa-architect template)."
-  echo "   Falling back to --skip-canary behavior for this run — deploying to all"
-  echo "   discovered consumers without a staged canary gate."
-  SKIP_CANARY=true
+if [ "$SKIP_CANARY" = false ] && [ -z "$CANARY_DIR" ]; then
+  echo "ERROR: canary '$CANARY_REPO' is not a canonical generated consumer." >&2
+  exit 1
 fi
 
-# In canary-only mode, only process canary
-if [ "$CANARY_ONLY" = true ]; then
-  echo "Canary-only mode: processing $CANARY_REPO only"
-  CONSUMERS=()
+echo "=== QA Architect $QA_VERSION consumer rollout ==="
+echo "Mode: $([ "$CREATE_PRS" = true ] && echo 'CREATE PRS' || echo 'VALIDATE')"
+if [ "$SKIP_CANARY" = true ]; then
+  echo "Canary: explicitly skipped"
 else
-  echo "Discovered canary repo: $CANARY_REPO"
-  echo "Discovered ${#CONSUMERS[@]} additional consumer repos:"
-  for dir in "${CONSUMERS[@]}"; do
-    echo "  - $(basename "$dir")"
-  done
+  echo "Canary: $CANARY_REPO"
 fi
-echo ""
 
-# Function to wait for CI to complete on a repo
-# Args: $1 = repo_dir, $2 = repo_name
-wait_for_ci() {
-  local repo_dir="$1"
-  local repo_name="$2"
-
-  echo "  Waiting for CI to complete on $repo_name..."
-
-  # Check if gh CLI is installed
-  if ! command -v gh &>/dev/null; then
-    echo "  ⚠️  WARNING: gh CLI not installed, cannot check CI status"
-    echo "  Install with: brew install gh"
-    echo "  Proceeding without CI validation..."
-    return 0
-  fi
-
-  # Get the repo owner/name for gh CLI
-  local remote_url
-  remote_url=$(cd "$repo_dir" && git remote get-url origin 2>/dev/null || echo "")
-  if [ -z "$remote_url" ]; then
-    echo "  ⚠️  WARNING: No git remote found, cannot check CI status"
-    return 0
-  fi
-
-  # Extract owner/repo from URL (handles both HTTPS and SSH)
-  local repo_slug
-  repo_slug=$(echo "$remote_url" | sed -E 's|\.git$||' | sed -E 's|^.*[:/]([^/]+/[^/]+)$|\1|')
-
-  # Get the current branch
-  local branch
-  branch=$(cd "$repo_dir" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-
-  echo "  Checking CI status for $repo_slug on branch $branch..."
-
-  local elapsed=0
-  local status=""
-
-  while [ $elapsed -lt $CI_TIMEOUT ]; do
-    # Get latest workflow run status for quality.yml on this branch
-    status=$(gh run list --repo "$repo_slug" --workflow quality.yml --branch "$branch" --limit 1 --json status,conclusion --jq '.[0].status + ":" + (.[0].conclusion // "")' 2>/dev/null || echo "")
-
-    if [ -z "$status" ]; then
-      echo "  ⚠️  No CI runs found yet (elapsed: ${elapsed}s)"
-    elif [[ "$status" == "completed:success" ]]; then
-      echo "  ✅ CI PASSED on $repo_name (elapsed: ${elapsed}s)"
-      return 0
-    elif [[ "$status" == "completed:failure" ]] || [[ "$status" == "completed:cancelled" ]]; then
-      echo "  ❌ CI FAILED on $repo_name (status: $status)"
-      return 1
-    else
-      echo "  ⏳ CI in progress on $repo_name (status: $status, elapsed: ${elapsed}s)"
-    fi
-
-    sleep $CI_POLL_INTERVAL
-    elapsed=$((elapsed + CI_POLL_INTERVAL))
-  done
-
-  echo "  ⏰ TIMEOUT: CI did not complete within ${CI_TIMEOUT}s"
-  return 1
-}
-
-# Remove one validation directory created by mktemp. This does not use rm -rf,
-# and it refuses every path outside the dedicated temporary-directory shape.
-cleanup_validation_copy() {
-  local validation_root="$1"
-  case "$validation_root" in
-    */qa-consumer-validation.*) find "$validation_root" -depth -delete ;;
-    *)
-      echo "  ERROR: refused unsafe validation cleanup path: $validation_root" >&2
-      return 1
-      ;;
-  esac
-}
-
-ACTIVE_VALIDATION_ROOT=""
-
-cleanup_active_validation_copy() {
-  [ -n "$ACTIVE_VALIDATION_ROOT" ] || return 0
-  local validation_root="$ACTIVE_VALIDATION_ROOT"
-  ACTIVE_VALIDATION_ROOT=""
-  cleanup_validation_copy "$validation_root"
-}
-
-trap 'cleanup_active_validation_copy || true' EXIT
-trap 'cleanup_active_validation_copy || true; exit 130' INT TERM
-
-# setup.js writes only the reviewed allowlist. Reject a checkout when any
-# existing component of one of those paths is a symlink, because writes through
-# a tracked absolute symlink can escape the isolated validation directory.
 validate_writable_paths() {
   local repo_root="$1" relative current component
-  for relative in "${ALLOWLIST_FILES[@]}"; do
+  for relative in "${ROLLOUT_FILES[@]}"; do
     current="$repo_root"
     IFS='/' read -r -a components <<< "$relative"
     for component in "${components[@]}"; do
       current="$current/$component"
       if [ -L "$current" ]; then
-        echo "  REFUSE VALIDATION: writable path contains a symlink: $relative"
+        echo "  SOURCE DEFECT: rollout path contains a symlink: $relative"
         return 1
       fi
       [ -e "$current" ] || break
@@ -301,401 +154,198 @@ validate_writable_paths() {
   done
 }
 
-# Function to deploy to a single repo
-# Args: $1 = repo_dir, $2 = is_canary (true/false)
-deploy_to_repo() {
-  local repo_dir="$1"
-  local is_canary="${2:-false}"
-  local repo_name
-  repo_name="$(basename "$repo_dir")"
-  local target_repo_dir="$repo_dir"
-  local validation_root=""
-
-  echo "--- $repo_name $([ "$is_canary" = true ] && echo "(CANARY)" || echo "") ---"
-
-  # Check if repo has package.json (needed for npx)
-  if [ ! -f "$repo_dir/package.json" ]; then
-    echo "  SKIP: No package.json"
-    return 2  # Return code 2 = skipped
-  fi
-
-  # Validation must not write to the consumer checkout. A local shared clone is
-  # cheap because it reuses Git objects, but it has its own index and worktree.
-  # Generate and validate there, then delete only the exact mktemp directory.
-  if [ "$PUSH" = false ]; then
-    local source_status source_head
-    if ! source_status="$(git -C "$repo_dir" status --porcelain --untracked-files=all 2>/dev/null)"; then
-      echo "  FAIL: Could not inspect the consumer working tree"
-      return 1
-    fi
-    if [ -n "$source_status" ]; then
-      echo "  REFUSE VALIDATION: working tree is not clean — commit or stash changes so validation cannot ignore local state"
-      echo ""
-      return 3
-    fi
-    if ! source_head="$(git -C "$repo_dir" rev-parse --verify HEAD 2>/dev/null)"; then
-      echo "  FAIL: Could not resolve the consumer HEAD"
-      return 1
-    fi
-    validation_root="$(mktemp -d -t qa-consumer-validation.XXXXXX)"
-    ACTIVE_VALIDATION_ROOT="$validation_root"
-    target_repo_dir="$validation_root/repo"
-    if ! git clone --shared --quiet --no-checkout "$repo_dir" "$target_repo_dir"; then
-      echo "  FAIL: Could not create isolated validation copy"
-      cleanup_active_validation_copy || true
-      return 1
-    fi
-    if ! git -C "$target_repo_dir" checkout --quiet --detach "$source_head"; then
-      echo "  FAIL: Could not check out the exact consumer HEAD in the isolated validation copy"
-      cleanup_active_validation_copy || true
-      return 1
-    fi
-    if ! validate_writable_paths "$target_repo_dir"; then
-      cleanup_active_validation_copy || true
-      return 3
-    fi
-  fi
-
-  # Resolve the default branch up front (used by the push preflight and the
-  # explicit push target below). In --push mode we resolve from the REMOTE at
-  # deploy time (git ls-remote --symref) rather than trusting the possibly-stale
-  # local refs/remotes/origin/HEAD — pushing to a cached-but-wrong default branch
-  # is a wrong-destination data hazard. In dry-run mode the remote lookup is
-  # unnecessary, so we fall back to the local cache / main for display only.
-  local default_branch
-  if [ "$PUSH" = true ]; then
-    default_branch="$(git -C "$repo_dir" ls-remote --symref origin HEAD 2>/dev/null \
-      | sed -n 's|^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$|\1|p')"
-    if [ -z "$default_branch" ]; then
-      echo "  REFUSE PUSH: could not resolve origin's default branch via ls-remote (offline or no HEAD symref)"
-      echo ""
-      return 3
-    fi
-  else
-    default_branch="$(git -C "$repo_dir" symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')"
-    [ -z "$default_branch" ] && default_branch="main"
-  fi
-
-  # PUSH PREFLIGHT (must run BEFORE any mutation). Regenerating the workflow and
-  # uninstalling the stale devDep both write into the consumer's working tree, so
-  # we have to refuse mid-work repos here — refusing *after* mutating would leave
-  # the consumer dirty on the wrong branch, which is exactly what we're guarding
-  # against. Return code 3 = refused push (distinct from 2=skipped/no-op) so the
-  # canary gate never treats a refused deploy as a validated one.
-  if [ "$PUSH" = true ]; then
-    local current_branch worktree_dirty upstream
-    current_branch="$(git -C "$repo_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
-
-    if [ "$current_branch" != "$default_branch" ]; then
-      echo "  REFUSE PUSH: on '$current_branch', not default branch '$default_branch' (won't deploy onto a feature branch)"
-      echo ""
-      return 3
-    fi
-    # Require a fully clean worktree + index BEFORE we mutate anything. We must
-    # not exclude the files we regenerate (quality.yml, package*.json) from this
-    # check: a consumer with pre-existing uncommitted edits to *those* files
-    # would otherwise pass the guard, and the regeneration + `git add` would
-    # sweep or clobber the user's local work. The only safe precondition is a
-    # pristine tree — the regeneration itself produces the sole intended diff.
-    worktree_dirty="$(git -C "$repo_dir" status --porcelain 2>/dev/null || true)"
-    if [ -n "$worktree_dirty" ]; then
-      echo "  REFUSE PUSH: working tree is not clean — won't risk sweeping or clobbering uncommitted changes"
-      echo ""
-      return 3
-    fi
-    # Constrain the push destination: the checked-out branch must track exactly
-    # origin/<default_branch>. A bare `git push` honors the branch upstream,
-    # which is not guaranteed to be origin/<default_branch>. A *missing* upstream
-    # is also unsafe — pushing an untracked branch could publish local-only
-    # commits — so an empty upstream is refused too.
-    upstream="$(git -C "$repo_dir" rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || echo "")"
-    if [ "$upstream" != "origin/$default_branch" ]; then
-      echo "  REFUSE PUSH: branch upstream is '${upstream:-<none>}', expected 'origin/$default_branch' (won't push to an unverified destination)"
-      echo ""
-      return 3
-    fi
-  fi
-
-  # Detect the existing tier from the workflow
-  local existing_tier="$TIER"
-  if grep -q "WORKFLOW_MODE: standard" "$repo_dir/.github/workflows/quality.yml" 2>/dev/null; then
-    existing_tier="standard"
-  elif grep -q "WORKFLOW_MODE: comprehensive" "$repo_dir/.github/workflows/quality.yml" 2>/dev/null; then
-    existing_tier="comprehensive"
-  elif grep -q "WORKFLOW_MODE: minimal" "$repo_dir/.github/workflows/quality.yml" 2>/dev/null; then
-    existing_tier="minimal"
-  fi
-
-  # Regenerate workflow (must cd to consumer dir — setup.js uses process.cwd())
-  echo "  Regenerating workflow (tier: $existing_tier)..."
-  if (cd "$target_repo_dir" && NODE_ENV=test QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
-    2>&1 | { [ "$VERBOSE" = true ] && cat || tail -1; }); then
-    :
-  else
-    echo "  FAIL: Workflow generation failed"
-    [ -n "$validation_root" ] && cleanup_active_validation_copy
-    return 1
-  fi
-
-  local workflow_file="$target_repo_dir/.github/workflows/quality.yml"
-
-  # Validate: no node_modules/create-qa-architect references
-  if grep -q "node_modules/create-qa-architect" "$workflow_file"; then
-    echo "  FAIL: Contains node_modules/create-qa-architect references"
-    [ -n "$validation_root" ] && cleanup_active_validation_copy
-    return 1
-  fi
-
-  # Validate: no section markers leaked
-  if grep -qE '\{\{(QA_ARCHITECT_ONLY|FULL_DETECTION|FULL_REPORT)_(BEGIN|END)\}\}' "$workflow_file"; then
-    echo "  FAIL: Contains section markers"
-    [ -n "$validation_root" ] && cleanup_active_validation_copy
-    return 1
-  fi
-
-  # Validate: valid YAML (requires node + js-yaml)
-  if ! node -e "require('$QA_ARCHITECT_DIR/node_modules/js-yaml').load(require('fs').readFileSync('$workflow_file','utf8'))" 2>/dev/null; then
-    echo "  FAIL: Invalid YAML"
-    [ -n "$validation_root" ] && cleanup_active_validation_copy
-    return 1
-  fi
-
-  # Remove stale devDep if present
-  if grep -q '"create-qa-architect"' "$target_repo_dir/package.json" 2>/dev/null; then
-    echo "  Removing stale create-qa-architect devDependency..."
-    if [ "$PUSH" = true ]; then
-      (cd "$repo_dir" && npm uninstall create-qa-architect 2>/dev/null || true)
-    else
-      echo "  (dry run - would remove devDep)"
-    fi
-  fi
-
-  echo "  PASS: Validated"
-
-  if [ "$PUSH" = false ]; then
-    echo "  Proposed changes:"
-    git -C "$target_repo_dir" status --short | sed 's/^/    /'
-    if ! cleanup_active_validation_copy; then
-      echo "  FAIL: Could not clean the isolated validation copy"
-      return 1
-    fi
-    echo ""
-    return 0
-  fi
-
-  # Commit and push if --push. The push preflight above already guaranteed we
-  # started from a fully clean tree on the verified default branch, so anything
-  # dirty NOW is a product of our own regeneration / npm uninstall.
-  if [ "$PUSH" = true ]; then
-    # Post-generation allowlist guard: setup.js --update and npm uninstall may
-    # write files beyond ALLOWLIST_FILES (see definition at top of script).
-    # Committing only the allowlist while leaving other changed files behind
-    # would pollute the consumer worktree and could push a partial change, so
-    # anything outside it refuses the push for a human to reconcile.
-    local allowlist_pattern
-    allowlist_pattern="$(printf '%s\n' "${ALLOWLIST_FILES[@]}" | sed 's/[.[\*^$]/\\&/g' | paste -sd '|' -)"
-    local repo_status
-    repo_status="$(git -C "$repo_dir" status --porcelain 2>/dev/null)"
-    local changed_outside
-    changed_outside="$(printf '%s\n' "$repo_status" \
-      | sed -E 's|^...||' \
-      | grep -vE "^(${allowlist_pattern})\$" || true)"
-    if [ -n "$changed_outside" ]; then
-      echo "  REFUSE PUSH: regeneration touched files outside the allowlist — won't commit a partial change:"
-      printf '%s\n' "$changed_outside" | while IFS= read -r line; do
-        [ -n "$line" ] && echo "      $line"
-      done
-      echo ""
-      return 3
-    fi
-
-    # Only the allowlist files that actually changed — passing the *entire*
-    # static allowlist to `git add`/`git diff` fails outright (non-zero exit,
-    # nothing staged) the moment a single listed path doesn't exist in this
-    # particular repo, e.g. commitlint.config.cjs on a repo that has none.
-    # `git status --porcelain` already confirmed (via changed_outside above)
-    # that everything changed IS on the allowlist, so this is exactly the
-    # subset to act on.
-    local changed_allowlisted=()
-    while IFS= read -r line; do
-      [ -n "$line" ] && changed_allowlisted+=("$line")
-    done < <(printf '%s\n' "$repo_status" | sed -E 's|^...||' | grep -E "^(${allowlist_pattern})\$" || true)
-
-    if [ ${#changed_allowlisted[@]} -eq 0 ]; then
-      echo "  No changes to commit"
-      echo ""
-      return 0
-    fi
-
-    (
-      cd "$repo_dir"
-      # Capture the pre-deploy tip so a push-failure rollback resets to this
-      # exact SHA rather than the positional `HEAD~1`. The control flow makes
-      # them equal today, but a literal SHA keeps the rollback correct even if
-      # a future edit adds a step between commit and reset.
-      pre_commit_sha="$(git rev-parse HEAD)"
-      git add "${changed_allowlisted[@]}"
-      if ! git commit -m "chore: regenerate qa-architect workflow (${existing_tier} tier)
-
-Staged rollout: $([ "$is_canary" = true ] && echo "canary deployment" || echo "validated via canary")
-Fixes node_modules/create-qa-architect fallback paths.
-Consumers use npx create-qa-architect@latest instead of devDep."; then
-        # A commit failure (e.g. a pre-commit/commit-msg hook rejecting the
-        # change) leaves the regenerated files staged via the `git add` above.
-        # Discard them back to the pre-run tip so the consumer is not left
-        # dirty-ahead — symmetric with the push-failure rollback below.
-        echo "  FAIL: commit failed"
-        git reset --hard "$pre_commit_sha"
-        exit 1
-      fi
-      # Explicit push target — never rely on bare `git push` resolving the
-      # branch upstream. We verified upstream == origin/$default_branch above.
-      if git push origin "HEAD:refs/heads/$default_branch"; then
-        echo "  Pushed to origin/$default_branch"
-      else
-        # The push commonly fails because the consumer's pre-push hook rejects
-        # the change (e.g. unresolved npm-audit vulnerabilities or a failing
-        # quality gate). The commit is already in local history, so a bare
-        # `exit 1` here would strand a committed-but-unpushed change on the
-        # consumer's default branch — leaving the repo permanently dirty-ahead
-        # and poisoning the next run's clean-tree preflight. Roll the commit
-        # back so the consumer returns to the exact clean state we started from;
-        # the deploy still fails loudly, but it fails *cleanly*.
-        echo "  FAIL: push to origin/$default_branch failed (pre-push hook or remote rejected the change)"
-        echo "  Rolling back the local commit to keep the consumer tree clean"
-        # Undo the commit and discard the regenerated files so the consumer
-        # returns to the clean default-branch state the preflight guaranteed.
-        # Resetting to the captured pre-deploy SHA (rather than positional
-        # HEAD~1) is safe because that preflight refused to proceed on a dirty
-        # tree — the only thing being discarded is our own regeneration.
-        # Surface a (near-impossible) rollback failure in this same run rather
-        # than deferring detection to the next run's preflight, so the stranded
-        # commit is never silent.
-        if ! git reset --hard "$pre_commit_sha"; then
-          echo "  ERROR: rollback failed — consumer left with an unpushed commit on $default_branch; reconcile manually before the next run"
-        fi
-        exit 1
-      fi
-    )
-    # Propagate the subshell's commit/push status — a failed push must surface
-    # to the stage counters and abort the canary gate, not be masked as success.
-    local push_status=$?
-    if [ "$push_status" -ne 0 ]; then
-      return 1
-    fi
-  fi
-
-  echo ""
-  return 0
+default_branch_for() {
+  git -C "$1" ls-remote --symref origin HEAD 2>/dev/null \
+    | sed -n 's|^ref: refs/heads/\([^[:space:]]*\)[[:space:]]*HEAD$|\1|p'
 }
 
-# Validation counters
-PASS=0
-FAIL=0
-SKIPPED=0
-REFUSED=0
+repo_slug_for() {
+  printf '%s\n' "$1" \
+    | sed -E 's|\.git$||' \
+    | sed -E 's|^.*[:/]([^/]+/[^/]+)$|\1|'
+}
 
-# STAGE 1: Deploy to canary (unless --skip-canary)
-if [ "$SKIP_CANARY" = false ]; then
-  echo "=== STAGE 1: Canary Deployment ==="
-  echo ""
+generate_rollout() {
+  local source_dir="$1" is_canary="${2:-false}"
+  local repo_name origin_url default_branch rollout_root target_dir existing_tier
+  repo_name="$(basename "$source_dir")"
+  origin_url="$(git -C "$source_dir" remote get-url origin)"
+  default_branch="$(default_branch_for "$source_dir")"
+  echo "--- $repo_name $([ "$is_canary" = true ] && echo '(CANARY)' || true) ---"
 
-  if deploy_to_repo "$CANARY_DIR" true; then
-    PASS=$((PASS + 1))
-
-    # Wait for CI if in push mode
-    if [ "$PUSH" = true ]; then
-      if ! wait_for_ci "$CANARY_DIR" "$CANARY_REPO"; then
-        echo ""
-        echo "❌ ROLLOUT ABORTED: Canary CI failed or timed out"
-        echo "   Fix the issue on $CANARY_REPO before rolling out to other repos"
-        exit 1
-      fi
-    fi
-  else
-    ret=$?
-    if [ $ret -eq 2 ]; then
-      # Canary lacks package.json — cannot validate, so cannot safely roll out.
-      SKIPPED=$((SKIPPED + 1))
-      echo ""
-      echo "❌ ROLLOUT ABORTED: Canary was skipped (no package.json) — cannot validate before rollout"
-      exit 1
-    elif [ $ret -eq 3 ]; then
-      # Canary push refused (off default branch / dirty / wrong upstream). No new
-      # commit was pushed, so wait_for_ci would observe a stale run — never treat
-      # this as a validated canary. Abort rollout.
-      REFUSED=$((REFUSED + 1))
-      echo ""
-      echo "❌ ROLLOUT ABORTED: Canary deployment refused — $CANARY_REPO is not in a deployable state"
-      echo "   Put $CANARY_REPO on its default branch with a clean tree, then retry"
-      exit 1
-    else
-      FAIL=$((FAIL + 1))
-      echo ""
-      echo "❌ ROLLOUT ABORTED: Canary deployment failed"
-      exit 1
-    fi
+  if [ -z "$default_branch" ]; then
+    echo "  SOURCE DEFECT: origin has no resolvable default branch"
+    return 1
   fi
 
-  echo ""
-  echo "✅ Canary deployment successful"
-  echo ""
-fi
+  rollout_root="$(mktemp -d -t qa-consumer-rollout.XXXXXX)"
+  ACTIVE_ROLLOUT_ROOT="$rollout_root"
+  target_dir="$rollout_root/repo"
+  if ! git clone --quiet --single-branch --branch "$default_branch" "$origin_url" "$target_dir"; then
+    echo "  SOURCE DEFECT: could not clone origin/$default_branch"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+  if ! validate_writable_paths "$target_dir"; then
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+  if [ ! -f "$target_dir/package.json" ]; then
+    echo "  SOURCE DEFECT: no package.json"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
 
-# Exit early if canary-only mode
-if [ "$CANARY_ONLY" = true ]; then
-  echo "=== Summary (Canary-Only) ==="
-  echo "  Pass: $PASS"
-  echo "  Fail: $FAIL"
-  echo "  Refused: $REFUSED"
-  echo "  Skipped: $SKIPPED"
-  echo ""
-  echo "✅ Canary deployment complete. Review CI results before full rollout."
-  exit 0
-fi
+  existing_tier="minimal"
+  if grep -q 'WORKFLOW_MODE: standard' "$target_dir/.github/workflows/quality.yml"; then
+    existing_tier="standard"
+  elif grep -q 'WORKFLOW_MODE: comprehensive' "$target_dir/.github/workflows/quality.yml"; then
+    existing_tier="comprehensive"
+  fi
+  [ -z "$TIER" ] || existing_tier="$TIER"
 
-# STAGE 2: Deploy to remaining repos
-if [ ${#CONSUMERS[@]} -gt 0 ]; then
-  echo "=== STAGE 2: Remaining Repos Deployment ==="
-  echo ""
+  echo "  Generating isolated $existing_tier workflow and test policy..."
+  local generation_log="$rollout_root/generation.log"
+  if ! (cd "$target_dir" && NODE_ENV=test QAA_DEVELOPER=true \
+    node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-$existing_tier") \
+    >"$generation_log" 2>&1; then
+    echo "  GENERATOR FAILURE: workflow update failed"
+    [ "$VERBOSE" = false ] || sed 's/^/    /' "$generation_log"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
 
-  for repo_dir in "${CONSUMERS[@]}"; do
-    if deploy_to_repo "$repo_dir" false; then
-      PASS=$((PASS + 1))
-    else
-      ret=$?
-      if [ $ret -eq 2 ]; then
-        SKIPPED=$((SKIPPED + 1))
-      elif [ $ret -eq 3 ]; then
-        # Refused (off default branch / dirty / wrong upstream). Not a hard
-        # failure — the repo simply wasn't in a deployable state — but it is
-        # surfaced separately so a refused deploy is never silently "passed".
-        REFUSED=$((REFUSED + 1))
-      else
-        FAIL=$((FAIL + 1))
+  local policy_mode="--write-test-impact"
+  [ ! -f "$target_dir/.buildproven/test-impact.json" ] || policy_mode="--update-test-impact"
+  if ! (cd "$target_dir" && NODE_ENV=test QAA_DEVELOPER=true \
+    node "$QA_ARCHITECT_DIR/setup.js" "$policy_mode") >>"$generation_log" 2>&1; then
+    echo "  GENERATOR FAILURE: test-impact policy requires reviewed mappings"
+    [ "$VERBOSE" = false ] || sed 's/^/    /' "$generation_log"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+
+  if ! node -e "require('$QA_ARCHITECT_DIR/node_modules/js-yaml').load(require('fs').readFileSync(process.argv[1], 'utf8'))" \
+    "$target_dir/.github/workflows/quality.yml"; then
+    echo "  GENERATOR FAILURE: generated workflow is invalid YAML"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+  if grep -qE 'create-qa-architect@latest|node_modules/create-qa-architect|semgrep/semgrep-action' \
+    "$target_dir/.github/workflows/quality.yml"; then
+    echo "  GENERATOR FAILURE: generated workflow contains a mutable or deprecated tool"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+
+  local intended_status discarded_status
+  intended_status="$(git -C "$target_dir" status --short -- "${ROLLOUT_FILES[@]}")"
+  discarded_status="$(git -C "$target_dir" status --short | grep -vE '^.. (\.github/workflows/quality\.yml|\.buildproven/test-impact\.json)$' || true)"
+  if [ -z "$intended_status" ]; then
+    echo "  CURRENT: no rollout change"
+    cleanup_active_rollout_root || true
+    return 2
+  fi
+
+  echo "  READY:"
+  printf '%s\n' "$intended_status" | sed 's/^/    /'
+  if [ "$VERBOSE" = true ] && [ -n "$discarded_status" ]; then
+    echo "  Discarded unrelated setup output:"
+    printf '%s\n' "$discarded_status" | sed 's/^/    /'
+  fi
+
+  if [ "$CREATE_PRS" = false ]; then
+    cleanup_active_rollout_root || true
+    return 0
+  fi
+  if ! command -v gh >/dev/null 2>&1; then
+    echo "  PR FAILURE: gh CLI is required"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+
+  local branch="chore/qa-architect-${QA_VERSION//./-}"
+  local slug
+  slug="$(repo_slug_for "$origin_url")"
+  if ! (
+    cd "$target_dir"
+    git checkout --quiet -b "$branch"
+    git config user.name "QA Architect Rollout"
+    git config user.email "qa-architect@users.noreply.github.com"
+    git add "${ROLLOUT_FILES[@]}"
+    local staged_file allowed expected_tree commit_sha remote_sha
+    while IFS= read -r staged_file; do
+      [ -n "$staged_file" ] || continue
+      allowed=false
+      for rollout_file in "${ROLLOUT_FILES[@]}"; do
+        [ "$staged_file" != "$rollout_file" ] || allowed=true
+      done
+      if [ "$allowed" = false ]; then
+        echo "  PR FAILURE: staged file escaped rollout boundary: $staged_file"
+        exit 1
       fi
+    done < <(git diff --cached --name-only)
+    expected_tree="$(git write-tree)"
+    git commit --quiet -m "chore: roll QA Architect $QA_VERSION"
+    commit_sha="$(git rev-parse HEAD)"
+    if [ "$(git rev-parse 'HEAD^{tree}')" != "$expected_tree" ]; then
+      echo "  PR FAILURE: commit hooks changed the reviewed rollout tree"
+      exit 1
     fi
-  done
+    git push --quiet origin "HEAD:refs/heads/$branch"
+    remote_sha="$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')"
+    if [ "$remote_sha" != "$commit_sha" ]; then
+      echo "  PR FAILURE: remote rollout branch does not match the prepared commit"
+      exit 1
+    fi
+    gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
+      --title "chore: roll QA Architect $QA_VERSION" \
+      --body "Updates the generated risk-based quality workflow and affected-test policy from QA Architect $QA_VERSION.\n\nGenerated in an isolated clone; no local checkout or default branch was changed."
+  ); then
+    echo "  PR FAILURE: branch preparation, push, or PR creation failed"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+  cleanup_active_rollout_root || true
+}
+
+PASS=0
+CURRENT=0
+FAIL=0
+
+run_one() {
+  local repo_dir="$1" is_canary="${2:-false}" status
+  if generate_rollout "$repo_dir" "$is_canary"; then
+    PASS=$((PASS + 1))
+  else
+    status=$?
+    if [ "$status" -eq 2 ]; then
+      CURRENT=$((CURRENT + 1))
+    else
+      FAIL=$((FAIL + 1))
+      return 1
+    fi
+  fi
+}
+
+if [ "$SKIP_CANARY" = false ]; then
+  run_one "$CANARY_DIR" true || {
+    echo "ROLLOUT STOPPED: canary preparation failed."
+    exit 1
+  }
+  if [ "$CANARY_ONLY" = true ]; then
+    echo "Summary: ready=$PASS current=$CURRENT failed=$FAIL"
+    exit 0
+  fi
+  if [ "$CREATE_PRS" = true ]; then
+    echo "CANARY PR CREATED: merge it through normal protection, then run with --skip-canary --pr."
+    exit 0
+  fi
 fi
 
-echo "=== Summary ==="
-echo "  Pass: $PASS"
-echo "  Fail: $FAIL"
-echo "  Refused: $REFUSED"
-echo "  Skipped: $SKIPPED"
-echo "  Total: $((${#CONSUMERS[@]} + 1))"  # +1 for canary
+for repo_dir in "${CONSUMERS[@]}"; do
+  run_one "$repo_dir" false || true
+done
 
-if [ "$REFUSED" -gt 0 ]; then
-  echo ""
-  echo "⚠️  $REFUSED repo(s) refused deployment (not on default branch, dirty tree, or unexpected upstream)."
-  echo "   These were NOT deployed — put them in a clean state on their default branch and re-run."
-fi
-
-if [ "$FAIL" -gt 0 ]; then
-  echo ""
-  echo "⚠️  Some repos failed validation. Review output above."
-  exit 1
-fi
-
-echo ""
-echo "✅ Deployment complete!"
+echo "Summary: ready=$PASS current=$CURRENT failed=$FAIL"
+[ "$FAIL" -eq 0 ]
