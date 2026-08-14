@@ -12,6 +12,7 @@ const DEPLOY_SCRIPT = path.join(
   'scripts',
   'deploy-consumers.sh'
 )
+const QA_ROOT = path.join(__dirname, '..')
 
 function git(cwd, ...args) {
   return execFileSync('git', args, {
@@ -89,6 +90,26 @@ function run(root, args, env = {}) {
   })
 }
 
+function createReleasedSource(root) {
+  const source = path.join(root, 'qa-source')
+  const head = git(QA_ROOT, 'rev-parse', 'HEAD')
+  const version = require(path.join(QA_ROOT, 'package.json')).version
+  execFileSync('git', ['clone', '--quiet', '--no-hardlinks', QA_ROOT, source], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  git(source, 'checkout', '--quiet', '--detach', head)
+  git(source, 'tag', '--force', `v${version}`, head)
+  fs.appendFileSync(
+    path.join(source, '.git', 'info', 'exclude'),
+    '\nnode_modules\n'
+  )
+  fs.symlinkSync(
+    path.join(QA_ROOT, 'node_modules'),
+    path.join(source, 'node_modules')
+  )
+  return source
+}
+
 function testExplicitCanaryContract() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-fleet-canary-'))
   try {
@@ -132,7 +153,12 @@ function testValidationUsesRemoteAndLeavesCheckoutUntouched() {
     const { repo } = createConsumer(root, 'canary')
     fs.writeFileSync(path.join(repo, 'local-user-work.txt'), 'keep me\n')
     const before = snapshot(repo)
-    const result = run(root, ['--canary', 'canary', '--canary-only'])
+    const result = run(root, [
+      '--canary',
+      'canary',
+      '--canary-only',
+      '--verbose',
+    ])
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`)
     assert.match(result.stdout, /READY:/)
     assert.match(result.stdout, /\.github\/workflows\/quality\.yml/)
@@ -158,11 +184,13 @@ function testPullRequestContainsOnlyRolloutFiles() {
       `#!/bin/sh\nif [ "$1 $2" = "pr list" ]; then\n  exit 0\nfi\nif [ "$1 $2" = "pr create" ]; then\n  printf '%s\\n' "$*" >> '${ghLog}'\n  printf 'https://example.test/pr/1\\n'\n  exit 0\nfi\nexec "$REAL_GH" "$@"\n`
     )
     fs.chmodSync(path.join(bin, 'gh'), 0o755)
+    const releasedSource = createReleasedSource(root)
     const result = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
       PATH: `${bin}:${process.env.PATH}`,
       REAL_GH: execFileSync('sh', ['-c', 'command -v gh'], {
         encoding: 'utf8',
       }).trim(),
+      QA_ARCHITECT_DIR_OVERRIDE: releasedSource,
     })
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`)
     assert.match(result.stdout, /READY:/, result.stdout)
@@ -189,6 +217,7 @@ function testPullRequestContainsOnlyRolloutFiles() {
       REAL_GH: execFileSync('sh', ['-c', 'command -v gh'], {
         encoding: 'utf8',
       }).trim(),
+      QA_ARCHITECT_DIR_OVERRIDE: releasedSource,
     })
     assert.strictEqual(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`)
     assert.match(rerun.stdout, /CURRENT: existing rollout branch/)
@@ -213,15 +242,61 @@ function testCommitFailureIsNotMasked() {
       `#!/bin/sh\ncase "$*" in *" commit --quiet "*) exit 41 ;; esac\nexec "$REAL_GIT" "$@"\n`
     )
     fs.chmodSync(path.join(bin, 'git'), 0o755)
+    const releasedSource = createReleasedSource(root)
     const result = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
       PATH: `${bin}:${process.env.PATH}`,
       REAL_GIT: execFileSync('sh', ['-c', 'command -v git'], {
         encoding: 'utf8',
       }).trim(),
+      QA_ARCHITECT_DIR_OVERRIDE: releasedSource,
     })
     assert.notStrictEqual(result.status, 0)
     assert.match(result.stdout, /PR FAILURE/)
     console.log('  ✓ commit and push failures cannot become false success')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+}
+
+function testPullRequestRequiresExactCleanRelease() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-fleet-source-'))
+  try {
+    createConsumer(root, 'canary')
+    const source = createReleasedSource(root)
+    git(
+      source,
+      'tag',
+      '--delete',
+      `v${require(path.join(QA_ROOT, 'package.json')).version}`
+    )
+    const untagged = run(
+      root,
+      ['--canary', 'canary', '--canary-only', '--pr'],
+      {
+        QA_ARCHITECT_DIR_OVERRIDE: source,
+      }
+    )
+    assert.notStrictEqual(untagged.status, 0)
+    assert.match(untagged.stderr, /release first/)
+
+    const version = require(path.join(QA_ROOT, 'package.json')).version
+    git(source, 'tag', `v${version}`, 'HEAD^')
+    const wrongTag = run(
+      root,
+      ['--canary', 'canary', '--canary-only', '--pr'],
+      { QA_ARCHITECT_DIR_OVERRIDE: source }
+    )
+    assert.notStrictEqual(wrongTag.status, 0)
+    assert.match(wrongTag.stderr, /not exact release/)
+
+    git(source, 'tag', '--force', `v${version}`, 'HEAD')
+    fs.writeFileSync(path.join(source, 'untracked.txt'), 'dirty\n')
+    const dirty = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
+      QA_ARCHITECT_DIR_OVERRIDE: source,
+    })
+    assert.notStrictEqual(dirty.status, 0)
+    assert.match(dirty.stderr, /source is dirty/)
+    console.log('  ✓ rollout PR requires an exact clean release source')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
@@ -233,4 +308,5 @@ testLinkedWorktreeIsNotDiscovered()
 testValidationUsesRemoteAndLeavesCheckoutUntouched()
 testPullRequestContainsOnlyRolloutFiles()
 testCommitFailureIsNotMasked()
+testPullRequestRequiresExactCleanRelease()
 console.log('\n✅ isolated fleet rollout contract holds')
