@@ -155,13 +155,17 @@ function testPullRequestContainsOnlyRolloutFiles() {
     fs.mkdirSync(bin)
     fs.writeFileSync(
       path.join(bin, 'gh'),
-      `#!/bin/sh\nprintf '%s\\n' "$*" >> '${ghLog}'\nprintf 'https://example.test/pr/1\\n'\n`
+      `#!/bin/sh\nif [ "$1 $2" = "pr create" ]; then\n  printf '%s\\n' "$*" >> '${ghLog}'\n  printf 'https://example.test/pr/1\\n'\n  exit 0\nfi\nexec "$REAL_GH" "$@"\n`
     )
     fs.chmodSync(path.join(bin, 'gh'), 0o755)
     const result = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
       PATH: `${bin}:${process.env.PATH}`,
+      REAL_GH: execFileSync('sh', ['-c', 'command -v gh'], {
+        encoding: 'utf8',
+      }).trim(),
     })
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`)
+    assert.match(result.stdout, /READY:/, result.stdout)
     const branch = 'chore/qa-architect-5-16-3'
     assert.notStrictEqual(
       git(remote, 'rev-parse', 'refs/heads/main'),
