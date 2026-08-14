@@ -189,9 +189,35 @@ function testPullRequestContainsOnlyRolloutFiles() {
   }
 }
 
+function testCommitFailureIsNotMasked() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qa-fleet-failure-'))
+  try {
+    createConsumer(root, 'canary')
+    const bin = path.join(root, 'bin')
+    fs.mkdirSync(bin)
+    fs.writeFileSync(
+      path.join(bin, 'git'),
+      `#!/bin/sh\ncase "$*" in *" commit --quiet "*) exit 41 ;; esac\nexec "$REAL_GIT" "$@"\n`
+    )
+    fs.chmodSync(path.join(bin, 'git'), 0o755)
+    const result = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
+      PATH: `${bin}:${process.env.PATH}`,
+      REAL_GIT: execFileSync('sh', ['-c', 'command -v git'], {
+        encoding: 'utf8',
+      }).trim(),
+    })
+    assert.notStrictEqual(result.status, 0)
+    assert.match(result.stdout, /PR FAILURE/)
+    console.log('  ✓ commit and push failures cannot become false success')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+}
+
 console.log('🧪 Testing isolated fleet rollout contract...\n')
 testExplicitCanaryContract()
 testLinkedWorktreeIsNotDiscovered()
 testValidationUsesRemoteAndLeavesCheckoutUntouched()
 testPullRequestContainsOnlyRolloutFiles()
+testCommitFailureIsNotMasked()
 console.log('\n✅ isolated fleet rollout contract holds')

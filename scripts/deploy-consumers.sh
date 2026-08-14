@@ -267,9 +267,11 @@ generate_rollout() {
   local branch="chore/qa-architect-${QA_VERSION//./-}"
   local slug
   slug="$(repo_slug_for "$origin_url")"
-  (
+  if ! (
     cd "$target_dir"
     git checkout --quiet -b "$branch"
+    git config user.name "QA Architect Rollout"
+    git config user.email "qa-architect@users.noreply.github.com"
     git add "${ROLLOUT_FILES[@]}"
     local staged_file allowed expected_tree commit_sha remote_sha
     while IFS= read -r staged_file; do
@@ -299,7 +301,11 @@ generate_rollout() {
     gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
       --title "chore: roll QA Architect $QA_VERSION" \
       --body "Updates the generated risk-based quality workflow and affected-test policy from QA Architect $QA_VERSION.\n\nGenerated in an isolated clone; no local checkout or default branch was changed."
-  )
+  ); then
+    echo "  PR FAILURE: branch preparation, push, or PR creation failed"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
   cleanup_active_rollout_root || true
 }
 
