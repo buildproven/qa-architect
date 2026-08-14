@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.7] - 2026-08-14
+
+### Changed
+
+- **Quality-only pull requests:** consumer workflow-and-policy-only changes now
+  use the lightweight detection job and skip application tests, documentation,
+  dependency audit, and security jobs. QA Architect itself remains exempt
+  because its workflow is product source.
+- **Changed-history secret scanning:** application pull requests scan their
+  commit range with gitleaks. Scheduled and manual deep audits still scan full
+  repository history.
+
 ## [5.16.6] - 2026-08-14
 
 ### Changed
