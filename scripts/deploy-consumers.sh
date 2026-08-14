@@ -292,14 +292,29 @@ deploy_to_repo() {
   # cheap because it reuses Git objects, but it has its own index and worktree.
   # Generate and validate there, then delete only the exact mktemp directory.
   if [ "$PUSH" = false ]; then
-    validation_root="$(mktemp -d -t qa-consumer-validation.XXXXXX)"
-    target_repo_dir="$validation_root/repo"
-    if ! git clone --shared --quiet "$repo_dir" "$target_repo_dir"; then
-      echo "  FAIL: Could not create isolated validation copy"
-      cleanup_validation_copy "$validation_root"
+    local source_status source_head
+    source_status="$(git -C "$repo_dir" status --porcelain --untracked-files=all 2>/dev/null || true)"
+    if [ -n "$source_status" ]; then
+      echo "  REFUSE VALIDATION: working tree is not clean — commit or stash changes so validation cannot ignore local state"
+      echo ""
+      return 3
+    fi
+    if ! source_head="$(git -C "$repo_dir" rev-parse --verify HEAD 2>/dev/null)"; then
+      echo "  FAIL: Could not resolve the consumer HEAD"
       return 1
     fi
-    git -C "$target_repo_dir" checkout --quiet --detach "$(git -C "$repo_dir" rev-parse HEAD)"
+    validation_root="$(mktemp -d -t qa-consumer-validation.XXXXXX)"
+    target_repo_dir="$validation_root/repo"
+    if ! git clone --shared --quiet --no-checkout "$repo_dir" "$target_repo_dir"; then
+      echo "  FAIL: Could not create isolated validation copy"
+      cleanup_validation_copy "$validation_root" || true
+      return 1
+    fi
+    if ! git -C "$target_repo_dir" checkout --quiet --detach "$source_head"; then
+      echo "  FAIL: Could not check out the exact consumer HEAD in the isolated validation copy"
+      cleanup_validation_copy "$validation_root" || true
+      return 1
+    fi
   fi
 
   # Resolve the default branch up front (used by the push preflight and the
@@ -421,7 +436,10 @@ deploy_to_repo() {
   if [ "$PUSH" = false ]; then
     echo "  Proposed changes:"
     git -C "$target_repo_dir" status --short | sed 's/^/    /'
-    cleanup_validation_copy "$validation_root"
+    if ! cleanup_validation_copy "$validation_root"; then
+      echo "  FAIL: Could not clean the isolated validation copy"
+      return 1
+    fi
     echo ""
     return 0
   fi
