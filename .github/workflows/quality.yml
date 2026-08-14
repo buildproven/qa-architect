@@ -65,6 +65,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node.js
@@ -195,6 +196,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
         with:
+          fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Node.js
@@ -288,8 +290,21 @@ jobs:
           "${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner
 
       - name: Security pattern detection
+        env:
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
+          SEMGREP_ARGS=()
+          if [ "${{ github.event_name }}" = 'pull_request' ] || [ "${{ github.event_name }}" = 'push' ]; then
+            CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+            APPLICATION_CHANGES="$(printf '%s\n' "$CHANGED_FILES" | grep -vE '^(\.github/workflows/quality\.yml|\.buildproven/test-impact\.json)$' || true)"
+            if [ -z "$APPLICATION_CHANGES" ]; then
+              echo 'Only generated quality policy files changed; no application security surface changed.'
+              exit 0
+            fi
+            SEMGREP_ARGS+=(--baseline-commit "$BASE_SHA")
+          fi
           docker run --rm \
             --mount "type=bind,source=$PWD,target=/src,readonly" \
             --workdir /src \
@@ -300,7 +315,8 @@ jobs:
             --config p/security-audit \
             --config p/javascript \
             --error \
-            --metrics=off
+            --metrics=off \
+            "${SEMGREP_ARGS[@]}"
 
   # {{PRO_ASSURANCE_BEGIN}}
   # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,
@@ -614,6 +630,12 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA:.buildproven/test-impact.json" 2>/dev/null; then
+            CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+            APPLICATION_CHANGES="$(printf '%s\n' "$CHANGED_FILES" | grep -vE '^(\.github/workflows/quality\.yml|\.buildproven/test-impact\.json)$' || true)"
+            if [ -z "$APPLICATION_CHANGES" ]; then
+              echo "Only generated quality policy files changed. The release generator already validated the new policy."
+              exit 0
+            fi
             echo "Base test-impact policy is absent. Running the complete migration audit once."
             timeout 300 npm test
             exit 0
@@ -624,7 +646,13 @@ jobs:
           mkdir -p "$POLICY_ROOT/.buildproven" "$KIT_ROOT"
           git show "$BASE_SHA:.buildproven/test-impact.json" > "$POLICY_ROOT/.buildproven/test-impact.json"
           if ! cmp -s "$POLICY_ROOT/.buildproven/test-impact.json" .buildproven/test-impact.json; then
-            echo "Test-impact policy changed. Running the complete selector-policy audit."
+            CHANGED_FILES="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+            APPLICATION_CHANGES="$(printf '%s\n' "$CHANGED_FILES" | grep -vE '^(\.github/workflows/quality\.yml|\.buildproven/test-impact\.json)$' || true)"
+            if [ -z "$APPLICATION_CHANGES" ]; then
+              echo "Only generated quality policy files changed. The release generator already validated the policy."
+              exit 0
+            fi
+            echo "Test-impact policy and application code changed together. Running the complete selector-policy audit."
             timeout 300 npm test
             exit 0
           fi

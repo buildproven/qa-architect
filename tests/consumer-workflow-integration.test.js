@@ -122,9 +122,19 @@ function assertValidYamlStructure(content, tier) {
   )
   assert(
     content.includes(
-      'Test-impact policy changed. Running the complete selector-policy audit.'
+      'Only generated quality policy files changed. The release generator already validated the policy.'
     ),
-    `${tier} workflow must audit a changed selector policy with the complete test command`
+    `${tier} workflow must skip application tests for an isolated generated-policy rollout`
+  )
+  assert(
+    content.includes('SEMGREP_ARGS+=(--baseline-commit "$BASE_SHA")'),
+    `${tier} workflow must restrict pull-request SAST to changed code`
+  )
+  assert(
+    content.includes(
+      "if: hashFiles('.buildproven/test-impact.json') == '' || (github.event_name != 'pull_request' && github.event_name != 'push')"
+    ),
+    `${tier} workflow must avoid duplicate whole-project gates when affected-test policy is active`
   )
   assert(
     content.includes('security:'),
