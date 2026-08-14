@@ -86,7 +86,7 @@ Defaults to **minimal CI** to avoid unexpected GitHub Actions costs. Selectable 
 
 ## Quality Gates
 
-Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre-push: tsc + test:patterns + test:commands + test:changed. Pre-release: `npm run prerelease`.
+Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: lint+format. Pre-push: tsc + test:patterns + test:commands + test:changed. PR and push CI use `.buildproven/test-impact.json` when present; scheduled, manual, migration, selector-policy, and release audits use the complete suite. Pre-release: `npm run prerelease`.
 
 ## Publishing
 

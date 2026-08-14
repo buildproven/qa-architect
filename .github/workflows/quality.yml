@@ -4,7 +4,7 @@ name: Quality Checks
 #
 # Local (pre-commit): Lint + format (staged files) - instant feedback
 # Local (pre-push): Lint + format + secrets + changed dependency audit
-# CI (this workflow): Required full tests, Semgrep, and other security checks
+# CI (this workflow): Affected tests, Semgrep, and other security checks
 #
 # The local gate stays fast. CI is the full safety net for this generator repo.
 
@@ -162,7 +162,7 @@ jobs:
   # Note: Lint/format jobs REMOVED - pre-commit already does this locally
   # This follows industry best practice: "Each layer does unique work"
   # Pre-commit = lint + format on staged files
-  # CI = full tests + E2E + security (things that can't be done locally)
+  # CI = affected tests + E2E + security (things that can't be done locally)
 
   # Step 2: Security checks - run if dependencies exist
   #
@@ -610,13 +610,12 @@ jobs:
           python3 -m pip install --quiet --user semgrep
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       # {{QA_ARCHITECT_ONLY_END}}
-      # {{QA_ARCHITECT_ONLY_BEGIN}}
-      - name: Run QA Architect affected tests
-        if: github.repository == 'buildproven/qa-architect' && (github.event_name == 'pull_request' || github.event_name == 'push')
+      - name: Run affected tests
+        if: hashFiles('.buildproven/test-impact.json') != '' && (github.event_name == 'pull_request' || github.event_name == 'push')
         env:
           BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           HEAD_SHA: ${{ github.sha }}
-          CLAUDE_KIT_SHA: 80c21bdbe2c21128d5e46b38818f0c0625f474e3
+          CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69
         run: |
           set -euo pipefail
           if [ -z "$BASE_SHA" ] || ! git cat-file -e "$BASE_SHA:.buildproven/test-impact.json" 2>/dev/null; then
@@ -629,6 +628,11 @@ jobs:
           KIT_ROOT="$RUNNER_TEMP/claude-kit"
           mkdir -p "$POLICY_ROOT/.buildproven" "$KIT_ROOT"
           git show "$BASE_SHA:.buildproven/test-impact.json" > "$POLICY_ROOT/.buildproven/test-impact.json"
+          if ! cmp -s "$POLICY_ROOT/.buildproven/test-impact.json" .buildproven/test-impact.json; then
+            echo "Test-impact policy changed. Running the complete selector-policy audit."
+            timeout 300 npm test
+            exit 0
+          fi
           git -C "$KIT_ROOT" init --quiet
           git -C "$KIT_ROOT" remote add origin https://github.com/buildproven/claude-kit.git
           git -C "$KIT_ROOT" fetch --quiet --filter=blob:none origin main
@@ -643,9 +647,8 @@ jobs:
             --policy-sha256 "$POLICY_SHA256" \
             --git-range "$BASE_SHA" "$HEAD_SHA" \
             --
-      # {{QA_ARCHITECT_ONLY_END}}
       - name: Run tests
-        if: github.repository != 'buildproven/qa-architect' || (github.event_name != 'pull_request' && github.event_name != 'push')
+        if: hashFiles('.buildproven/test-impact.json') == '' || (github.event_name != 'pull_request' && github.event_name != 'push')
         run: |
           echo "🧪 Running ${{ needs.detect-maturity.outputs.test-count }} test files on Node.js ${{ matrix.node-version }}..."
 
