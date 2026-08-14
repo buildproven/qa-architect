@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.6] - 2026-08-14
+
+### Changed
+
+- **Impact-scoped pull requests:** reviewed test-impact policy now owns pull
+  request test selection without a second whole-project test, lint, format,
+  type-check, or build pass. Scheduled and manual deep checks remain complete.
+- **Diff-aware security:** pull-request Semgrep reports findings introduced by
+  the change instead of blocking on unrelated historical findings.
+
+### Fixed
+
+- **Lean fleet rollout:** generated workflow and policy-only changes no longer
+  run application tests or SAST when no application security surface changed.
+  Policy changes made together with application code still require the complete
+  migration audit.
+
 ## [5.16.5] - 2026-08-14
 
 ### Fixed

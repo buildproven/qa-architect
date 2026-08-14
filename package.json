@@ -1,6 +1,6 @@
 {
   "name": "create-qa-architect",
-  "version": "5.16.5",
+  "version": "5.16.6",
   "description": "QA Architect - Security audit and quality automation for AI-generated codebases. Scans for OWASP Top-10 vulnerabilities, CVEs, and common vibe-coding mistakes.",
   "main": "setup.js",
   "bin": {
