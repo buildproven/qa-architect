@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.3] - 2026-08-14
+
+### Added
+
+- **Risk-based consumer CI:** generated consumer workflows select affected
+  tests from a commit-pinned policy and reserve complete suites for scheduled,
+  manual, or explicitly high-risk validation.
+
+### Security
+
+- **Pinned workflow tools:** generated Semgrep and affected-test commands use
+  immutable versions and reject unsafe executable overrides.
+- **Fleet rollout containment:** consumer validation runs in isolated clones,
+  refuses dirty repositories and writable symlink escapes, and restores its
+  checkout after failures.
+
+### Fixed
+
+- **Focused deployment verification:** changes to the fleet deployment script
+  select its focused rollback and containment test instead of the full suite.
+
 ## [5.16.1] - 2026-08-13
 
 ### Fixed
