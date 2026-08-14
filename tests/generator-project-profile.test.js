@@ -958,9 +958,15 @@ try {
 {
   console.log('Generator: node-version honors engines and pnpm compatibility')
 
-  for (const [label, packageManagerVersion, nodeEngine, expectedNodeVersion] of [
+  for (const [
+    label,
+    packageManagerVersion,
+    nodeEngine,
+    expectedNodeVersion,
+  ] of [
     ['pnpm 11.x', 'pnpm@11.13.1', undefined, "'22'"],
     ['pnpm 10.x', 'pnpm@10.12.1', undefined, "'20'"],
+    ['npm allowing Node 20', undefined, '>=20', "'20'"],
     ['npm requiring Node 22', undefined, '^22.19 || >=24', "'22.19.0'"],
     ['npm requiring Node 24', undefined, '>=24', "'24.0.0'"],
   ]) {
