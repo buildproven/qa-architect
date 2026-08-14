@@ -22,7 +22,19 @@ assert(
 assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
 assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))
 assert(workflow.includes('Base test-impact policy is absent'))
-assert(workflow.includes('Test-impact policy changed'))
+assert(
+  workflow.includes('Test-impact policy and application code changed together')
+)
+assert(
+  workflow.includes(
+    'Only generated quality policy files changed. The release generator already validated the new policy.'
+  )
+)
+assert(
+  workflow.includes(
+    "grep -vE '^(\\.github/workflows/quality\\.yml|\\.buildproven/test-impact\\.json)$'"
+  )
+)
 assert(
   workflow.includes(
     'cmp -s "$POLICY_ROOT/.buildproven/test-impact.json" .buildproven/test-impact.json'

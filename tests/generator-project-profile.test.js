@@ -225,6 +225,17 @@ try {
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run typecheck'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run test'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run build'))
+  assert.strictEqual(
+    workflowAfterFirstRun.match(/- name: Tests\n/g)?.length || 0,
+    0,
+    'The affected-test adapter must own test execution without a duplicate full-test gate'
+  )
+  assert(
+    workflowAfterFirstRun.includes(
+      "if: hashFiles('.buildproven/test-impact.json') == '' || (github.event_name != 'pull_request' && github.event_name != 'push')"
+    ),
+    'Whole-project non-test gates must not duplicate policy-driven pull-request validation'
+  )
   assert(!workflowAfterFirstRun.includes("test-count: '0'"))
   assert.strictEqual(
     workflowAfterFirstRun.split(`create-qa-architect@${packageVersion}`)
@@ -871,7 +882,8 @@ try {
     'utf8'
   )
   assert(!workflow.includes('      false'))
-  assert(workflow.includes('- name: Tests'))
+  assert(!workflow.includes('- name: Tests'))
+  assert(workflow.includes('- name: Run affected tests'))
 } finally {
   fs.rmSync(freshRepo, { recursive: true, force: true })
 }
