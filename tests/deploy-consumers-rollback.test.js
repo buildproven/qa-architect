@@ -165,10 +165,9 @@ function testPullRequestContainsOnlyRolloutFiles() {
     const branch = 'chore/qa-architect-5-16-3'
     const files = git(
       remote,
-      'diff-tree',
-      '--no-commit-id',
+      'diff',
       '--name-only',
-      '-r',
+      'refs/heads/main',
       `refs/heads/${branch}`
     )
       .split('\n')
