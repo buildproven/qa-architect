@@ -288,22 +288,17 @@ jobs:
           "${GITLEAKS_DIR}/gitleaks" detect --source . --redact --no-banner
 
       - name: Security pattern detection
-        uses: semgrep/semgrep-action@713efdd345f3035192eaa63f56867b88e63e4e5d # v1
-        with:
-          config: >
-            p/security-audit@1.85.0
-            p/javascript@1.85.0
-          cache: true
-          cache-key: semgrep-security-audit-1.85.0-javascript-1.85.0-${{ env.SEMGREP_VERSION }}
+        run: |
+          set -euo pipefail
+          python3 -m venv "$RUNNER_TEMP/semgrep-security-venv"
+          "$RUNNER_TEMP/semgrep-security-venv/bin/pip" install --quiet --upgrade pip
+          "$RUNNER_TEMP/semgrep-security-venv/bin/pip" install --quiet "setuptools<81" "semgrep==$SEMGREP_VERSION"
+          "$RUNNER_TEMP/semgrep-security-venv/bin/semgrep" scan \
+            --config p/security-audit \
+            --config p/javascript \
+            --error \
+            --metrics=off
         env:
-          # Use Semgrep app token ONLY if a real one is configured. Do NOT fall
-          # back to GITHUB_TOKEN: any non-empty SEMGREP_APP_TOKEN puts the action
-          # into "logged in" mode (`semgrep ci`), which refuses the `--config`
-          # rules below ("Cannot run semgrep ci with --config while logged in").
-          # Leaving it empty runs the registry config rules locally — exactly
-          # what we want for PR-time SAST without uploading findings to the app.
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SEMGREP_VERSION: '1.85.0'
           SEMGREP_ENABLE_VERSION_CHECK: 'false'
 
@@ -380,7 +375,7 @@ jobs:
         run: |
           export PATH="$PIPX_BIN_DIR:$PATH"
           semgrep --version
-          npx create-qa-architect@latest --pr-check \
+          npx create-qa-architect@5.16.2 --pr-check \
             --base-sha '${{ github.event.pull_request.base.sha }}' \
             --head '${{ github.event.pull_request.head.sha }}' \
             --artifact-dir '${{ runner.temp }}/qa-architect-assurance'

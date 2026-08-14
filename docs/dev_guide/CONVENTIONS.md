@@ -70,7 +70,9 @@ qa-architect/
 
 **Template-as-Product contract** — `quality.yml` is BOTH qa-architect's own CI AND the template deployed to 15+ consumer repos. Rules:
 
-- Never reference `node_modules/create-qa-architect` in templates — consumers use `npx @latest`
+- Never reference `node_modules/create-qa-architect` or `@latest` in templates.
+  Consumers execute the exact package version from `package.json`.
+- Blocking security jobs use the pinned Semgrep CLI with `scan --error`; do not restore the deprecated Semgrep action.
 - Never use `\s*` in YAML cleanup regexes — use `[ \t]*` (avoids newline collapse)
 - Conditional content uses `# {{NAME_BEGIN/END}}` section markers, stripped by `stripSection()`
 - `CONSUMER_FORBIDDEN_CONTENT` in `consumer-workflow-integration.test.js` is a hard gate
