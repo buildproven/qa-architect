@@ -565,8 +565,8 @@ bbb
   const free = injectWorkflowMode(template, 'minimal', { prAssurance: false })
   const pro = injectWorkflowMode(template, 'minimal', { prAssurance: true })
   const staleTemplate = template.replace(
-    /create-qa-architect@\d+\.\d+\.\d+/g,
-    'create-qa-architect@0.0.0'
+    /create-qa-architect@[0-9A-Za-z.+-]+/g,
+    'create-qa-architect@0.0.0-beta.1+stale'
   )
   const generatedFromStale = injectWorkflowMode(staleTemplate, 'minimal', {
     prAssurance: true,
@@ -607,8 +607,9 @@ bbb
   )
   assert(
     generatedFromStale.includes(`create-qa-architect@${packageVersion}`) &&
-      !generatedFromStale.includes('create-qa-architect@0.0.0'),
-    'Package version must replace a stale checked-in template version'
+      !generatedFromStale.includes('beta.1') &&
+      !generatedFromStale.includes('+stale'),
+    'Package version replacement must remove stale prerelease and build suffixes'
   )
   assert(
     !pro.includes('create-qa-architect@latest'),
