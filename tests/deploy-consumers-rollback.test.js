@@ -29,6 +29,16 @@ function snapshot(cwd) {
   }
 }
 
+function treeEntries(cwd, ref) {
+  const entries = new Map()
+  for (const line of git(cwd, 'ls-tree', '-r', ref).split('\n')) {
+    if (!line) continue
+    const [metadata, file] = line.split('\t')
+    entries.set(file, metadata.split(' ')[2])
+  }
+  return entries
+}
+
 function createConsumer(root, name) {
   const origins = path.join(root, 'origins')
   const projects = path.join(root, 'Projects')
@@ -163,15 +173,10 @@ function testPullRequestContainsOnlyRolloutFiles() {
     })
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`)
     const branch = 'chore/qa-architect-5-16-3'
-    const files = git(
-      remote,
-      'diff',
-      '--name-only',
-      'refs/heads/main',
-      `refs/heads/${branch}`
-    )
-      .split('\n')
-      .filter(Boolean)
+    const before = treeEntries(remote, 'refs/heads/main')
+    const after = treeEntries(remote, `refs/heads/${branch}`)
+    const files = [...new Set([...before.keys(), ...after.keys()])]
+      .filter(file => before.get(file) !== after.get(file))
       .sort()
     assert.deepStrictEqual(files, [
       '.buildproven/test-impact.json',
