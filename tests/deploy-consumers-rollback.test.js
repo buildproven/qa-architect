@@ -13,6 +13,9 @@ const DEPLOY_SCRIPT = path.join(
   'deploy-consumers.sh'
 )
 const QA_ROOT = path.join(__dirname, '..')
+const QA_VERSION = JSON.parse(
+  fs.readFileSync(path.join(QA_ROOT, 'package.json'), 'utf8')
+).version
 
 function git(cwd, ...args) {
   return execFileSync('git', args, {
@@ -93,12 +96,11 @@ function run(root, args, env = {}) {
 function createReleasedSource(root) {
   const source = path.join(root, 'qa-source')
   const head = git(QA_ROOT, 'rev-parse', 'HEAD')
-  const version = require(path.join(QA_ROOT, 'package.json')).version
   execFileSync('git', ['clone', '--quiet', '--no-hardlinks', QA_ROOT, source], {
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   git(source, 'checkout', '--quiet', '--detach', head)
-  git(source, 'tag', '--force', `v${version}`, head)
+  git(source, 'tag', '--force', `v${QA_VERSION}`, head)
   fs.appendFileSync(
     path.join(source, '.git', 'info', 'exclude'),
     '\nnode_modules\n'
@@ -267,7 +269,7 @@ function testPullRequestRequiresExactCleanRelease() {
       source,
       'tag',
       '--delete',
-      `v${require(path.join(QA_ROOT, 'package.json')).version}`
+      `v${QA_VERSION}`
     )
     const untagged = run(
       root,
@@ -279,8 +281,7 @@ function testPullRequestRequiresExactCleanRelease() {
     assert.notStrictEqual(untagged.status, 0)
     assert.match(untagged.stderr, /release first/)
 
-    const version = require(path.join(QA_ROOT, 'package.json')).version
-    git(source, 'tag', `v${version}`, 'HEAD^')
+    git(source, 'tag', `v${QA_VERSION}`, 'HEAD^')
     const wrongTag = run(
       root,
       ['--canary', 'canary', '--canary-only', '--pr'],
@@ -289,7 +290,7 @@ function testPullRequestRequiresExactCleanRelease() {
     assert.notStrictEqual(wrongTag.status, 0)
     assert.match(wrongTag.stderr, /not exact release/)
 
-    git(source, 'tag', '--force', `v${version}`, 'HEAD')
+    git(source, 'tag', '--force', `v${QA_VERSION}`, 'HEAD')
     fs.writeFileSync(path.join(source, 'untracked.txt'), 'dirty\n')
     const dirty = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
       QA_ARCHITECT_DIR_OVERRIDE: source,
