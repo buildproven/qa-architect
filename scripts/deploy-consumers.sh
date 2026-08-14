@@ -392,7 +392,7 @@ deploy_to_repo() {
 
   # Regenerate workflow (must cd to consumer dir — setup.js uses process.cwd())
   echo "  Regenerating workflow (tier: $existing_tier)..."
-  if (cd "$target_repo_dir" && QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
+  if (cd "$target_repo_dir" && NODE_ENV=test QAA_DEVELOPER=true node "$QA_ARCHITECT_DIR/setup.js" --update "--workflow-${existing_tier}" \
     2>&1 | { [ "$VERBOSE" = true ] && cat || tail -1; }); then
     :
   else

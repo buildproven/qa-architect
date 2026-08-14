@@ -217,6 +217,10 @@ async function testRollbackContract() {
       /git reset --hard "\$pre_commit_sha"/.test(script),
     'deploy-consumers.sh must capture pre_commit_sha and reset --hard to it on failure'
   )
+  assert.ok(
+    script.includes('NODE_ENV=test QAA_DEVELOPER=true node'),
+    'internal fleet generation must use the complete developer-mode contract'
+  )
 
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'deploy-rollback-test-'))
   try {
