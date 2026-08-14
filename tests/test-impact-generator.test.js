@@ -130,6 +130,7 @@ const mixedMissingPythonInstall = fixture({
   }),
   'package-lock.json': '{}\n',
   'pyproject.toml': '[tool.pytest.ini_options]\n',
+  'tests/test_example.py': 'def test_example():\n    assert True\n',
 })
 try {
   assert.match(
@@ -142,6 +143,26 @@ try {
   )
 } finally {
   fs.rmSync(mixedMissingPythonInstall, { recursive: true, force: true })
+}
+
+const dormantPythonConfig = fixture({
+  'package.json': packageJson({
+    scripts: { test: 'vitest run' },
+    devDependencies: { vitest: '^3.0.0' },
+  }),
+  'package-lock.json': '{}\n',
+  'pyproject.toml': '[tool.pytest.ini_options]\n',
+  'requirements-dev.txt': 'pytest==8.4.1\n',
+})
+try {
+  const plan = buildPolicy(dormantPythonConfig)
+  assert.strictEqual(plan.inventory.python, false)
+  assert.doesNotMatch(plan.blockers.join(' '), /Python tests need/)
+  assert.deepStrictEqual(plan.policy.audits[0].commands, [
+    { executable: 'npm', args: ['run', 'test'] },
+  ])
+} finally {
+  fs.rmSync(dormantPythonConfig, { recursive: true, force: true })
 }
 
 const noLock = fixture({
