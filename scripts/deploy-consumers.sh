@@ -271,8 +271,31 @@ generate_rollout() {
     cd "$target_dir"
     git checkout --quiet -b "$branch"
     git add "${ROLLOUT_FILES[@]}"
+    local staged_file allowed expected_tree commit_sha remote_sha
+    while IFS= read -r staged_file; do
+      [ -n "$staged_file" ] || continue
+      allowed=false
+      for rollout_file in "${ROLLOUT_FILES[@]}"; do
+        [ "$staged_file" != "$rollout_file" ] || allowed=true
+      done
+      if [ "$allowed" = false ]; then
+        echo "  PR FAILURE: staged file escaped rollout boundary: $staged_file"
+        exit 1
+      fi
+    done < <(git diff --cached --name-only)
+    expected_tree="$(git write-tree)"
     git commit --quiet -m "chore: roll QA Architect $QA_VERSION"
+    commit_sha="$(git rev-parse HEAD)"
+    if [ "$(git rev-parse 'HEAD^{tree}')" != "$expected_tree" ]; then
+      echo "  PR FAILURE: commit hooks changed the reviewed rollout tree"
+      exit 1
+    fi
     git push --quiet origin "HEAD:refs/heads/$branch"
+    remote_sha="$(git ls-remote origin "refs/heads/$branch" | awk '{print $1}')"
+    if [ "$remote_sha" != "$commit_sha" ]; then
+      echo "  PR FAILURE: remote rollout branch does not match the prepared commit"
+      exit 1
+    fi
     gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
       --title "chore: roll QA Architect $QA_VERSION" \
       --body "Updates the generated risk-based quality workflow and affected-test policy from QA Architect $QA_VERSION.\n\nGenerated in an isolated clone; no local checkout or default branch was changed."
