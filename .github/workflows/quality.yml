@@ -290,17 +290,17 @@ jobs:
       - name: Security pattern detection
         run: |
           set -euo pipefail
-          python3 -m venv "$RUNNER_TEMP/semgrep-security-venv"
-          "$RUNNER_TEMP/semgrep-security-venv/bin/pip" install --quiet --upgrade pip
-          "$RUNNER_TEMP/semgrep-security-venv/bin/pip" install --quiet "setuptools<81" "semgrep==$SEMGREP_VERSION"
-          "$RUNNER_TEMP/semgrep-security-venv/bin/semgrep" scan \
+          docker run --rm \
+            --mount "type=bind,source=$PWD,target=/src,readonly" \
+            --workdir /src \
+            --tmpfs /tmp:rw,nosuid,nodev,size=512m \
+            --env HOME=/tmp \
+            'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b' \
+            semgrep scan \
             --config p/security-audit \
             --config p/javascript \
             --error \
             --metrics=off
-        env:
-          SEMGREP_VERSION: '1.85.0'
-          SEMGREP_ENABLE_VERSION_CHECK: 'false'
 
   # {{PRO_ASSURANCE_BEGIN}}
   # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,

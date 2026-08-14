@@ -155,10 +155,16 @@ function assertValidYamlStructure(content, tier) {
     `${tier} workflow must not execute mutable gitleaks code`
   )
   assert(
-    content.includes('"semgrep==$SEMGREP_VERSION"') &&
-      content.includes('semgrep" scan') &&
+    content.includes(
+      'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b'
+    ) &&
+      content.includes('semgrep scan') &&
       content.includes('--error'),
-    `${tier} workflow must use the pinned, blocking Semgrep CLI`
+    `${tier} workflow must use the digest-pinned, blocking Semgrep image`
+  )
+  assert(
+    !content.includes('pip install --quiet "setuptools<81"'),
+    `${tier} blocking security job must not install mutable Python packages`
   )
 }
 
@@ -558,6 +564,13 @@ bbb
   )
   const free = injectWorkflowMode(template, 'minimal', { prAssurance: false })
   const pro = injectWorkflowMode(template, 'minimal', { prAssurance: true })
+  const staleTemplate = template.replace(
+    /create-qa-architect@\d+\.\d+\.\d+/g,
+    'create-qa-architect@0.0.0'
+  )
+  const generatedFromStale = injectWorkflowMode(staleTemplate, 'minimal', {
+    prAssurance: true,
+  })
   assert(
     !free.includes('  pr-assurance:'),
     'Free workflow must omit Pro assurance'
@@ -591,6 +604,11 @@ bbb
   assert(
     pro.includes(`create-qa-architect@${packageVersion}`),
     'Consumer must use the exact published CLI version'
+  )
+  assert(
+    generatedFromStale.includes(`create-qa-architect@${packageVersion}`) &&
+      !generatedFromStale.includes('create-qa-architect@0.0.0'),
+    'Package version must replace a stale checked-in template version'
   )
   assert(
     !pro.includes('create-qa-architect@latest'),

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- Generated workflows must use the maintained Semgrep CLI with a pinned engine version.
+- Generated workflows must use the official Semgrep image at an immutable digest.
 - A Semgrep finding must fail the blocking security job.
 - Generated workflows must execute an exact QA Architect package version, never `@latest`.
 - The generated version must follow `package.json` when a release changes it.

@@ -72,7 +72,8 @@ Defaults to **minimal CI** to avoid unexpected GitHub Actions costs. Selectable 
 
 - Never reference `node_modules/create-qa-architect` or `@latest` in templates.
   Consumers execute the exact package version from `package.json`.
-- Blocking security jobs use the pinned Semgrep CLI with `scan --error`; do not restore the deprecated Semgrep action.
+- Blocking security jobs use the digest-pinned official Semgrep image with
+  `scan --error`; do not restore the deprecated action or runtime package installs.
 - Never use `\s*` in YAML cleanup regexes — use `[ \t]*` (prevents line collapse)
 - Conditional content uses section markers (`# {{NAME_BEGIN/END}}`) stripped by `stripSection()`
 - `CONSUMER_FORBIDDEN_CONTENT` in `consumer-workflow-integration.test.js` gates consumer output

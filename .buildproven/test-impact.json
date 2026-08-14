@@ -365,6 +365,15 @@
           "args": ["tests/generator-project-profile.test.js"]
         }
       ]
+    },
+    {
+      "paths": ["lib/workflow-config.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/consumer-workflow-integration.test.js"]
+        }
+      ]
     }
   ],
   "audits": [
