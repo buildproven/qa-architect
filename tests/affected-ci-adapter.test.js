@@ -13,7 +13,7 @@ const workflow = fs.readFileSync(
 
 assert(workflow.includes('fetch-depth: 0'))
 assert(
-  workflow.includes('CLAUDE_KIT_SHA: 80c21bdbe2c21128d5e46b38818f0c0625f474e3')
+  workflow.includes('CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69')
 )
 assert(workflow.includes('git show "$BASE_SHA:.buildproven/test-impact.json"'))
 assert(
@@ -22,7 +22,13 @@ assert(
 assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
 assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))
 assert(workflow.includes('Base test-impact policy is absent'))
-assert(workflow.includes("github.repository != 'buildproven/qa-architect'"))
+assert(workflow.includes("hashFiles('.buildproven/test-impact.json') != ''"))
+assert(workflow.includes("hashFiles('.buildproven/test-impact.json') == ''"))
+assert(
+  !workflow.includes(
+    "github.repository != 'buildproven/qa-architect' || (github.event_name != 'pull_request'"
+  )
+)
 assert(!workflow.includes('--diff-filter='))
 assert(!workflow.includes('git diff --name-only -z "$BASE_SHA" "$HEAD_SHA"'))
 
