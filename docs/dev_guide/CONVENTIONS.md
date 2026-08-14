@@ -146,7 +146,7 @@ npm run prerelease
 - **`\s` in YAML regexes will collapse newlines** — use `[ \t]*` for any whitespace-trimming regex on YAML content.
 - **Coverage thresholds:** 75% lines, 70% functions, 65% branches (enforced by `c8`).
 - **No Vitest/Jest** — tests use Node's built-in `assert` module and are run directly with `node tests/*.test.js`.
-- **Pre-push hook** runs `test:patterns`, `test:commands`, `test:changed` — these must all pass before push.
+- **Pre-push hook** runs lint, format, a secret scan, and the production dependency audit only when dependency files changed. Affected tests run through the revision-bound CI policy.
 - **`.claude` directory** already exists (has prior workspace data) — do not overwrite its contents.
 
 ## Active Development Areas
