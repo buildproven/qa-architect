@@ -219,6 +219,29 @@
       ]
     },
     {
+      "paths": [
+        "lib/workflow-config.js",
+        "tests/generator-project-profile.test.js",
+        ".github/workflows/quality.yml",
+        "tests/affected-ci-adapter.test.js",
+        "tests/consumer-workflow-integration.test.js"
+      ],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/generator-project-profile.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/affected-ci-adapter.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/consumer-workflow-integration.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["lib/ui-helpers.js"],
       "commands": [
         {

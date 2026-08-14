@@ -486,6 +486,11 @@ try {
   assert(workflow.includes('timeout 300 npm run build'))
   assert(!workflow.includes('npm test'))
   assert(!workflow.includes('npm run test'))
+  assert(
+    workflow.includes(
+      'A test-impact policy requires a declared complete test command.'
+    )
+  )
   assert(!generatedPackage.scripts['quality:check'].includes('run test'))
   assert(!generatedPackage.scripts['quality:ci'].includes('run test'))
 
