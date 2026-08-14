@@ -961,8 +961,8 @@ try {
   for (const [label, packageManagerVersion, nodeEngine, expectedNodeVersion] of [
     ['pnpm 11.x', 'pnpm@11.13.1', undefined, "'22'"],
     ['pnpm 10.x', 'pnpm@10.12.1', undefined, "'20'"],
-    ['npm requiring Node 22', undefined, '^22.19 || >=24', "'22'"],
-    ['npm requiring Node 24', undefined, '>=24', "'24'"],
+    ['npm requiring Node 22', undefined, '^22.19 || >=24', "'22.19.0'"],
+    ['npm requiring Node 24', undefined, '>=24', "'24.0.0'"],
   ]) {
     const repo = createRepo({
       name: `node-version-${label.replace(/[^a-z0-9]/gi, '-')}`,
@@ -981,7 +981,9 @@ try {
         'utf8'
       )
       const hardcodedNodeVersions = [
-        ...workflow.matchAll(/^ {10}node-version: ('20'|'22'|'24')$/gm),
+        ...workflow.matchAll(
+          /^ {10}node-version: ('20'|'22'|'22\.19\.0'|'24\.0\.0')$/gm
+        ),
       ].map(match => match[1])
       assert(
         hardcodedNodeVersions.length > 0,
