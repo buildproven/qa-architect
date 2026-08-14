@@ -265,12 +265,7 @@ function testPullRequestRequiresExactCleanRelease() {
   try {
     createConsumer(root, 'canary')
     const source = createReleasedSource(root)
-    git(
-      source,
-      'tag',
-      '--delete',
-      `v${QA_VERSION}`
-    )
+    git(source, 'tag', '--delete', `v${QA_VERSION}`)
     const untagged = run(
       root,
       ['--canary', 'canary', '--canary-only', '--pr'],
