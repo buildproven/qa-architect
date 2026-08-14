@@ -155,7 +155,7 @@ function testPullRequestContainsOnlyRolloutFiles() {
     fs.mkdirSync(bin)
     fs.writeFileSync(
       path.join(bin, 'gh'),
-      `#!/bin/sh\nif [ "$1 $2" = "pr create" ]; then\n  printf '%s\\n' "$*" >> '${ghLog}'\n  printf 'https://example.test/pr/1\\n'\n  exit 0\nfi\nexec "$REAL_GH" "$@"\n`
+      `#!/bin/sh\nif [ "$1 $2" = "pr list" ]; then\n  exit 0\nfi\nif [ "$1 $2" = "pr create" ]; then\n  printf '%s\\n' "$*" >> '${ghLog}'\n  printf 'https://example.test/pr/1\\n'\n  exit 0\nfi\nexec "$REAL_GH" "$@"\n`
     )
     fs.chmodSync(path.join(bin, 'gh'), 0o755)
     const result = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
@@ -180,9 +180,22 @@ function testPullRequestContainsOnlyRolloutFiles() {
     )
     assert.doesNotMatch(
       git(remote, 'show', `refs/heads/${branch}:.github/workflows/quality.yml`),
-      /create-qa-architect@latest|semgrep\/semgrep-action/
+      /create-qa-architect@latest|semgrep\/semgrep-action|^ {2}pr-assurance:/m
     )
     assert.match(fs.readFileSync(ghLog, 'utf8'), /pr create/)
+    const firstBranchHead = git(remote, 'rev-parse', `refs/heads/${branch}`)
+    const rerun = run(root, ['--canary', 'canary', '--canary-only', '--pr'], {
+      PATH: `${bin}:${process.env.PATH}`,
+      REAL_GH: execFileSync('sh', ['-c', 'command -v gh'], {
+        encoding: 'utf8',
+      }).trim(),
+    })
+    assert.strictEqual(rerun.status, 0, `${rerun.stdout}\n${rerun.stderr}`)
+    assert.match(rerun.stdout, /CURRENT: existing rollout branch/)
+    assert.strictEqual(
+      git(remote, 'rev-parse', `refs/heads/${branch}`),
+      firstBranchHead
+    )
     console.log('  ✓ rollout PR contains only workflow and test-impact policy')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })

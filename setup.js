@@ -2022,6 +2022,8 @@ HELP:
           console.log(`✅ Added GitHub Actions workflow (${workflowMode} mode)`)
         } else if (isUpdateMode) {
           // Refresh existing workflow from the current template.
+          const existingWorkflow = readProjectFile(process.cwd(), workflowFile)
+          const hasPrAssurance = existingWorkflow.includes('\n  pr-assurance:')
           let templateWorkflow =
             templateLoader.getTemplate(
               templates,
@@ -2037,7 +2039,10 @@ HELP:
             templateWorkflow,
             workflowMode,
             {
-              prAssurance: hasFeature('prCheck'),
+              // Preserve the consumer's paid-feature activation. The
+              // generator's developer license must not turn a Free consumer
+              // into a Pro consumer that lacks its entitlement secret.
+              prAssurance: hasFeature('prCheck') && hasPrAssurance,
             }
           )
 
@@ -2049,7 +2054,6 @@ HELP:
           )
 
           // Inject collaboration steps (preserve from existing if present)
-          const existingWorkflow = readProjectFile(process.cwd(), workflowFile)
           const hasSlackAlerts = existingWorkflow.includes('SLACK_WEBHOOK_URL')
           const hasPrComments = existingWorkflow.includes(
             'PR_COMMENT_PLACEHOLDER'

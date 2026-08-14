@@ -168,9 +168,12 @@ repo_slug_for() {
 generate_rollout() {
   local source_dir="$1" is_canary="${2:-false}"
   local repo_name origin_url default_branch rollout_root target_dir existing_tier
+  local branch slug delivery_dir remote_branch_sha existing_pr_url existing_branch=false
   repo_name="$(basename "$source_dir")"
   origin_url="$(git -C "$source_dir" remote get-url origin)"
   default_branch="$(default_branch_for "$source_dir")"
+  branch="chore/qa-architect-${QA_VERSION//./-}"
+  slug="$(repo_slug_for "$origin_url")"
   echo "--- $repo_name $([ "$is_canary" = true ] && echo '(CANARY)' || true) ---"
 
   if [ -z "$default_branch" ]; then
@@ -225,6 +228,15 @@ generate_rollout() {
     return 1
   fi
 
+  if ! (cd "$target_dir" && \
+    "$QA_ARCHITECT_DIR/node_modules/.bin/prettier" --write "${ROLLOUT_FILES[@]}") \
+    >>"$generation_log" 2>&1; then
+    echo "  GENERATOR FAILURE: rollout files do not satisfy the consumer formatter"
+    [ "$VERBOSE" = false ] || sed 's/^/    /' "$generation_log"
+    cleanup_active_rollout_root || true
+    return 1
+  fi
+
   if ! node -e "require('$QA_ARCHITECT_DIR/node_modules/js-yaml').load(require('fs').readFileSync(process.argv[1], 'utf8'))" \
     "$target_dir/.github/workflows/quality.yml"; then
     echo "  GENERATOR FAILURE: generated workflow is invalid YAML"
@@ -264,12 +276,37 @@ generate_rollout() {
     return 1
   fi
 
-  local branch="chore/qa-architect-${QA_VERSION//./-}"
-  local slug
-  slug="$(repo_slug_for "$origin_url")"
+  delivery_dir="$target_dir"
+  remote_branch_sha="$(git -C "$source_dir" ls-remote origin "refs/heads/$branch" | awk '{print $1}')"
+  if [ -n "$remote_branch_sha" ]; then
+    existing_branch=true
+    delivery_dir="$rollout_root/delivery"
+    if ! git clone --quiet --single-branch --branch "$branch" "$origin_url" "$delivery_dir"; then
+      echo "  PR FAILURE: could not clone the existing rollout branch"
+      cleanup_active_rollout_root || true
+      return 1
+    fi
+    if ! validate_writable_paths "$delivery_dir"; then
+      cleanup_active_rollout_root || true
+      return 1
+    fi
+    for rollout_file in "${ROLLOUT_FILES[@]}"; do
+      mkdir -p "$delivery_dir/$(dirname "$rollout_file")"
+      cp "$target_dir/$rollout_file" "$delivery_dir/$rollout_file"
+    done
+    if [ -z "$(git -C "$delivery_dir" status --porcelain -- "${ROLLOUT_FILES[@]}")" ]; then
+      echo "  CURRENT: existing rollout branch already has the generated files"
+      cleanup_active_rollout_root || true
+      return 2
+    fi
+    echo "  Updating existing rollout branch and PR"
+  fi
+
   if ! (
-    cd "$target_dir"
-    git checkout --quiet -b "$branch"
+    cd "$delivery_dir"
+    if [ "$existing_branch" = false ]; then
+      git checkout --quiet -b "$branch"
+    fi
     git config user.name "QA Architect Rollout"
     git config user.email "qa-architect@users.noreply.github.com"
     git add "${ROLLOUT_FILES[@]}"
@@ -298,9 +335,14 @@ generate_rollout() {
       echo "  PR FAILURE: remote rollout branch does not match the prepared commit"
       exit 1
     fi
-    gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
-      --title "chore: roll QA Architect $QA_VERSION" \
-      --body "Updates the generated risk-based quality workflow and affected-test policy from QA Architect $QA_VERSION.\n\nGenerated in an isolated clone; no local checkout or default branch was changed."
+    existing_pr_url="$(gh pr list --repo "$slug" --head "$branch" --state open --limit 1 --json url --jq '.[0].url // empty')"
+    if [ -n "$existing_pr_url" ]; then
+      printf '%s\n' "$existing_pr_url"
+    else
+      gh pr create --repo "$slug" --base "$default_branch" --head "$branch" \
+        --title "chore: roll QA Architect $QA_VERSION" \
+        --body "Updates the generated risk-based quality workflow and affected-test policy from QA Architect $QA_VERSION.\n\nGenerated in an isolated clone; no local checkout or default branch was changed."
+    fi
   ); then
     echo "  PR FAILURE: branch preparation, push, or PR creation failed"
     cleanup_active_rollout_root || true
