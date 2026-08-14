@@ -273,6 +273,18 @@
       ]
     },
     {
+      "paths": [
+        "scripts/deploy-consumers.sh",
+        "tests/deploy-consumers-rollback.test.js"
+      ],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/deploy-consumers-rollback.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["scripts/validate-command-patterns.js"],
       "commands": [
         {
