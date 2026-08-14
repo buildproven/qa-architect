@@ -66,26 +66,30 @@ qa-architect implements industry best practice: **"Fail fast locally, verify com
 
 ### 1. Each Layer Does Unique Work
 
-| Layer          | Time Budget | Responsibility                  | What It Skips              |
-| -------------- | ----------- | ------------------------------- | -------------------------- |
-| **Pre-commit** | < 5 sec     | Lint + format staged files      | Tests, type check          |
-| **Pre-push**   | < 30 sec    | Type check + changed-file tests | Lint (already done)        |
-| **CI**         | 3-10 min    | Full suite + security           | Lint/format (already done) |
+| Layer          | Time Budget | Responsibility                         | What It Skips        |
+| -------------- | ----------- | -------------------------------------- | -------------------- |
+| **Pre-commit** | < 5 sec     | Lint + format staged files             | Tests                |
+| **Pre-push**   | < 30 sec    | Secrets + changed dependency audit     | Tests                |
+| **PR CI**      | < 5 min     | Mapped affected tests + security       | Unaffected tests     |
+| **Audit**      | < 10 min    | Complete suite on schedule and release | No required coverage |
 
-### 2. Delta Testing Locally
+### 2. Focused Testing Locally
 
-Pre-push only tests files you changed:
+Run the test mapped to the code you changed. The revision-bound CI selector
+checks the repository policy and runs the affected commands again:
 
 ```bash
-npm run test:changed  # vitest --changed HEAD~1
+npm run test -- tests/path/to/affected.test.js
 ```
 
-This keeps pre-push fast while still catching bugs before they hit CI.
+Do not use `HEAD~1` as a change boundary. It misses earlier commits in a branch.
 
 ### 3. No Redundant Work
 
 - Pre-commit handles lint/format → CI doesn't repeat it
-- Pre-push handles type check → CI doesn't repeat it
+- Pre-push handles secrets and changed dependency audits
+- PR CI handles revision-bound affected tests and security
+- Scheduled and release audits detect selector misses with the complete suite
 - Each layer adds NEW verification, not redundant checks
 
 ## Workflow Tiers
@@ -129,8 +133,7 @@ npm run format        # Prettier format all
 npm run format:check  # Check formatting (CI)
 
 # Testing
-npm test              # Full test suite
-npm run test:changed  # Tests on changed files (pre-push)
+npm test              # Complete audit suite
 npm run test:watch    # TDD mode
 npm run test:coverage # Coverage report
 
