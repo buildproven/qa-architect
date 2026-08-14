@@ -12,7 +12,7 @@
 
 **Business timelines may differ**: Customer acquisition, revenue ramp, and market penetration follow normal curves regardless of build speed.
 
-## Current Version: 5.16.3
+## Current Version: 5.16.4
 
 ## Completed
 

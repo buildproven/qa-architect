@@ -196,7 +196,7 @@ function testPullRequestContainsOnlyRolloutFiles() {
     })
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`)
     assert.match(result.stdout, /READY:/, result.stdout)
-    const branch = 'chore/qa-architect-5-16-3'
+    const branch = `chore/qa-architect-${QA_VERSION.replaceAll('.', '-')}`
     assert.notStrictEqual(
       git(remote, 'rev-parse', 'refs/heads/main'),
       git(remote, 'rev-parse', `refs/heads/${branch}`)
@@ -265,12 +265,7 @@ function testPullRequestRequiresExactCleanRelease() {
   try {
     createConsumer(root, 'canary')
     const source = createReleasedSource(root)
-    git(
-      source,
-      'tag',
-      '--delete',
-      `v${QA_VERSION}`
-    )
+    git(source, 'tag', '--delete', `v${QA_VERSION}`)
     const untagged = run(
       root,
       ['--canary', 'canary', '--canary-only', '--pr'],

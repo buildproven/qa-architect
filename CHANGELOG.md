@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.4] - 2026-08-14
+
+### Added
+
+- **Bounded fleet deployment:** maintainers can open isolated consumer pull
+  requests from an explicit canary before a wider rollout. The deployer never
+  pushes directly to a consumer default branch.
+
+### Changed
+
+- **Release-bound rollout:** pull-request deployment now requires a clean source
+  checkout at the exact tag declared by `package.json`. Generated changes can no
+  longer claim a published version while including unreleased source.
+- **Consumer preservation:** generated workflows retain existing Free and Pro
+  assurance, custom composed test runners, compatible Node 22 jobs, and consumer
+  formatting.
+
+### Fixed
+
+- **Project detection:** dormant pytest configuration no longer enables Python
+  work in a non-Python project, and consumer Node engine floors remain exact.
+- **Test strategy ownership:** removed the duplicate legacy smart-test script so
+  the generated, evidence-backed test-impact policy is the sole selector.
+
+### Security
+
+- **Release dependency floor:** the hash-locked Semgrep environment now requires
+  the patched MCP 1.28.1 release.
+
 ## [5.16.3] - 2026-08-14
 
 ### Added
