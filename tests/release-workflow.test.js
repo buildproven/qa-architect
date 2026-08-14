@@ -98,12 +98,12 @@ assert.match(
 )
 assert.match(
   semgrepRequirements,
-  /^mcp==1\.27\.2 /m,
+  /^mcp==1\.28\.1 /m,
   'Semgrep release checks must override its vulnerable MCP pin with the fixed version'
 )
 assert.match(
   semgrepOverrides,
-  /^mcp==1\.27\.2$/m,
+  /^mcp==1\.28\.1$/m,
   'Semgrep release override must pin the fixed MCP version'
 )
 assert.match(
