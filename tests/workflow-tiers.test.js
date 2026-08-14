@@ -334,7 +334,7 @@ function createTempGitRepo() {
     )
     assert(
       workflowContent.includes('node-version: [22]'),
-      'Minimal should have single Node version'
+      'A Node >=20 floor must not downgrade the minimal Node 22 job'
     )
 
     console.log('✅ PASS\n')
