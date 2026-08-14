@@ -956,25 +956,32 @@ try {
 // the consumer's exact pinned version — activating a pinned pnpm@11.x under
 // Node 20 crashes those jobs outright with ERR_UNKNOWN_BUILTIN_MODULE.
 {
-  console.log('Generator: node-version bumped for pnpm 11+, untouched below')
+  console.log('Generator: node-version honors engines and pnpm compatibility')
 
-  for (const [label, packageManagerVersion, expectedNodeVersion] of [
-    ['pnpm 11.x', 'pnpm@11.13.1', "'22'"],
-    ['pnpm 10.x', 'pnpm@10.12.1', "'20'"],
+  for (const [label, packageManagerVersion, nodeEngine, expectedNodeVersion] of [
+    ['pnpm 11.x', 'pnpm@11.13.1', undefined, "'22'"],
+    ['pnpm 10.x', 'pnpm@10.12.1', undefined, "'20'"],
+    ['npm requiring Node 22', undefined, '^22.19 || >=24', "'22'"],
+    ['npm requiring Node 24', undefined, '>=24', "'24'"],
   ]) {
     const repo = createRepo({
       name: `node-version-${label.replace(/[^a-z0-9]/gi, '-')}`,
-      packageManager: packageManagerVersion,
+      ...(packageManagerVersion
+        ? { packageManager: packageManagerVersion }
+        : {}),
+      ...(nodeEngine ? { engines: { node: nodeEngine } } : {}),
     })
     try {
-      fs.writeFileSync(path.join(repo, 'pnpm-lock.yaml'), '')
+      if (packageManagerVersion) {
+        fs.writeFileSync(path.join(repo, 'pnpm-lock.yaml'), '')
+      }
       runSetup(repo)
       const workflow = fs.readFileSync(
         path.join(repo, '.github/workflows/quality.yml'),
         'utf8'
       )
       const hardcodedNodeVersions = [
-        ...workflow.matchAll(/^ {10}node-version: ('20'|'22')$/gm),
+        ...workflow.matchAll(/^ {10}node-version: ('20'|'22'|'24')$/gm),
       ].map(match => match[1])
       assert(
         hardcodedNodeVersions.length > 0,
@@ -987,12 +994,20 @@ try {
           `${label}: hardcoded node-version should be ${expectedNodeVersion}, found ${found}`
         )
       }
+      if (expectedNodeVersion !== "'20'") {
+        assert(
+          workflow.includes(
+            `node-version: [${expectedNodeVersion.replaceAll("'", '')}]`
+          ),
+          `${label}: test matrix must honor ${expectedNodeVersion}`
+        )
+      }
     } finally {
       fs.rmSync(repo, { recursive: true, force: true })
     }
   }
 
-  console.log('✅ node-version matches pnpm major version compatibility')
+  console.log('✅ node-version matches consumer and package-manager minimums')
 }
 
 // setup.js's Lighthouse config copy always wrote .lighthouserc.js — a
