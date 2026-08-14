@@ -115,6 +115,38 @@ function testDryRunDoesNotMutateConsumer() {
     assert.ok(dirtyResult.stdout.includes('REFUSE VALIDATION'))
     assert.deepStrictEqual(checkoutSnapshot(consumer), dirtyBefore)
     console.log('  ✓ dry run refuses dirty state without changing it')
+
+    fs.unlinkSync(path.join(consumer, 'user-untracked.txt'))
+    const shimDir = path.join(root, 'bin')
+    const validationTemp = path.join(root, 'validation-tmp')
+    fs.mkdirSync(shimDir)
+    fs.mkdirSync(validationTemp)
+    const gitShim = path.join(shimDir, 'git')
+    fs.writeFileSync(
+      gitShim,
+      '#!/bin/sh\ncase "$*" in *" status --porcelain --untracked-files=all"*) exit 1 ;; esac\nexec "$REAL_GIT" "$@"\n'
+    )
+    fs.chmodSync(gitShim, 0o755)
+    const statusFailureBefore = checkoutSnapshot(consumer)
+    const statusFailure = spawnSync('bash', [DEPLOY_SCRIPT, '--canary-only'], {
+      env: {
+        ...process.env,
+        HOME: root,
+        TMPDIR: validationTemp,
+        REAL_GIT: execSync('command -v git', { encoding: 'utf8' }).trim(),
+        PATH: `${shimDir}:${process.env.PATH}`,
+      },
+      encoding: 'utf8',
+    })
+    assert.notStrictEqual(statusFailure.status, 0)
+    assert.ok(
+      statusFailure.stdout.includes(
+        'Could not inspect the consumer working tree'
+      )
+    )
+    assert.deepStrictEqual(checkoutSnapshot(consumer), statusFailureBefore)
+    assert.deepStrictEqual(fs.readdirSync(validationTemp), [])
+    console.log('  ✓ status inspection failure stops before validation')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
@@ -126,10 +158,12 @@ function testCheckoutFailureCleansValidationCopy() {
     const projects = path.join(root, 'Projects')
     const consumer = path.join(projects, 'buildproven')
     const tempDir = path.join(root, 'tmp')
+    const shimDir = path.join(root, 'bin')
     fs.mkdirSync(path.join(consumer, '.github', 'workflows'), {
       recursive: true,
     })
     fs.mkdirSync(tempDir)
+    fs.mkdirSync(shimDir)
     git(consumer, 'init -b main -q')
     git(consumer, 'config user.email test@example.com')
     git(consumer, 'config user.name Test')
@@ -141,25 +175,29 @@ function testCheckoutFailureCleansValidationCopy() {
       path.join(consumer, '.github', 'workflows', 'quality.yml'),
       'name: Quality\n# WORKFLOW_MODE: minimal\n'
     )
-    fs.writeFileSync(
-      path.join(consumer, '.gitattributes'),
-      '*.blocked filter=fail\n'
-    )
-    fs.writeFileSync(path.join(consumer, 'fixture.blocked'), 'content\n')
     git(consumer, 'add .')
     git(consumer, 'commit -q -m "initial"')
+    const gitShim = path.join(shimDir, 'git')
     fs.writeFileSync(
-      path.join(root, '.gitconfig'),
-      '[filter "fail"]\n\tsmudge = false\n\trequired = true\n'
+      gitShim,
+      '#!/bin/sh\ncase "$*" in *" checkout --quiet --detach "*) exit 1 ;; esac\nexec "$REAL_GIT" "$@"\n'
     )
+    fs.chmodSync(gitShim, 0o755)
 
     const result = spawnSync('bash', [DEPLOY_SCRIPT, '--canary-only'], {
-      env: { ...process.env, HOME: root, TMPDIR: tempDir },
+      env: {
+        ...process.env,
+        HOME: root,
+        TMPDIR: tempDir,
+        REAL_GIT: execSync('command -v git', { encoding: 'utf8' }).trim(),
+        PATH: `${shimDir}:${process.env.PATH}`,
+      },
       encoding: 'utf8',
     })
     assert.notStrictEqual(result.status, 0)
     assert.ok(
-      result.stdout.includes('Could not check out the exact consumer HEAD')
+      result.stdout.includes('Could not check out the exact consumer HEAD'),
+      result.stdout
     )
     assert.deepStrictEqual(fs.readdirSync(tempDir), [])
     console.log('  ✓ failed checkout leaves no isolated validation copy')

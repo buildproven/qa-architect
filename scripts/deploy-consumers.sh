@@ -293,7 +293,10 @@ deploy_to_repo() {
   # Generate and validate there, then delete only the exact mktemp directory.
   if [ "$PUSH" = false ]; then
     local source_status source_head
-    source_status="$(git -C "$repo_dir" status --porcelain --untracked-files=all 2>/dev/null || true)"
+    if ! source_status="$(git -C "$repo_dir" status --porcelain --untracked-files=all 2>/dev/null)"; then
+      echo "  FAIL: Could not inspect the consumer working tree"
+      return 1
+    fi
     if [ -n "$source_status" ]; then
       echo "  REFUSE VALIDATION: working tree is not clean — commit or stash changes so validation cannot ignore local state"
       echo ""
