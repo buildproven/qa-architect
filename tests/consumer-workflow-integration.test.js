@@ -14,13 +14,13 @@ const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
-const { execSync } = require('child_process')
+const { execFileSync, execSync } = require('child_process')
 const yaml = require(path.join(__dirname, '../node_modules/js-yaml'))
 const { version: packageVersion } = require('../package.json')
 
 console.log('🧪 Testing consumer workflow integration...\n')
 
-function createTempGitRepo() {
+function createConsumerRepo({ packageJson, files }) {
   const testDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'cqa-consumer-workflow-')
   )
@@ -39,16 +39,58 @@ function createTempGitRepo() {
   })
   fs.writeFileSync(
     path.join(testDir, 'package.json'),
-    JSON.stringify({ name: 'test-project', version: '1.0.0' }, null, 2)
+    `${JSON.stringify(packageJson, null, 2)}\n`
   )
-  fs.mkdirSync(path.join(testDir, 'src'), { recursive: true })
-  fs.writeFileSync(path.join(testDir, 'src', 'index.js'), 'console.log("test")')
-  fs.mkdirSync(path.join(testDir, 'tests'), { recursive: true })
-  fs.writeFileSync(
-    path.join(testDir, 'tests', 'test.js'),
-    'const assert = require("assert")'
-  )
+  for (const [file, content] of Object.entries(files)) {
+    const target = path.join(testDir, file)
+    fs.mkdirSync(path.dirname(target), { recursive: true })
+    fs.writeFileSync(target, content)
+  }
   return testDir
+}
+
+function createTempGitRepo() {
+  return createConsumerRepo({
+    packageJson: { name: 'test-project', version: '1.0.0' },
+    files: {
+      'src/index.js': 'console.log("test")',
+      'tests/test.js': 'const assert = require("assert")',
+    },
+  })
+}
+
+function runConsumerGeneration(testDir) {
+  const licenseDirectory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cqa-consumer-workflow-license-')
+  )
+  const env = {
+    ...process.env,
+    NODE_ENV: 'test',
+    QAA_DEVELOPER: 'true',
+    QAA_LICENSE_DIR: licenseDirectory,
+  }
+
+  execFileSync(process.execPath, [setupPath, '--workflow-minimal'], {
+    cwd: testDir,
+    stdio: 'pipe',
+    env,
+  })
+  const policy = JSON.parse(
+    execFileSync(
+      process.execPath,
+      [setupPath, '--write-test-impact', '--json'],
+      { cwd: testDir, stdio: 'pipe', encoding: 'utf8', env }
+    )
+  )
+
+  return {
+    licenseDirectory,
+    policy,
+    workflow: fs.readFileSync(
+      path.join(testDir, '.github', 'workflows', 'quality.yml'),
+      'utf8'
+    ),
+  }
 }
 
 const QA_ARCHITECT_ONLY_CONTENT = [
@@ -667,6 +709,130 @@ bbb
     () => yaml.load(pro),
     'Pro assurance workflow must be valid YAML'
   )
+  console.log('✅ PASS\n')
+})()
+
+// Test 9: Consumer profile and test-impact behavior compose through the CLI
+;(() => {
+  console.log('Test 9: Consumer profile and test-impact matrix')
+
+  const cases = [
+    {
+      name: 'Node engine floor',
+      packageJson: {
+        name: 'node-engine-consumer',
+        version: '1.0.0',
+        packageManager: 'npm@11.5.2',
+        engines: { node: '>=24' },
+        scripts: { test: 'node --test' },
+      },
+      files: {
+        'package-lock.json': '{}\n',
+        'test/example.test.js': "require('assert').ok(true)\n",
+      },
+      assertResult({ workflow, policy }) {
+        assert(
+          workflow.includes("node-version: '24.0.0'"),
+          'Node engine consumer must use its declared Node 24 floor'
+        )
+        assert(
+          !workflow.includes("node-version: '20'") &&
+            !workflow.includes("node-version: '22'") &&
+            !workflow.includes('node-version: [22]'),
+          'Node engine consumer must not retain an incompatible Node floor'
+        )
+        assert.strictEqual(policy.policy.jsRunner, 'node')
+        assert.deepStrictEqual(policy.policy.fallback, [
+          { executable: 'npm', args: ['run', 'test'] },
+        ])
+      },
+    },
+    {
+      name: 'Dormant pytest configuration',
+      packageJson: {
+        name: 'dormant-pytest-consumer',
+        version: '1.0.0',
+        packageManager: 'npm@11.5.2',
+        scripts: { test: 'vitest run' },
+        devDependencies: { vitest: '^3.0.0' },
+      },
+      files: {
+        'package-lock.json': '{}\n',
+        'pyproject.toml': '[tool.pytest.ini_options]\n',
+        'requirements-dev.txt': 'pytest==8.4.1\n',
+        'tests/example.test.js': 'export {}\n',
+      },
+      assertResult({ workflow, policy }) {
+        assert(
+          !workflow.includes('pytest'),
+          'Dormant pytest configuration must not activate Python workflow behavior'
+        )
+        assert.strictEqual(policy.inventory.python, false)
+        assert.strictEqual(policy.policy.jsRunner, 'vitest')
+        assert.deepStrictEqual(policy.policy.audits[0].commands, [
+          { executable: 'npm', args: ['run', 'test'] },
+        ])
+      },
+    },
+    {
+      name: 'Composed pnpm test runner',
+      packageJson: {
+        name: 'composed-pnpm-consumer',
+        version: '1.0.0',
+        packageManager: 'pnpm@10.12.1',
+        scripts: {
+          test: 'pnpm run test:unit && pnpm run test:cycle',
+          'test:unit': 'node --test',
+          'test:cycle': 'pnpm run test:unit',
+        },
+      },
+      files: {
+        'pnpm-lock.yaml': 'lockfileVersion: 9\n',
+        'tests/example.test.js': "require('assert').ok(true)\n",
+      },
+      assertResult({ workflow, policy }) {
+        assert(
+          workflow.includes('corepack prepare pnpm@10.12.1 --activate'),
+          'pnpm consumer must activate its declared package-manager version'
+        )
+        assert.strictEqual(policy.policy.jsRunner, 'node')
+        assert.deepStrictEqual(policy.policy.fallback, [
+          { executable: 'pnpm', args: ['run', 'test'] },
+        ])
+      },
+    },
+  ]
+
+  for (const testCase of cases) {
+    const testDir = createConsumerRepo({
+      packageJson: testCase.packageJson,
+      files: testCase.files,
+    })
+    let licenseDirectory
+    try {
+      const result = runConsumerGeneration(testDir)
+      licenseDirectory = result.licenseDirectory
+      assert.strictEqual(
+        result.policy.status,
+        'ready',
+        `${testCase.name} must produce a ready test-impact policy`
+      )
+      assert.deepStrictEqual(result.policy.files, [
+        '.buildproven/test-impact.json',
+      ])
+      assert.doesNotThrow(
+        () => yaml.load(result.workflow),
+        `${testCase.name} must produce valid YAML`
+      )
+      testCase.assertResult(result)
+    } finally {
+      fs.rmSync(testDir, { recursive: true, force: true })
+      if (licenseDirectory) {
+        fs.rmSync(licenseDirectory, { recursive: true, force: true })
+      }
+    }
+  }
+
   console.log('✅ PASS\n')
 })()
 
