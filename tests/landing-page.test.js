@@ -6,6 +6,8 @@ const path = require('path')
 
 const landingPath = path.join(__dirname, '..', 'docs', 'landing', 'index.html')
 const html = fs.readFileSync(landingPath, 'utf8')
+const PRO_LAUNCH_LIST =
+  'mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list'
 
 const ids = new Set(
   [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1])
@@ -29,8 +31,17 @@ assert.ok(
   'Free audit CTA must link to the documented Quick Start'
 )
 assert.ok(
-  hrefs.includes('https://buildproven.ai/qa-architect'),
-  'Pro CTA must link to the canonical product page'
+  hrefs.includes(PRO_LAUNCH_LIST),
+  'Pro CTA must join the launch list while checkout is closed'
+)
+assert.ok(
+  !hrefs.includes('https://buildproven.ai/qa-architect'),
+  'Pro CTA must not link back to its own product page'
+)
+assert.match(
+  html,
+  /Paid checkout is not open\./,
+  'Pro offer must disclose that paid checkout is closed'
 )
 assert.match(
   html,
@@ -100,6 +111,19 @@ assert.ok(
     'https://github.com/buildproven/qa-architect#quick-start'
   ),
   'Beehiiv Free CTA must link to the documented Quick Start'
+)
+assert.ok(
+  beehiivHrefs.includes(PRO_LAUNCH_LIST),
+  'Beehiiv Pro CTA must join the launch list while checkout is closed'
+)
+assert.ok(
+  !beehiivHrefs.includes('https://buildproven.ai/qa-architect#pro'),
+  'Beehiiv Pro CTA must not link back to its own offer'
+)
+assert.match(
+  beehiivHtml,
+  /Paid checkout is not open\./,
+  'Beehiiv Pro offer must disclose that paid checkout is closed'
 )
 assert.match(
   beehiivHtml,

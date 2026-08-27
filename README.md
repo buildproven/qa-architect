@@ -273,11 +273,14 @@ behavioral-relevance checks rather than treating percentage coverage as proof.
 | ---------------------------- | ---- | ---- |
 | GitHub Actions cost analyzer | ❌   | ✅   |
 
-### Get Pro
+### Pro launch status
 
-**Purchase:** [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
+Paid checkout is not open. Join the
+[Pro launch list](mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list)
+for availability updates. Joining the list does not create a subscription or
+issue a key.
 
-After purchase, you'll receive a license key via email (QAA-XXXX-XXXX-XXXX-XXXX).
+If you already have a BuildProven-issued key, use the commands below.
 
 **Activate your license:**
 
@@ -434,7 +437,10 @@ as `.husky/pre-push` to roll back. Custom hooks are not changed.
 
 ### License
 
-**Commercial License (freemium)** — free tier covers the basic CLI; Pro features require a paid subscription. See [LICENSE](LICENSE).
+**Apache-2.0 source with a supported paid tier** — Apache-2.0 governs the
+source code. BuildProven-issued subscriptions and license keys govern access to
+the supported Pro tier in the official package. See [LICENSE](LICENSE) and
+[COMMERCIAL.md](COMMERCIAL.md).
 
 ## Tech Stack
 
@@ -628,7 +634,7 @@ See the [contribution guidelines](https://github.com/buildproven/qa-architect/bl
 The marketing/checkout page source lives in the
 [repository landing-page directory](https://github.com/buildproven/qa-architect/tree/main/docs/landing).
 
-### Purchasing Pro
+### Pro launch status
 
 Pro tier ($29/mo or $290/yr) includes:
 
@@ -638,11 +644,15 @@ Pro tier ($29/mo or $290/yr) includes:
 - Multi-language support (Python, Rust, Ruby, and Shell scripts)
 - Unlimited private repos and runs
 
-Purchase at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect)
+Paid checkout is not open. Join the
+[Pro launch list](mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list)
+for availability updates. This does not create a subscription or issue a key.
 
 ### Server-Side Setup (Maintainers Only)
 
-The billing system uses Polar.sh webhooks to manage licenses. If you're deploying your own instance:
+This repository contains a legacy Polar webhook implementation for operators
+who deploy their own instance. It is not evidence of BuildProven's current
+production payment authority. If you use this reference implementation:
 
 1. Set up webhook handler (see `webhook-handler.js`)
 2. Configure Polar.sh products and webhook secret
@@ -660,7 +670,10 @@ an issue in this repository.
 
 ## License
 
-Source code is licensed under **Apache-2.0** (see [LICENSE](LICENSE)). Use of paid **Pro features** at runtime is additionally governed by the commercial terms in [COMMERCIAL.md](COMMERCIAL.md). The base CLI is free to use; Pro features require a paid subscription.
+Source code is licensed under **Apache-2.0** (see [LICENSE](LICENSE)).
+BuildProven-issued subscriptions, keys, updates, and support are governed by
+[COMMERCIAL.md](COMMERCIAL.md). Those terms do not reduce rights granted by
+Apache-2.0.
 
 ## Legal
 
