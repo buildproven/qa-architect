@@ -3,6 +3,15 @@
   "jsRunner": "node",
   "mappings": [
     {
+      "paths": [".semgrep/vibe-audit-rules.yaml"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/semgrep-rule-precision.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["lib/blob-storage.js"],
       "commands": [
         {
