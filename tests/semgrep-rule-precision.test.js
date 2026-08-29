@@ -279,6 +279,27 @@ if (!semgrepAvailable()) {
     )
   })
 
+  test('express-no-helmet retains registrations before late Helmet', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          "const helmet = require('helmet')",
+          'const app = express()',
+          "app.get('/unsafe', unsafeHandler)",
+          'app.use(helmet())',
+          "app.get('/safe', safeHandler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.deepStrictEqual(
+      results.map(result => result.start.line),
+      [4]
+    )
+  })
+
   test('verbose-error-to-client reports raw catch errors and direct aliases', () => {
     const results = resultsFor(
       {
@@ -334,6 +355,34 @@ if (!semgrepAvailable()) {
           '  res.status(500).json({ error })',
           '})',
           "stream.on('error', error => {",
+          '  res.status(500).json({ error })',
+          '})',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(
+      results.map(result => result.start.line),
+      [3, 6, 9, 12]
+    )
+  })
+
+  test('verbose-error-to-client tracks function-style error callbacks', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const fs = require('fs')",
+          'app.use(function (error, req, res, next) {',
+          '  res.status(500).json({ error })',
+          '})',
+          'work().catch(function (error) {',
+          '  res.status(500).json({ error })',
+          '})',
+          "fs.readFile('a', function (error, data) {",
+          '  res.status(500).json({ error })',
+          '})',
+          "stream.on('error', function (error) {",
           '  res.status(500).json({ error })',
           '})',
           '',

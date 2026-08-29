@@ -192,7 +192,19 @@ rules:
           - pattern: $ERR
       - patterns:
           - pattern-inside: |
+              $APP.use(function ($ERR, $REQ, $RES, $NEXT) {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
               $PROMISE.catch(($ERR) => {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $PROMISE.catch(function ($ERR) {
                 ...
               })
           - pattern: $ERR
@@ -207,7 +219,22 @@ rules:
               regex: '^(access|appendFile|chmod|chown|close|copyFile|cp|fchmod|fchown|fdatasync|fstat|fsync|ftruncate|futimes|lchmod|lchown|link|lstat|lutimes|mkdir|mkdtemp|open|opendir|read|readFile|readdir|readlink|realpath|rename|rm|rmdir|stat|symlink|truncate|unlink|utimes|write|writeFile)$'
       - patterns:
           - pattern-inside: |
+              fs.$METHOD(..., function ($ERR, ...) {
+                ...
+              })
+          - pattern: $ERR
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(access|appendFile|chmod|chown|close|copyFile|cp|fchmod|fchown|fdatasync|fstat|fsync|ftruncate|futimes|lchmod|lchown|link|lstat|lutimes|mkdir|mkdtemp|open|opendir|read|readFile|readdir|readlink|realpath|rename|rm|rmdir|stat|symlink|truncate|unlink|utimes|write|writeFile)$'
+      - patterns:
+          - pattern-inside: |
               $EMITTER.on('error', ($ERR) => {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $EMITTER.on('error', function ($ERR) {
                 ...
               })
           - pattern: $ERR
@@ -249,26 +276,42 @@ rules:
       response headers (X-Frame-Options, HSTS, CSP, etc.) automatically.
     severity: WARNING
     languages: [javascript, typescript]
-    patterns:
-      - pattern-inside: |
-          const $APP = express()
-          ...
-      - pattern-either:
-          - pattern: $APP.use(...)
-          - pattern: $APP.get(...)
-          - pattern: $APP.post(...)
-          - pattern: $APP.put(...)
-          - pattern: $APP.patch(...)
-          - pattern: $APP.delete(...)
-          - pattern: $APP.options(...)
-          - pattern: $APP.head(...)
-          - pattern: $APP.all(...)
-      - pattern-not: $APP.use(helmet(...))
-      - pattern-not-inside: |
-          const $APP = express()
-          ...
-          $APP.use(helmet(...))
-          ...
+    pattern-either:
+      # No visible app-wide Helmet: report every registration.
+      - patterns:
+          - pattern-inside: |
+              const $APP = express()
+              ...
+          - pattern-either:
+              - pattern: $APP.use(...)
+              - pattern: $APP.get(...)
+              - pattern: $APP.post(...)
+              - pattern: $APP.put(...)
+              - pattern: $APP.patch(...)
+              - pattern: $APP.delete(...)
+              - pattern: $APP.options(...)
+              - pattern: $APP.head(...)
+              - pattern: $APP.all(...)
+          - pattern-not: $APP.use(helmet(...))
+          - pattern-not-inside: |
+              const $APP = express()
+              ...
+              $APP.use(helmet(...))
+              ...
+      # Helmet exists but is late: bind the result to each earlier call's first
+      # argument so changed-line assurance retains that exact registration.
+      - patterns:
+          - pattern: |
+              const $APP = express()
+              ...
+              $APP.$METHOD($FIRST, ...)
+              ...
+              $APP.use(helmet(...))
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(use|get|post|put|patch|delete|options|head|all)$'
+          - focus-metavariable: $FIRST
+          - pattern-not: $APP.use(helmet(...))
     metadata:
       category: security
       rule-version: '1.1.0'

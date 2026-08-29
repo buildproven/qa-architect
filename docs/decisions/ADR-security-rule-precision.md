@@ -32,9 +32,10 @@ only their match contracts more precise:
    Each result is located on its unsafe registration, so changed-line PR
    Assurance retains a newly added exposed path when Helmet is absent. A
    path-scoped Helmet call does not satisfy the app-wide contract. Semgrep
-   Community Edition cannot reliably prove statement order or control-flow
-   dominance, so late and conditional Helmet registration remain documented
-   static-analysis limitations.
+   Community Edition can bind a late-Helmet finding to the first argument of
+   each earlier registration, which keeps its changed-line range. It cannot
+   reliably prove control-flow dominance, so conditional Helmet registration
+   remains a documented static-analysis limitation.
 2. `verbose-error-to-client` will retain direct syntactic detection for
    `.message` and `.stack` response sinks, including sinks inside helpers. Only
    the broad raw `{ error: $VALUE }` shape will use Semgrep data-flow tracking
@@ -53,10 +54,10 @@ only their match contracts more precise:
 3. Precision tests will exercise the rule pack through Semgrep and retain its
    raw result records. A vulnerable Express application must produce exactly
    one result per unsafe registration at that registration's range. Helmet
-   in the application makes the structural finding silent. Changed-line
-   regressions will prove that PR Assurance retains a newly inserted unsafe
-   route when older unsafe routes exist and Helmet is absent. Path-scoped
-   Helmet fixtures remain findings. Error
+   before a registration makes that registration silent, while late Helmet
+   retains earlier registrations. Changed-line regressions will prove that PR
+   Assurance retains a newly inserted unsafe route when older unsafe routes
+   exist. Path-scoped Helmet fixtures remain findings. Error
    tests cover catch bindings, Express
    error middleware, rejected-promise callbacks, allowlisted Node core
    error-first callbacks, `error` event handlers, and direct aliases. A
@@ -96,6 +97,8 @@ only their match contracts more precise:
   `express-no-helmet` at every unsafe registration.
 - A newly added route in an application with no Helmet still produces
   `express-no-helmet` at the route range in changed-line PR Assurance.
+- A route registered before Helmet produces `express-no-helmet` at that route's
+  line, while a later route is silent.
 - A real raw error value, error message, or stack from a catch binding, Express
   error middleware, rejected promise, allowlisted Node core error-first
   callback, `error` event handler, or direct alias and returned with HTTP 500
@@ -139,4 +142,6 @@ changed-line ranges, error-source precision, helper-boundary detection, and raw
 acceptance evidence. Implementation tests then showed that Semgrep Community
 Edition cannot reliably distinguish a top-level Helmet call from the same call
 inside a conditional. The accepted design records that limitation instead of
-claiming unsupported control-flow proof.
+claiming unsupported control-flow proof. Independent implementation review then
+found that late Helmet and function-style callbacks needed explicit executable
+coverage; both were added before delivery.
