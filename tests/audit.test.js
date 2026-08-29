@@ -92,13 +92,14 @@ test('maps ERROR severity to high', () => {
     extra: {
       severity: 'ERROR',
       message: 'test message',
-      metadata: { cwe: 'CWE-400' },
+      metadata: { cwe: 'CWE-400', 'rule-version': '1.1.0' },
     },
   }
   const f = mapSemgrepFinding(raw)
   assert.strictEqual(f.severity, 'high')
   assert.strictEqual(f.file, 'src/index.js')
   assert.strictEqual(f.line, 10)
+  assert.strictEqual(f.ruleVersion, '1.1.0')
 })
 
 test('escalates CWE-89 (SQL injection) to critical', () => {

@@ -48,10 +48,10 @@ const RULE_FILES = ['defensive-patterns.yaml', 'vibe-audit-rules.yaml'].map(f =>
 
 /**
  * Run the audit rule set over a tree of {relativePath: source} files and
- * return the set of rule ids that fired (short id, e.g. "dynamic-require-variable").
+ * return the raw Semgrep results so precision tests can assert count and range.
  * Relative paths matter: some rules are scoped via `paths:` to api/server dirs.
  */
-function rulesFiredOn(files) {
+function ruleResultsOn(files) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-rule-test-'))
   const created = []
   try {
@@ -68,15 +68,31 @@ function rulesFiredOn(files) {
       encoding: 'utf8',
       timeout: 60_000,
     })
-    const parsed = JSON.parse(r.stdout || '{"results":[]}')
-    return new Set(
-      (parsed.results || []).map(x => String(x.check_id).split('.').pop())
+    assert.ok(!r.error, r.error?.message)
+    assert.ok(
+      r.status === 0 || r.status === 1,
+      `semgrep exited ${r.status}: ${r.stderr}`
     )
+    const parsed = JSON.parse(r.stdout || '{"results":[],"errors":[]}')
+    assert.deepStrictEqual(parsed.errors || [], [], 'semgrep reported errors')
+    return parsed.results || []
   } finally {
     // Explicit-path cleanup only (no rm -rf through a variable).
     for (const f of created) fs.rmSync(f, { force: true })
     fs.rmSync(root, { recursive: true, force: true })
   }
+}
+
+function shortRuleId(result) {
+  return String(result.check_id).split('.').pop()
+}
+
+function resultsFor(files, ruleId) {
+  return ruleResultsOn(files).filter(result => shortRuleId(result) === ruleId)
+}
+
+function rulesFiredOn(files) {
+  return new Set(ruleResultsOn(files).map(shortRuleId))
 }
 
 if (!semgrepAvailable()) {
@@ -241,6 +257,96 @@ if (!semgrepAvailable()) {
     assert.ok(fired.has('hardcoded-admin-identity'))
   })
 
+  test('express-no-helmet reports each unsafe registration at its own range', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          'const app = express()',
+          "app.use('/api', apiRouter)",
+          "app.get('/health', healthHandler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.deepStrictEqual(
+      results.map(result => [result.start.line, result.end.line]),
+      [
+        [3, 3],
+        [4, 4],
+      ]
+    )
+  })
+
+  test('verbose-error-to-client reports raw catch errors and direct aliases', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          'async function h(req, res) {',
+          '  try { await work() } catch (error) {',
+          '    const exposed = error',
+          '    return res.status(500).json({ error: exposed })',
+          '  }',
+          '}',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(
+      results.map(result => result.start.line),
+      [4]
+    )
+  })
+
+  test('verbose-error-to-client retains direct message and stack sinks', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          'function send(res, value) {',
+          '  res.status(500).json({ error: value.message })',
+          '  res.status(500).json({ stack: value.stack })',
+          '}',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(
+      results.map(result => result.start.line),
+      [2, 3]
+    )
+  })
+
+  test('verbose-error-to-client tracks explicit framework and Node error sources', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const fs = require('fs')",
+          'app.use((error, req, res, next) => {',
+          '  res.status(500).json({ error })',
+          '})',
+          'work().catch(error => {',
+          '  res.status(500).json({ error })',
+          '})',
+          "fs.readFile('a', (error, data) => {",
+          '  res.status(500).json({ error })',
+          '})',
+          "stream.on('error', error => {",
+          '  res.status(500).json({ error })',
+          '})',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(
+      results.map(result => result.start.line),
+      [3, 6, 9, 12]
+    )
+  })
+
   console.log('\nsemgrep rule precision — false positives stay silent')
 
   test('static require("crypto") does NOT fire dynamic-require-variable', () => {
@@ -345,6 +451,73 @@ if (!semgrepAvailable()) {
         "export default function h(){ if (error.name === 'BlobNotFoundError') {} }\n",
     })
     assert.ok(!fired.has('hardcoded-admin-identity'))
+  })
+
+  test('global Helmet before registration does NOT fire express-no-helmet', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          "const helmet = require('helmet')",
+          'const app = express()',
+          'app.use(',
+          '  helmet({ contentSecurityPolicy: false })',
+          ')',
+          "app.get('/safe', safeHandler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.deepStrictEqual(results, [])
+  })
+
+  test('path-scoped Helmet does NOT satisfy global protection', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          "const helmet = require('helmet')",
+          'const app = express()',
+          "app.use('/admin', helmet())",
+          "app.get('/public', publicHandler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.ok(results.some(result => result.start.line === 5))
+  })
+
+  test('fixed and generic error messages stay silent', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const publicMessage = 'Internal server error'",
+          'res.status(500).json({ error: publicMessage })',
+          'res.status(500).json({ error: makePublicMessage() })',
+          "res.status(500).json({ error: 'Internal server error' })",
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(results, [])
+  })
+
+  test('ordinary first callback values are not raw error sources', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          'items.map((value, index) => {',
+          '  res.status(500).json({ error: value })',
+          '})',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(results, [])
   })
 
   test('admin check OUTSIDE api/server dirs is out of scope (no fire)', () => {
