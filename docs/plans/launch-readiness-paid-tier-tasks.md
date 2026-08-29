@@ -6,20 +6,28 @@ Delivery claim: local product readiness for a truthful launch-list prelaunch.
 This plan does not authorize checkout, deployment, publishing, entitlement
 migration, customer notices, or a production payment-provider change.
 
-## Local product delivery
+## Delivery tasks
 
-- [x] Replace circular Pro purchase links with a clear launch-list action.
-- [x] State that paid checkout is not open.
-- [x] Align subscription terms with the Apache-2.0 source license.
-- [x] Label fixture-backed purchase coverage as simulated evidence.
-- [x] Keep license activation fail-closed for unissued or invalid keys.
-- [x] Add tests that reject circular or placeholder Pro calls to action.
-- [x] Document the commercial launch boundary and rollback conditions.
-- [x] Remove the public audit's false findings on the compliant webhook without
-      source suppressions or report filtering.
-- [x] Preserve true-positive fixtures and rule-version evidence for the changed
-      security matchers.
-- [x] Define the evidence inputs for protected exact-head review and delivery.
+- [x] 1.0 Define the truthful commercial boundary
+  - Phase: contract
+  - Delivers: Accepted launch-boundary and matcher-precision decisions.
+  - Evidence: `docs/decisions/ADR-launch-commercial-boundary.md` and `docs/decisions/ADR-security-rule-precision.md`.
+- [x] 2.0 Deliver the launch-list prelaunch product
+  - Phase: implementation
+  - Delivers: Clear launch-list actions, compatible commercial terms, simulated purchase labels, fail-closed activation, and landing contract tests.
+  - Verification: `npm run prerelease` and `node tests/landing-page.test.js`.
+- [x] 3.0 Restore trustworthy public audit results
+  - Phase: implementation
+  - Delivers: Precise missing-Helmet and verbose-error matchers, visible scanner failures, semantic rule versions, and exact-range regression tests.
+  - Verification: `node tests/semgrep-rule-precision.test.js` and `node setup.js --audit --json --out <temporary-file> --no-fail`.
+- [ ] 4.0 Verify the canonical hosted prelaunch page
+  - Phase: hosted
+  - Delivers: The reviewed launch-list action on the canonical hosted page after an approved deployment.
+  - Evidence: Deployment receipt and hosted browser journey bound to the deployed revision.
+- [ ] 5.0 Validate paid-tier demand and lifecycle
+  - Phase: validation
+  - Delivers: Real design-partner use, paid or declined decisions, and an approved complete billing and entitlement lifecycle transaction.
+  - Evidence: Design-partner records plus payment, webhook, entitlement, activation, cancellation, refund, and revocation receipts.
 
 ## Paid-tier value assessment
 
