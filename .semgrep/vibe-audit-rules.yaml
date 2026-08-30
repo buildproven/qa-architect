@@ -208,20 +208,65 @@ rules:
                 ...
               })
           - pattern: $ERR
+      # Namespace calls are error-first only when the receiver is bound to the
+      # Node fs module. A coincidental object named `fs` is not trusted.
       - patterns:
-          - pattern-inside: |
-              fs.$METHOD(..., ($ERR, ...) => {
-                ...
-              })
+          - pattern-either:
+              - pattern-inside: |
+                  const $FS = require('fs')
+                  ...
+              - pattern-inside: |
+                  const $FS = require('node:fs')
+                  ...
+              - pattern-inside: |
+                  import * as $FS from 'fs'
+                  ...
+              - pattern-inside: |
+                  import * as $FS from 'node:fs'
+                  ...
+              - pattern-inside: |
+                  import $FS from 'fs'
+                  ...
+              - pattern-inside: |
+                  import $FS from 'node:fs'
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  $FS.$METHOD(..., ($ERR, ...) => {
+                    ...
+                  })
+              - pattern-inside: |
+                  $FS.$METHOD(..., function ($ERR, ...) {
+                    ...
+                  })
           - pattern: $ERR
           - metavariable-regex:
               metavariable: $METHOD
               regex: '^(access|appendFile|chmod|chown|close|copyFile|cp|fchmod|fchown|fdatasync|fstat|fsync|ftruncate|futimes|lchmod|lchown|link|lstat|lutimes|mkdir|mkdtemp|open|opendir|read|readFile|readdir|readlink|realpath|rename|rm|rmdir|stat|symlink|truncate|unlink|utimes|write|writeFile)$'
+      # Named imports and destructured requires bind the callable directly.
       - patterns:
-          - pattern-inside: |
-              fs.$METHOD(..., function ($ERR, ...) {
-                ...
-              })
+          - pattern-either:
+              - pattern-inside: |
+                  const { $METHOD } = require('fs')
+                  ...
+              - pattern-inside: |
+                  const { $METHOD } = require('node:fs')
+                  ...
+              - pattern-inside: |
+                  import { $METHOD } from 'fs'
+                  ...
+              - pattern-inside: |
+                  import { $METHOD } from 'node:fs'
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  $METHOD(..., ($ERR, ...) => {
+                    ...
+                  })
+              - pattern-inside: |
+                  $METHOD(..., function ($ERR, ...) {
+                    ...
+                  })
           - pattern: $ERR
           - metavariable-regex:
               metavariable: $METHOD

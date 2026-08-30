@@ -43,8 +43,10 @@ only their match contracts more precise:
    the error parameter of Express error middleware, a rejected-promise callback
    parameter, a callback parameter from an allowlisted Node core error-first
    API, and an `error` event-handler parameter. The error-first allowlist is
-   explicit and versioned with the rule; callback position alone is not proof
-   that a value is an error. Event sources are constrained to callbacks
+   explicit and versioned with the rule. Node `fs` sources must be bound to an
+   `fs` or `node:fs` namespace, named import, or destructured require; receiver
+   names alone are not trusted. Callback position alone is not proof that a
+   value is an error. Event sources are constrained to callbacks
    registered for the literal `error` event. Semgrep's local propagation keeps
    direct aliases of raw error values tainted. Fixed string literals, generic
    message variables, ordinary first callback values, and generic message
@@ -64,7 +66,8 @@ only their match contracts more precise:
    non-error first callback value is a required false-positive fixture. Fixed
    literals, generic variables, and helper calls stay silent. Set-based rule-ID
    checks remain only as a convenience for older fixtures; they are not enough
-   for these regression tests.
+   for these regression tests. Scanner absence is a test failure, not a skip,
+   because this suite is the focused test-impact gate for matcher changes.
 4. Change each rule's semantic version from `1.0.0` to `1.1.0` and the shipped
    rule-pack version from `2.0.0` to `2.1.0`. The catalog and both Audit and PR
    Assurance adapters will preserve the declared per-rule version. Existing
@@ -107,6 +110,8 @@ only their match contracts more precise:
   when Semgrep Community Edition cannot propagate taint across the call.
 - A fixed generic message stored in a variable or returned by a helper does not
   produce `verbose-error-to-client` solely because it is an identifier or call.
+- A Node `fs` namespace alias or named import remains an error source, while an
+  unrelated object named `fs` does not become one.
 - A compliant application produces no finding for these rules and needs no
   source suppression.
 - One unsafe registration or error response produces one observation per rule
@@ -144,4 +149,7 @@ Edition cannot reliably distinguish a top-level Helmet call from the same call
 inside a conditional. The accepted design records that limitation instead of
 claiming unsupported control-flow proof. Independent implementation review then
 found that late Helmet and function-style callbacks needed explicit executable
-coverage; both were added before delivery.
+coverage. The next review found that a literal `fs` receiver both lost import
+aliases and trusted unrelated objects, and that focused matcher tests could
+silently skip without Semgrep. Import-bound sources, alias fixtures, a false
+source fixture, and fail-closed scanner preflight were added before delivery.

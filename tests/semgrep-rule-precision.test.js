@@ -96,8 +96,8 @@ function rulesFiredOn(files) {
 }
 
 if (!semgrepAvailable()) {
-  console.log('\nsemgrep-rule-precision: ⏭️  semgrep not installed — skipping')
-  skipped = 1
+  console.error('\nsemgrep-rule-precision: ❌ semgrep is required')
+  failed = 1
 } else {
   console.log('\nsemgrep rule precision — true positives fire')
 
@@ -396,6 +396,39 @@ if (!semgrepAvailable()) {
     )
   })
 
+  test('verbose-error-to-client binds Node fs aliases and named imports', () => {
+    const results = resultsFor(
+      {
+        'server/namespace.js': [
+          "const nodeFs = require('node:fs')",
+          "nodeFs.readFile('a', (error, data) => {",
+          '  res.status(500).json({ error })',
+          '})',
+          '',
+        ].join('\n'),
+        'server/destructured.js': [
+          "const { readFile } = require('node:fs')",
+          "readFile('a', function (error, data) {",
+          '  res.status(500).json({ error })',
+          '})',
+          '',
+        ].join('\n'),
+        'server/imported.js': [
+          "import * as nodeFs from 'node:fs'",
+          "nodeFs.readFile('a', (error, data) => {",
+          '  res.status(500).json({ error })',
+          '})',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(
+      results.map(result => path.basename(result.path)).sort(),
+      ['destructured.js', 'imported.js', 'namespace.js']
+    )
+  })
+
   console.log('\nsemgrep rule precision — false positives stay silent')
 
   test('static require("crypto") does NOT fire dynamic-require-variable', () => {
@@ -559,6 +592,22 @@ if (!semgrepAvailable()) {
       {
         'server/app.js': [
           'items.map((value, index) => {',
+          '  res.status(500).json({ error: value })',
+          '})',
+          '',
+        ].join('\n'),
+      },
+      'verbose-error-to-client'
+    )
+    assert.deepStrictEqual(results, [])
+  })
+
+  test('an unrelated object named fs is not an error-first source', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          'const fs = makeUserlandStore()',
+          "fs.readFile('a', (value, metadata) => {",
           '  res.status(500).json({ error: value })',
           '})',
           '',
