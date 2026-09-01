@@ -707,6 +707,38 @@ test('artifact directory writes two projections and preserves unrelated files', 
   assert.strictEqual(fs.readFileSync(unrelatedPath, 'utf8'), 'keep me\n')
 })
 
+test('artifact directory refuses dangling output symlinks before any write', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-receipt-'))
+  const escapedPath = path.join(target.root, 'escaped-receipt.json')
+  const outputPath = path.join(artifactDir, 'release-receipt.json')
+  fs.symlinkSync(escapedPath, outputPath)
+
+  assert.throws(
+    () => writeReceiptBundle(artifactDir, report),
+    /Refusing to write Release Receipt through a symlink/
+  )
+  assert.ok(!fs.existsSync(escapedPath))
+  assert.ok(!fs.existsSync(path.join(artifactDir, 'release-receipt.md')))
+})
+
+test('artifact directory refuses a symlinked destination directory', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-receipt-'))
+  const redirectedDir = path.join(parent, 'redirected')
+  const artifactDir = path.join(parent, 'artifacts')
+  fs.mkdirSync(redirectedDir)
+  fs.symlinkSync(redirectedDir, artifactDir)
+
+  assert.throws(
+    () => writeReceiptBundle(artifactDir, report),
+    /Release Receipt artifact directory must not be a symlink/
+  )
+  assert.deepStrictEqual(fs.readdirSync(redirectedDir), [])
+})
+
 test('receipt create routes through the packaged CLI and writes the bundle', () => {
   const target = fixture()
   const artifactDir = path.join(target.root, '.qa-architect', 'release-receipt')

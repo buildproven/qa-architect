@@ -571,6 +571,40 @@ if (!semgrepAvailable()) {
     assert.ok(results.some(result => result.start.line === 5))
   })
 
+  test('a local function named helmet does NOT satisfy global protection', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          'const app = express()',
+          'const helmet = () => (request, response, next) => next()',
+          'app.use(helmet())',
+          "app.get('/unprotected', handler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.ok(results.some(result => result.start.line === 5))
+  })
+
+  test('an aliased Helmet import satisfies global protection', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          "const secureHeaders = require('helmet')",
+          'const app = express()',
+          'app.use(secureHeaders())',
+          "app.get('/safe', handler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.deepStrictEqual(results, [])
+  })
+
   test('fixed and generic error messages stay silent', () => {
     const results = resultsFor(
       {

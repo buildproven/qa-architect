@@ -337,29 +337,44 @@ rules:
               - pattern: $APP.options(...)
               - pattern: $APP.head(...)
               - pattern: $APP.all(...)
-          - pattern-not: $APP.use(helmet(...))
           - pattern-not-inside: |
+              const $HELMET = require('helmet')
+              ...
               const $APP = express()
               ...
-              $APP.use(helmet(...))
+              $APP.use($HELMET(...))
+              ...
+          - pattern-not-inside: |
+              import $HELMET from 'helmet'
+              ...
+              const $APP = express()
+              ...
+              $APP.use($HELMET(...))
               ...
       # Helmet exists but is late: bind the result to each earlier call's first
       # argument so changed-line assurance retains that exact registration.
       - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const $HELMET = require('helmet')
+                  ...
+              - pattern-inside: |
+                  import $HELMET from 'helmet'
+                  ...
           - pattern: |
               const $APP = express()
               ...
               $APP.$METHOD($FIRST, ...)
               ...
-              $APP.use(helmet(...))
+              $APP.use($HELMET(...))
           - metavariable-regex:
               metavariable: $METHOD
               regex: '^(use|get|post|put|patch|delete|options|head|all)$'
           - focus-metavariable: $FIRST
-          - pattern-not: $APP.use(helmet(...))
+          - pattern-not: $APP.use($HELMET(...))
     metadata:
       category: security
-      rule-version: '1.1.0'
+      rule-version: '1.2.0'
       cwe: 'CWE-693'
       fix: "const helmet = require('helmet'); app.use(helmet())"
 
