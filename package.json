@@ -1,7 +1,7 @@
 {
   "name": "create-qa-architect",
   "version": "5.16.7",
-  "description": "QA Architect - Security audit and quality automation for AI-generated codebases. Scans for OWASP Top-10 vulnerabilities, CVEs, and common vibe-coding mistakes.",
+  "description": "Revision-bound Release Receipts, security audits, and quality automation for AI-built software.",
   "main": "setup.js",
   "bin": {
     "create-qa-architect": "setup.js"
@@ -81,7 +81,9 @@
     "smart-test-strategy",
     "pre-commit",
     "dependency-monitoring",
-    "security-audit"
+    "security-audit",
+    "release-receipt",
+    "release-assurance"
   ],
   "author": "BuildProven",
   "license": "Apache-2.0",

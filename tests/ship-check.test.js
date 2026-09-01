@@ -19,7 +19,13 @@ const {
   parseEnvKeys,
   runShipCheck,
   verifyShipManifest,
+  writeReceiptBundle,
 } = require('../lib/commands/ship-check')
+const {
+  RELEASE_RECEIPT_USAGE,
+  ReleaseReceiptUsageError,
+  normalizeReleaseReceiptArgs,
+} = require('../lib/commands/release-receipt')
 
 let passed = 0
 let failed = 0
@@ -145,23 +151,27 @@ function runFixture(target, options = {}) {
   return { report, calls }
 }
 
-function verifyViaCli(target, report, filename) {
+function verifyViaCli(target, report, filename, { legacy = false } = {}) {
   const output = path.join(target.root, '.qa-architect', filename)
   fs.mkdirSync(path.dirname(output), { recursive: true })
   fs.writeFileSync(output, `${JSON.stringify(report, null, 2)}\n`)
+  const commandArgs = legacy
+    ? ['--ship-check', '--verify-ship-manifest', output, '--json']
+    : ['receipt', 'check-freshness', output, '--json']
   return spawnSync(
     process.execPath,
-    [
-      path.join(__dirname, '..', 'setup.js'),
-      '--ship-check',
-      '--verify-ship-manifest',
-      output,
-      '--json',
-    ],
+    [path.join(__dirname, '..', 'setup.js'), ...commandArgs],
     {
       cwd: target.root,
       encoding: 'utf8',
-      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
+      env: {
+        ...process.env,
+        QAA_DEVELOPER: '',
+        QAA_LICENSE_DIR: fs.mkdtempSync(
+          path.join(os.tmpdir(), 'qaa-free-receipt-license-')
+        ),
+        NODE_ENV: 'test',
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     }
   )
@@ -186,6 +196,65 @@ function manifestValidator() {
 }
 
 console.log('\nRevision-bound Ship Check')
+
+test('Release Receipt aliases normalize without changing unrelated arguments', () => {
+  assert.deepStrictEqual(normalizeReleaseReceiptArgs(['receipt', 'create']), [
+    '--ship-check',
+  ])
+  assert.deepStrictEqual(
+    normalizeReleaseReceiptArgs([
+      'receipt',
+      'check-freshness',
+      './receipt.json',
+      '--json',
+    ]),
+    ['--ship-check', '--verify-ship-manifest', './receipt.json', '--json']
+  )
+  assert.deepStrictEqual(normalizeReleaseReceiptArgs(['--audit', '--json']), [
+    '--audit',
+    '--json',
+  ])
+})
+
+test('invalid Release Receipt syntax has an actionable usage contract', () => {
+  assert.throws(
+    () => normalizeReleaseReceiptArgs(['receipt', 'verify']),
+    error =>
+      error instanceof ReleaseReceiptUsageError &&
+      error.message.includes(RELEASE_RECEIPT_USAGE)
+  )
+  assert.throws(
+    () => normalizeReleaseReceiptArgs(['receipt', 'create', 'unexpected']),
+    error => error instanceof ReleaseReceiptUsageError
+  )
+  assert.throws(
+    () =>
+      normalizeReleaseReceiptArgs([
+        'receipt',
+        'create',
+        '--verify-ship-manifest',
+        'receipt.json',
+      ]),
+    error => error instanceof ReleaseReceiptUsageError
+  )
+  assert.throws(
+    () =>
+      normalizeReleaseReceiptArgs([
+        'receipt',
+        'check-freshness',
+        'first.json',
+        'second.json',
+      ]),
+    error => error instanceof ReleaseReceiptUsageError
+  )
+  const cli = spawnSync(
+    process.execPath,
+    [path.join(__dirname, '..', 'setup.js'), 'receipt', 'verify'],
+    { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }
+  )
+  assert.strictEqual(cli.status, 2)
+  assert.match(cli.stderr, /receipt check-freshness <manifest-path>/)
+})
 
 test('parses environment keys without values or comments', () => {
   assert.deepStrictEqual(
@@ -437,10 +506,20 @@ test('identical inputs have the same identity despite timestamp metadata', () =>
   assert.strictEqual(first.revision.diffSha256, second.revision.diffSha256)
 })
 
-test('the CLI independently verifies a saved manifest from the checkout', () => {
+test('the free CLI checks a saved manifest for local checkout freshness', () => {
   const target = fixture()
   const report = runFixture(target).report
   const cli = verifyViaCli(target, report, 'pass-manifest.json')
+  assert.strictEqual(cli.status, 0, cli.stderr || cli.stdout)
+  assert.strictEqual(JSON.parse(cli.stdout).fresh, true)
+})
+
+test('the legacy manifest verifier remains compatible', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const cli = verifyViaCli(target, report, 'legacy-manifest.json', {
+    legacy: true,
+  })
   assert.strictEqual(cli.status, 0, cli.stderr || cli.stdout)
   assert.strictEqual(JSON.parse(cli.stdout).fresh, true)
 })
@@ -477,7 +556,7 @@ test('fresh BLOCK and INCOMPLETE manifests retain nonzero CLI verdicts', () => {
   assert.strictEqual(JSON.parse(incompleteCli.stdout).fresh, true)
 })
 
-test('independent verification rejects a malformed manifest safely', () => {
+test('manifest freshness checking rejects malformed input safely', () => {
   const target = fixture()
   const verification = verifyShipManifest(target.root, {
     schemaVersion: '1.0.0',
@@ -597,8 +676,73 @@ test('human and Markdown views retain verdict and evidence identity', () => {
   const report = runFixture(target).report
   assert.ok(buildHumanReport(report).includes('Verdict: PASS'))
   const markdown = buildMarkdown(report)
-  assert.ok(markdown.startsWith('# Ship Check — PASS'))
+  assert.ok(markdown.startsWith('# Release Receipt — PASS'))
   assert.ok(markdown.includes(report.evidenceIdentity))
+})
+
+test('artifact directory writes two projections and preserves unrelated files', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-receipt-'))
+  const unrelatedPath = path.join(artifactDir, 'customer-note.txt')
+  fs.writeFileSync(unrelatedPath, 'keep me\n')
+
+  const files = writeReceiptBundle(artifactDir, report)
+
+  assert.deepStrictEqual(
+    files.map(filename => path.basename(filename)).sort(),
+    ['release-receipt.json', 'release-receipt.md']
+  )
+  assert.deepStrictEqual(
+    JSON.parse(
+      fs.readFileSync(path.join(artifactDir, 'release-receipt.json'), 'utf8')
+    ),
+    report
+  )
+  assert.ok(
+    fs
+      .readFileSync(path.join(artifactDir, 'release-receipt.md'), 'utf8')
+      .startsWith('# Release Receipt — PASS')
+  )
+  assert.strictEqual(fs.readFileSync(unrelatedPath, 'utf8'), 'keep me\n')
+})
+
+test('receipt create routes through the packaged CLI and writes the bundle', () => {
+  const target = fixture()
+  const artifactDir = path.join(target.root, '.qa-architect', 'release-receipt')
+  const cli = spawnSync(
+    process.execPath,
+    [
+      path.join(__dirname, '..', 'setup.js'),
+      'receipt',
+      'create',
+      '--base-sha',
+      target.base,
+      '--head',
+      target.head,
+      '--skip-tests',
+      '--artifact-dir',
+      artifactDir,
+      '--json',
+    ],
+    {
+      cwd: target.root,
+      encoding: 'utf8',
+      env: { ...process.env, QAA_DEVELOPER: 'true', NODE_ENV: 'test' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    }
+  )
+  assert.ok([0, 1, 2].includes(cli.status), cli.stderr || cli.stdout)
+  const receipt = JSON.parse(
+    fs.readFileSync(path.join(artifactDir, 'release-receipt.json'), 'utf8')
+  )
+  assert.strictEqual(receipt.revision.base, target.base)
+  assert.strictEqual(receipt.revision.head, target.head)
+  assert.ok(
+    fs
+      .readFileSync(path.join(artifactDir, 'release-receipt.md'), 'utf8')
+      .startsWith(`# Release Receipt — ${receipt.verdict}`)
+  )
 })
 
 console.log(`\n${passed} passed, ${failed} failed (ship-check.test.js)`)

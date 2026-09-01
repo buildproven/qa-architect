@@ -1,6 +1,18 @@
 # QA Architect
 
-**Security audit and quality automation for AI-generated codebases. One command finds the vulnerabilities your vibe-coded app ships with.**
+**Every AI-built release gets a receipt. QA Architect binds security, test,
+remediation, and runtime evidence to the exact candidate under review.**
+
+Create a Pro Release Receipt with a `PASS`, `BLOCK`, or `INCOMPLETE` verdict:
+
+```bash
+npx create-qa-architect@latest receipt create \
+  --base-sha <40-character-base-commit> \
+  --head "$(git rev-parse HEAD)" \
+  --artifact-dir /tmp/release-receipt
+```
+
+Or start with the free security audit:
 
 ```bash
 # Scan your project for security issues (free)
@@ -59,7 +71,7 @@ Runs [semgrep](https://semgrep.dev/) SAST, npm CVE audit, and direct production 
 | Direct production dependency source + npm registry evidence                   | ✅ Free             |
 | Package-age and name-confusion review signals                                 | 🔒 Pro              |
 
-**Pro tier — verified remediation:**
+**Pro tier — Release Receipt and verified remediation:**
 
 `--audit --fix` exports an inspectable, agent-neutral packet for each supported Critical/High Semgrep finding; nothing is sent to a provider. Dependency-CVE findings remain report-only. `--repair-with codex|claude --finding <id>` explicitly sends the selected packet and its redacted surrounding source context to that provider over stdin, then runs the adapter in a dedicated branch/worktree. Review the exported packet before invoking a provider. A repair is labeled `VERIFIED` only after the exact finding disappears, a regression-test delta is present when behavior is testable, focused tests pass, adjacent blocking findings do not increase, and evidence is bound to the resulting commit.
 
@@ -67,27 +79,37 @@ Pro also adds explicitly labeled, low-confidence package-age and name-confusion 
 
 **Also included:**
 
-- **Shipping assurance** (`--ship-check`) — derives required checks from the exact change, workflow tier, stack/configuration, and QA Architect risk policy; emits a revision-bound PASS/BLOCK/INCOMPLETE manifest
+- **Release Receipt** (`receipt create`) — derives required checks from the exact change, workflow tier, stack/configuration, and QA Architect risk policy; emits revision-bound JSON and Markdown with a PASS/BLOCK/INCOMPLETE verdict
 - **Changed-code PR assurance** (`--pr-check`) — exact-head Semgrep gate with baselines, SARIF annotations, and revision-bound evidence
-- **Web SaaS assurance pack** — detects Next.js, Supabase, Prisma, Drizzle, and Stripe; selects versioned deterministic/heuristic checks and names cache, RLS, and replay evidence that still requires runtime verification
+- **AI SaaS Authorization Pack** — adds explicit opt-in preview and two-user authorization evidence to the receipt, with revision binding, production-host refusal, and bounded cleanup
 - **Full-history secrets scan** (`--history-scan`) — gitleaks across entire git history
 - **Quality bootstrap** — one command adds ESLint, Prettier, Husky, lint-staged, GitHub Actions
 
-Create and independently verify assurance for an exact release candidate:
+Create a Release Receipt for an exact candidate:
 
 ```bash
-npx create-qa-architect@latest --ship-check \
+npx create-qa-architect@latest receipt create \
   --base-sha <40-character-base-commit> \
   --head "$(git rev-parse HEAD)" \
-  --json
+  --artifact-dir /tmp/release-receipt
 ```
 
-Ship Check runs every risk-required check independently and binds its identity to
+Receipt creation runs every risk-required check independently and binds its identity to
 the base/head commits, binary diff, risk policy, relevant configuration, rule
 pack, commands, results, and referenced PR/remediation evidence. A required
 check that is skipped, unavailable, timed out, or stale yields `INCOMPLETE`.
-Save the JSON output and verify it later from the candidate checkout with
-`--ship-check --verify-ship-manifest <manifest.json>`.
+Check the saved receipt later against the same local checkout and configuration:
+
+```bash
+npx create-qa-architect@latest receipt check-freshness \
+  /tmp/release-receipt/release-receipt.json
+```
+
+The freshness check detects local revision, policy, rule-pack, input, reference,
+and preview-configuration changes. It does not authenticate the receipt
+producer, prove that checks ran in trusted infrastructure, or make the
+self-hashed artifact tamper-proof. Independent authenticity requires a signed or
+CI-attested receipt, which is not part of the current product.
 
 Reproduce the required PR check locally against an exact revision:
 
@@ -129,7 +151,7 @@ Opt in to deployed-preview checks by passing an origin and a versioned config:
 ```
 
 ```bash
-npx create-qa-architect@latest --ship-check \
+npx create-qa-architect@latest receipt create \
   --base-sha <40-character-base-commit> \
   --head "$(git rev-parse HEAD)" \
   --preview-url https://my-branch.example.vercel.app \
@@ -230,12 +252,12 @@ npx create-qa-architect@latest
 
 Pro is the recurring merge-and-release workflow: it binds required checks,
 findings, remediation evidence, and the exact candidate revision into a
-verifiable PASS/BLOCK/INCOMPLETE result. The audit is the free acquisition
+Release Receipt with a PASS/BLOCK/INCOMPLETE result. The audit is the free acquisition
 surface; Pro is the evidence and repair loop used on every meaningful change.
 
 | Feature                              | Free | Pro |
 | ------------------------------------ | ---- | --- |
-| Ship Check (release-readiness)       | ❌   | ✅  |
+| Release Receipt (release-readiness)  | ❌   | ✅  |
 | PR Risk Check (diff classifier)      | ❌   | ✅  |
 | CI Doctor (workflow waste detection) | ❌   | ✅  |
 | Evidence-backed affected tests       | ❌   | ✅  |
@@ -638,7 +660,7 @@ The marketing/checkout page source lives in the
 
 Pro tier ($29/mo or $290/yr) includes:
 
-- **Release-confidence gates**: Ship Check, PR Risk Check, CI Doctor, full-history secrets scan
+- **Release-confidence gates**: Release Receipt, PR Risk Check, CI Doctor, full-history secrets scan
 - Security scanning (Gitleaks + ESLint security rules)
 - Evidence-backed affected-test policy generation
 - Multi-language support (Python, Rust, Ruby, and Shell scripts)

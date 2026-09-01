@@ -55,17 +55,17 @@ assert.match(
 )
 assert.match(
   html,
-  /Find the risk\. Prove the release\./,
-  'Landing hero must lead with the paid outcome'
+  /Every release gets a receipt\./,
+  'Landing hero must lead with the named product artifact'
 )
 assert.match(
   html,
-  /Revision-bound release assurance/,
+  /Example Release Receipt/,
   'Landing page must show a concrete Pro assurance artifact'
 )
 assert.match(
   html,
-  /Best fit: a solo builder with weekly releases/,
+  /small AI-development agencies and product studios/,
   'Landing page must explain who should pay'
 )
 assert.match(
@@ -77,6 +77,16 @@ assert.match(
   html,
   /A PASS means the configured checks and evidence are complete\./,
   'Landing page must state the assurance boundary'
+)
+assert.match(
+  html,
+  /AI SaaS Authorization Pack/,
+  'Landing page must name the flagship runtime evidence pack'
+)
+assert.match(
+  html,
+  /A freshness check does not authenticate the receipt producer or\s*prove\s*trusted execution\./,
+  'Landing page must not overstate the self-hashed receipt trust boundary'
 )
 assert.ok(!html.includes('$49') && !html.includes('$490'))
 
@@ -127,7 +137,7 @@ assert.match(
 )
 assert.match(
   beehiivHtml,
-  /Free finds the risk\. Pro helps you ship with confidence\./,
+  /Every release gets a receipt\./,
   'Beehiiv page must state the Free/Pro sales boundary'
 )
 assert.match(
@@ -144,6 +154,11 @@ assert.match(
   beehiivHtml,
   /A PASS means the configured checks and evidence are complete\./,
   'Beehiiv page must state the assurance boundary'
+)
+assert.match(
+  beehiivHtml,
+  /A freshness check does not authenticate the receipt producer or\s*prove\s*trusted execution\./,
+  'Beehiiv page must state the receipt trust boundary'
 )
 assert.ok(!beehiivHtml.includes('$49') && !beehiivHtml.includes('$490'))
 

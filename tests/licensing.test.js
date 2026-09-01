@@ -541,7 +541,8 @@ function testShowUpgradeMessageFree() {
   if (
     consoleOutput.some(line => line.includes('premium feature')) &&
     consoleOutput.some(line => line.includes('FREE')) &&
-    consoleOutput.some(line => line.includes('Upgrade'))
+    consoleOutput.some(line => line.includes('launch list')) &&
+    !consoleOutput.some(line => line.includes('free trial'))
   ) {
     console.log('  ✅ Displays upgrade message for free tier\n')
     teardownTest()
