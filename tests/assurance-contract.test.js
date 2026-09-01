@@ -569,7 +569,7 @@ test('generated catalog agrees with shipped Semgrep IDs and severities', () => {
   assert.strictEqual(catalog.rulePackVersion, '2.1.0')
   assert.strictEqual(
     catalog.rules.find(rule => rule.id === 'express-no-helmet').ruleVersion,
-    '1.1.0'
+    '1.2.0'
   )
   assert.strictEqual(
     catalog.rules.find(rule => rule.id === 'sql-injection-template-string')

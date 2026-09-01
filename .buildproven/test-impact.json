@@ -8,6 +8,10 @@
         {
           "executable": "node",
           "args": ["tests/semgrep-rule-precision.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/assurance-contract.test.js"]
         }
       ]
     },
