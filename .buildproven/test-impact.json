@@ -3,6 +3,19 @@
   "jsRunner": "node",
   "mappings": [
     {
+      "paths": [".semgrep/vibe-audit-rules.yaml"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/semgrep-rule-precision.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/assurance-contract.test.js"]
+        }
+      ]
+    },
+    {
       "paths": ["lib/blob-storage.js"],
       "commands": [
         {
@@ -75,7 +88,10 @@
       ]
     },
     {
-      "paths": ["lib/commands/ship-check.js"],
+      "paths": [
+        "lib/commands/release-receipt.js",
+        "lib/commands/ship-check.js"
+      ],
       "commands": [
         {
           "executable": "node",
@@ -336,6 +352,15 @@
         {
           "executable": "node",
           "args": ["tests/release-workflow.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["docs/landing/**/*.html", "tests/landing-page.test.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/landing-page.test.js"]
         }
       ]
     },

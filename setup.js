@@ -75,6 +75,9 @@ const {
 const { showProgress } = require('./lib/ui-helpers')
 const { generateSmartPrePushHook } = require('./lib/smart-strategy-generator')
 const {
+  normalizeReleaseReceiptArgs,
+} = require('./lib/commands/release-receipt')
+const {
   NODE_VERSION,
   SCAN_LIMITS,
   EXCLUDE_DIRECTORIES,
@@ -702,7 +705,16 @@ function parseArguments(rawArgs) {
  */
 ;(async function main() {
   // Initial argument parsing
-  const args = process.argv.slice(2)
+  let args
+  try {
+    args = normalizeReleaseReceiptArgs(process.argv.slice(2))
+  } catch (error) {
+    if (error.code === 'RELEASE_RECEIPT_USAGE') {
+      console.error(error.message)
+      process.exit(2)
+    }
+    throw error
+  }
   let parsedConfig = parseArguments(args)
 
   // Destructure for backward compatibility
@@ -854,7 +866,14 @@ AUDIT PRO (Pro):
   Requires: semgrep (pip install semgrep / brew install semgrep)
   Pro also adds: package-age and advanced provenance heuristics
 
-RELEASE CONFIDENCE (Pro):
+RELEASE RECEIPT (Pro creation; free local freshness check):
+  receipt create [options]  Create revision-bound release evidence with a
+                            PASS/BLOCK/INCOMPLETE verdict
+  receipt check-freshness <manifest-path> [options]
+                            Check the receipt against this local checkout
+                            This does not authenticate its producer or execution host
+
+LEGACY RELEASE CONFIDENCE (Pro):
   --ship-check             Revision-bound, risk-derived release assurance manifest
                            with PASS/BLOCK/INCOMPLETE verdict
   --pr-check               Revision-bound changed-code assurance gate (Semgrep, baselines,
@@ -863,7 +882,8 @@ RELEASE CONFIDENCE (Pro):
   --base <branch>          Base ref for --ship-check/--pr-check (default: origin/main)
   --base-sha <commit>      Exact PR base commit (preferred in CI)
   --head <commit>          Expected checked-out head; stale evidence is INCOMPLETE
-  --artifact-dir <path>    Write JSON, SARIF, summary, annotations, and manifest evidence
+  --artifact-dir <path>    For receipt create: write release-receipt.json and
+                           release-receipt.md; PR Check writes its evidence bundle
   --preview-url <origin>   Opt in to deployed-preview verification for --ship-check
   --preview-config <path>  Versioned preview routes, binding, and optional two-user probe
   --allow-preview-mutations  Consent to the configured synthetic create/read/mutate/cleanup probe
@@ -873,7 +893,7 @@ RELEASE CONFIDENCE (Pro):
   --risk-policy <path>     QA Architect risk policy (defaults to project harness-config.json,
                            then the bundled policy)
   --verify-ship-manifest <path>
-                           Verify a prior Ship Check manifest against this checkout
+                           Legacy local freshness check for a Ship Check manifest
   --sarif                  Emit SARIF for --pr-check
   --depth <N>              Limit --history-scan to last N commits (default: full history)
   --skip-tests             Skip running tests in --ship-check (e.g. when slow)

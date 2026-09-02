@@ -6,6 +6,8 @@ const path = require('path')
 
 const landingPath = path.join(__dirname, '..', 'docs', 'landing', 'index.html')
 const html = fs.readFileSync(landingPath, 'utf8')
+const PRO_LAUNCH_LIST =
+  'mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list'
 
 const ids = new Set(
   [...html.matchAll(/\bid="([^"]+)"/g)].map(match => match[1])
@@ -29,8 +31,17 @@ assert.ok(
   'Free audit CTA must link to the documented Quick Start'
 )
 assert.ok(
-  hrefs.includes('https://buildproven.ai/qa-architect'),
-  'Pro CTA must link to the canonical product page'
+  hrefs.includes(PRO_LAUNCH_LIST),
+  'Pro CTA must join the launch list while checkout is closed'
+)
+assert.ok(
+  !hrefs.includes('https://buildproven.ai/qa-architect'),
+  'Pro CTA must not link back to its own product page'
+)
+assert.match(
+  html,
+  /Paid checkout is not open\./,
+  'Pro offer must disclose that paid checkout is closed'
 )
 assert.match(
   html,
@@ -44,17 +55,17 @@ assert.match(
 )
 assert.match(
   html,
-  /Find the risk\. Prove the release\./,
-  'Landing hero must lead with the paid outcome'
+  /Every release gets a receipt\./,
+  'Landing hero must lead with the named product artifact'
 )
 assert.match(
   html,
-  /Revision-bound release assurance/,
+  /Example Release Receipt/,
   'Landing page must show a concrete Pro assurance artifact'
 )
 assert.match(
   html,
-  /Best fit: a solo builder with weekly releases/,
+  /small AI-development agencies and product studios/,
   'Landing page must explain who should pay'
 )
 assert.match(
@@ -66,6 +77,16 @@ assert.match(
   html,
   /A PASS means the configured checks and evidence are complete\./,
   'Landing page must state the assurance boundary'
+)
+assert.match(
+  html,
+  /AI SaaS Authorization Pack/,
+  'Landing page must name the flagship runtime evidence pack'
+)
+assert.match(
+  html,
+  /A freshness check does not authenticate the receipt producer or\s*prove\s*trusted execution\./,
+  'Landing page must not overstate the self-hashed receipt trust boundary'
 )
 assert.ok(!html.includes('$49') && !html.includes('$490'))
 
@@ -101,9 +122,22 @@ assert.ok(
   ),
   'Beehiiv Free CTA must link to the documented Quick Start'
 )
+assert.ok(
+  beehiivHrefs.includes(PRO_LAUNCH_LIST),
+  'Beehiiv Pro CTA must join the launch list while checkout is closed'
+)
+assert.ok(
+  !beehiivHrefs.includes('https://buildproven.ai/qa-architect#pro'),
+  'Beehiiv Pro CTA must not link back to its own offer'
+)
 assert.match(
   beehiivHtml,
-  /Free finds the risk\. Pro helps you ship with confidence\./,
+  /Paid checkout is not open\./,
+  'Beehiiv Pro offer must disclose that paid checkout is closed'
+)
+assert.match(
+  beehiivHtml,
+  /Every release gets a receipt\./,
   'Beehiiv page must state the Free/Pro sales boundary'
 )
 assert.match(
@@ -120,6 +154,11 @@ assert.match(
   beehiivHtml,
   /A PASS means the configured checks and evidence are complete\./,
   'Beehiiv page must state the assurance boundary'
+)
+assert.match(
+  beehiivHtml,
+  /A freshness check does not authenticate the receipt producer or\s*prove\s*trusted execution\./,
+  'Beehiiv page must state the receipt trust boundary'
 )
 assert.ok(!beehiivHtml.includes('$49') && !beehiivHtml.includes('$490'))
 

@@ -168,13 +168,132 @@ rules:
       and log the full error server-side.
     severity: WARNING
     languages: [javascript, typescript]
-    pattern-either:
-      - pattern: 'res.status(500).json({ error: $ERR.message })'
-      - pattern: 'res.status(500).json({ error: $ERR })'
-      - pattern: 'res.status(500).json({ stack: $ERR.stack })'
-      - pattern: 'return Response.json({ error: $ERR.message }, { status: 500 })'
+    mode: taint
+    pattern-sources:
+      # Preserve direct message/stack detection even when the containing value
+      # comes through a helper that Community Edition cannot model.
+      - pattern-either:
+          - pattern: $ERR.message
+          - pattern: $ERR.stack
+      # A bare value is an error only when its source proves that contract.
+      - patterns:
+          - pattern-inside: |
+              try {
+                ...
+              } catch ($ERR) {
+                ...
+              }
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $APP.use(($ERR, $REQ, $RES, $NEXT) => {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $APP.use(function ($ERR, $REQ, $RES, $NEXT) {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $PROMISE.catch(($ERR) => {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $PROMISE.catch(function ($ERR) {
+                ...
+              })
+          - pattern: $ERR
+      # Namespace calls are error-first only when the receiver is bound to the
+      # Node fs module. A coincidental object named `fs` is not trusted.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const $FS = require('fs')
+                  ...
+              - pattern-inside: |
+                  const $FS = require('node:fs')
+                  ...
+              - pattern-inside: |
+                  import * as $FS from 'fs'
+                  ...
+              - pattern-inside: |
+                  import * as $FS from 'node:fs'
+                  ...
+              - pattern-inside: |
+                  import $FS from 'fs'
+                  ...
+              - pattern-inside: |
+                  import $FS from 'node:fs'
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  $FS.$METHOD(..., ($ERR, ...) => {
+                    ...
+                  })
+              - pattern-inside: |
+                  $FS.$METHOD(..., function ($ERR, ...) {
+                    ...
+                  })
+          - pattern: $ERR
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(access|appendFile|chmod|chown|close|copyFile|cp|fchmod|fchown|fdatasync|fstat|fsync|ftruncate|futimes|lchmod|lchown|link|lstat|lutimes|mkdir|mkdtemp|open|opendir|read|readFile|readdir|readlink|realpath|rename|rm|rmdir|stat|symlink|truncate|unlink|utimes|write|writeFile)$'
+      # Named imports and destructured requires bind the callable directly.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const { $METHOD } = require('fs')
+                  ...
+              - pattern-inside: |
+                  const { $METHOD } = require('node:fs')
+                  ...
+              - pattern-inside: |
+                  import { $METHOD } from 'fs'
+                  ...
+              - pattern-inside: |
+                  import { $METHOD } from 'node:fs'
+                  ...
+          - pattern-either:
+              - pattern-inside: |
+                  $METHOD(..., ($ERR, ...) => {
+                    ...
+                  })
+              - pattern-inside: |
+                  $METHOD(..., function ($ERR, ...) {
+                    ...
+                  })
+          - pattern: $ERR
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(access|appendFile|chmod|chown|close|copyFile|cp|fchmod|fchown|fdatasync|fstat|fsync|ftruncate|futimes|lchmod|lchown|link|lstat|lutimes|mkdir|mkdtemp|open|opendir|read|readFile|readdir|readlink|realpath|rename|rm|rmdir|stat|symlink|truncate|unlink|utimes|write|writeFile)$'
+      - patterns:
+          - pattern-inside: |
+              $EMITTER.on('error', ($ERR) => {
+                ...
+              })
+          - pattern: $ERR
+      - patterns:
+          - pattern-inside: |
+              $EMITTER.on('error', function ($ERR) {
+                ...
+              })
+          - pattern: $ERR
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: 'res.status(500).json({ error: $VALUE })'
+              - pattern: 'res.status(500).json({ stack: $VALUE })'
+              - pattern: 'return Response.json({ error: $VALUE }, { status: 500 })'
+              - pattern: 'return Response.json({ stack: $VALUE }, { status: 500 })'
+          - focus-metavariable: $VALUE
     metadata:
       category: security
+      rule-version: '1.1.0'
       cwe: 'CWE-209'
       owasp: 'A05:2021'
       fix: 'return res.status(500).json({ error: "Internal server error" })'
@@ -202,12 +321,84 @@ rules:
       response headers (X-Frame-Options, HSTS, CSP, etc.) automatically.
     severity: WARNING
     languages: [javascript, typescript]
-    pattern: |
-      const $APP = express()
-      ...
-      $APP.use(...)
+    pattern-either:
+      # No visible app-wide Helmet: report every registration.
+      - patterns:
+          - pattern-inside: |
+              const $APP = express()
+              ...
+          - pattern-either:
+              - pattern: $APP.use(...)
+              - pattern: $APP.get(...)
+              - pattern: $APP.post(...)
+              - pattern: $APP.put(...)
+              - pattern: $APP.patch(...)
+              - pattern: $APP.delete(...)
+              - pattern: $APP.options(...)
+              - pattern: $APP.head(...)
+              - pattern: $APP.all(...)
+          - pattern-not-inside: |
+              const $HELMET = require('helmet')
+              ...
+              const $APP = express()
+              ...
+              $APP.use($HELMET(...))
+              ...
+          - pattern-not-inside: |
+              import $HELMET from 'helmet'
+              ...
+              const $APP = express()
+              ...
+              $APP.use($HELMET(...))
+              ...
+          - pattern-not-inside: |
+              const $APP = express()
+              ...
+              const $HELMET = require('helmet')
+              ...
+              $APP.use($HELMET(...))
+              ...
+          - pattern-not-inside: |
+              const $APP = express()
+              ...
+              import $HELMET from 'helmet'
+              ...
+              $APP.use($HELMET(...))
+              ...
+      # Helmet exists but is late: bind the result to each earlier call's first
+      # argument so changed-line assurance retains that exact registration.
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  const $HELMET = require('helmet')
+                  ...
+              - pattern-inside: |
+                  import $HELMET from 'helmet'
+                  ...
+              - pattern-inside: |
+                  const $APP = express()
+                  ...
+                  const $HELMET = require('helmet')
+                  ...
+              - pattern-inside: |
+                  const $APP = express()
+                  ...
+                  import $HELMET from 'helmet'
+                  ...
+          - pattern: |
+              const $APP = express()
+              ...
+              $APP.$METHOD($FIRST, ...)
+              ...
+              $APP.use($HELMET(...))
+          - metavariable-regex:
+              metavariable: $METHOD
+              regex: '^(use|get|post|put|patch|delete|options|head|all)$'
+          - focus-metavariable: $FIRST
+          - pattern-not: $APP.use($HELMET(...))
     metadata:
       category: security
+      rule-version: '1.3.0'
       cwe: 'CWE-693'
       fix: "const helmet = require('helmet'); app.use(helmet())"
 

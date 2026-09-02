@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>QA Architect — Ship AI-generated code with confidence</title>
+    <title>QA Architect — Every release gets a receipt.</title>
     <meta
       name="description"
-      content="QA Architect finds security risks in AI-generated code for free, then helps you verify fixes and release with evidence."
+      content="QA Architect gives each exact AI-built release a receipt for its security, test, remediation, and runtime evidence."
     />
     <link
       rel="icon"
@@ -555,16 +555,12 @@
       <main>
         <section class="hero" aria-labelledby="hero-title">
           <div>
-            <p class="eyebrow">
-              Security and release assurance for AI-built apps
-            </p>
-            <h1 id="hero-title">
-              AI can build it. <em>Ship it with evidence.</em>
-            </h1>
+            <p class="eyebrow">Revision-bound assurance for AI-built SaaS</p>
+            <h1 id="hero-title">Every release gets a receipt.</h1>
             <p class="hero-copy">
-              QA Architect finds the security mistakes AI coding assistants
-              leave behind, then helps you verify the fix before it reaches
-              users.
+              QA Architect turns security findings, tests, remediation, and
+              runtime probes into one Release Receipt for the exact candidate
+              under review.
             </p>
             <div class="actions">
               <a
@@ -577,28 +573,31 @@
               >
             </div>
             <p class="fine-print">
-              Built for solo founders and small teams shipping with AI.
+              Missing evidence is INCOMPLETE, never green.
             </p>
           </div>
 
-          <div class="terminal" aria-label="Example QA Architect audit output">
+          <div
+            class="terminal"
+            aria-label="Example QA Architect Release Receipt"
+          >
             <div class="terminal-top">
               <span class="dot"></span><span class="dot"></span
               ><span class="dot"></span>
-              <span style="margin-left: 6px">project-root / qa-architect</span>
+              <span style="margin-left: 6px">Example Release Receipt</span>
             </div>
             <div class="terminal-body">
               <div class="command">
-                $ npx create-qa-architect@latest --audit
+                $ npx create-qa-architect@latest receipt create
               </div>
               <div class="finding">
-                <strong>HIGH · authorization</strong><br />
-                User-controlled ID is queried without an ownership check.<br />
-                <span style="color: #d7a49c"
-                  >pages/api/projects/[id].js:44</span
+                <strong>PASS · READY FOR REVIEW</strong><br />
+                Candidate 8b71c2e → 2e4d9a1<br />
+                <span style="color: #84e1bd"
+                  >8 / 8 required evidence complete</span
                 >
               </div>
-              <div class="terminal-note">→ report saved: qa-audit.md</div>
+              <div class="terminal-note">→ release-receipt.json</div>
             </div>
           </div>
         </section>
@@ -650,26 +649,32 @@
                   Verified remediation for supported Critical and High findings
                 </li>
                 <li>
-                  Exact-change PR and release assurance: PASS, BLOCK, or
+                  Release Receipt for one exact candidate: PASS, BLOCK, or
                   INCOMPLETE
+                </li>
+                <li>
+                  AI SaaS Authorization Pack for configured preview routes
                 </li>
                 <li>
                   Full-history secret scanning and advanced security rules
                 </li>
                 <li>Risk-based test strategy and multi-language support</li>
               </ul>
-              <!-- Replace this URL with the direct Polar checkout URL when available. -->
               <a
                 class="button button-primary"
-                href="https://buildproven.ai/qa-architect#pro"
-                >Get Pro</a
+                href="mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list"
+                >Join the Pro launch list</a
               >
+              <p>
+                Paid checkout is not open. Joining the launch list does not
+                create a subscription or issue a key.
+              </p>
             </article>
           </div>
           <p class="fine-print">
-            Best fit: a solo builder with weekly releases or a small team
-            shipping AI-generated changes across more than one repository. If
-            you only need a one-time audit, stay on Free.
+            Best fit: small AI-development agencies and product studios that
+            need repeatable release evidence across several client repositories.
+            If you only need a one-time audit, stay on Free.
           </p>
         </section>
 
@@ -678,7 +683,7 @@
             <div>
               <p class="eyebrow">The paid difference</p>
               <h2 id="assurance-title">
-                Not just a report. A shipping decision.
+                Not just a report. A Release Receipt.
               </h2>
               <p>
                 Pro binds the evidence to the exact change under review, so your
@@ -708,6 +713,11 @@
             not a security certification or a promise that an application has no
             bugs.
           </p>
+          <p class="fine-print">
+            A freshness check does not authenticate the receipt producer or
+            prove trusted execution. Independent authenticity requires a future
+            signed or CI-attested receipt.
+          </p>
         </section>
 
         <section class="section" id="pilot" aria-labelledby="pilot-title">
@@ -717,10 +727,11 @@
               Need a guided rollout across several repositories?
             </h3>
             <p>
-              We are testing a four-week Merge Assurance pilot for teams with
-              rising CI waste or unreliable review loops. It includes policy
-              setup, a canary repository, weekly evidence, and an operator
-              session. This is a pilot, not a security certification.
+              We are testing a four-week Merge Assurance pilot for small
+              AI-development agencies and product studios. It includes policy
+              setup, a canary repository, weekly Release Receipts, and an
+              operator session. This is a pilot, not a validated subscription or
+              security certification.
             </p>
             <a
               class="button button-secondary"
@@ -732,9 +743,7 @@
 
         <section class="close" aria-labelledby="close-title">
           <p class="eyebrow">Start where you are</p>
-          <h2 id="close-title">
-            Free finds the risk. Pro helps you ship with confidence.
-          </h2>
+          <h2 id="close-title">Every release gets a receipt.</h2>
           <p>
             Try the audit on your current project. Upgrade when the code has
             users, payments, or reputation attached to it.
@@ -747,8 +756,8 @@
             >
             <a
               class="button button-secondary"
-              href="https://buildproven.ai/qa-architect#pro"
-              >Get Pro</a
+              href="mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list"
+              >Join the Pro launch list</a
             >
           </div>
         </section>

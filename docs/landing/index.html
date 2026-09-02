@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>QA Architect — Find the risk. Prove the release.</title>
+    <title>QA Architect — Every release gets a receipt.</title>
     <meta
       name="description"
-      content="QA Architect finds security risks in AI-generated code for free, then helps you prove whether an exact change is ready to merge and ship."
+      content="QA Architect creates a revision-bound Release Receipt for AI-built software, with security, test, remediation, and runtime evidence for one exact candidate."
     />
     <link
       rel="icon"
@@ -162,6 +162,10 @@
       /* ---------- Hero ---------- */
       .hero {
         padding: 72px 24px 56px;
+        display: grid;
+        grid-template-columns: minmax(0, 0.9fr) minmax(390px, 1.1fr);
+        gap: 48px;
+        align-items: center;
       }
       .eyebrow {
         font-family: var(--mono);
@@ -196,6 +200,97 @@
       .stat-line strong {
         color: var(--ink);
         font-weight: 600;
+      }
+
+      .receipt-card {
+        position: relative;
+        background: var(--bg-raised);
+        border: 1px solid var(--line);
+        border-top: 4px solid var(--ink);
+        padding: 26px;
+        box-shadow: 18px 18px 0 color-mix(in srgb, var(--line) 55%, transparent);
+        font-family: var(--mono);
+      }
+      .receipt-card::after {
+        content: '';
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        left: -1px;
+        height: 7px;
+        background: repeating-linear-gradient(
+          90deg,
+          transparent 0 7px,
+          var(--bg) 7px 14px
+        );
+      }
+      .receipt-heading,
+      .receipt-row,
+      .receipt-verdict {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+      }
+      .receipt-heading {
+        align-items: flex-start;
+        padding-bottom: 18px;
+        border-bottom: 1px dashed var(--line);
+      }
+      .receipt-heading p,
+      .receipt-heading strong {
+        margin: 0;
+      }
+      .receipt-heading p {
+        color: var(--ink-dim);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .receipt-heading strong {
+        font-size: 18px;
+      }
+      .receipt-id {
+        color: var(--ink-dim);
+        font-size: 11px;
+        text-align: right;
+      }
+      .receipt-rows {
+        padding: 12px 0;
+      }
+      .receipt-row {
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 12px;
+      }
+      .receipt-row span {
+        color: var(--ink-dim);
+      }
+      .receipt-row strong {
+        text-align: right;
+        font-weight: 600;
+      }
+      .receipt-verdict {
+        align-items: flex-end;
+        padding: 20px 0 8px;
+      }
+      .receipt-verdict span {
+        color: var(--ink-dim);
+        font-size: 11px;
+        max-width: 22ch;
+      }
+      .receipt-stamp {
+        border: 2px solid var(--green);
+        color: var(--green);
+        padding: 7px 10px 6px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        transform: rotate(-2deg);
+      }
+      .receipt-command {
+        margin: 22px 0 0;
+        color: var(--ink-dim);
+        font-size: 11px;
+        overflow-wrap: anywhere;
       }
 
       /* ---------- Terminal ---------- */
@@ -624,8 +719,17 @@
           font-size: 13px;
         }
         .assurance-grid,
+        .hero,
         .pilot-band {
           grid-template-columns: 1fr;
+        }
+        .hero {
+          gap: 36px;
+          padding-top: 52px;
+        }
+        .receipt-card {
+          box-shadow: 10px 10px 0
+            color-mix(in srgb, var(--line) 55%, transparent);
         }
         .assurance-copy {
           padding: 0;
@@ -664,85 +768,65 @@
     </div>
 
     <div class="hero wrap">
-      <p class="eyebrow">Security and release assurance for AI-built apps</p>
-      <h1>Find the risk. Prove the release.</h1>
-      <p class="sub">
-        AI can build an app that works and still leave behind exposed secrets,
-        broken permissions, or unsafe data access. QA Architect finds those
-        mistakes, then helps you decide whether the exact change in front of you
-        is ready to merge and ship.
-      </p>
-      <p class="stat-line">
-        <strong>Free finds the risk.</strong> Pro binds the checks, findings,
-        and remediation evidence to one exact revision and reports
-        <strong>PASS, BLOCK, or INCOMPLETE.</strong>
-      </p>
-
-      <div class="terminal">
-        <div class="terminal-head">
-          <div class="dots"><span></span><span></span><span></span></div>
-          <div class="label">zsh — qa-architect --audit</div>
-        </div>
-        <div class="terminal-body">
-          <div class="cmd">
-            <span class="prompt">❯</span> npx create-qa-architect@latest --audit
-          </div>
-          <div class="t-rule">
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          </div>
-          <div class="t-title">QA Architect — Vibe-Code Security Audit</div>
-          <div class="t-rule">
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-          </div>
-          <div class="t-verdict">BLOCKING FINDINGS DETECTED</div>
-          <div class="t-summary">
-            Total findings: 7 &nbsp; · &nbsp;
-            <span class="t-crit">Critical: 2</span> &nbsp;
-            <span class="t-high">High: 3</span> &nbsp;
-            <span class="t-med">Medium: 2</span>
-          </div>
-
-          <div class="finding">
-            <div class="loc">pages/api/users.js:44</div>
-            <div class="desc">
-              Prisma query by ID from request params with no user ownership
-              filter.
-            </div>
-            <div class="fix">
-              → Fix:
-              <code
-                >findUnique({ where: { id: params.id, userId: session.user.id }
-                })</code
-              >
-            </div>
-          </div>
-          <div class="finding">
-            <div class="loc">lib/auth.js:12</div>
-            <div class="desc">
-              JWT signed without an expiry option — stolen token = permanent
-              access.
-            </div>
-            <div class="fix">
-              → Fix:
-              <code>jwt.sign(payload, secret, { expiresIn: '24h' })</code>
-            </div>
-          </div>
-          <div class="finding" style="margin-top: 18px">
-            <span class="t-summary"
-              >…5 more findings<span class="caret"></span
-            ></span>
-          </div>
+      <div>
+        <p class="eyebrow">Revision-bound assurance for AI-built SaaS</p>
+        <h1>Every release gets a receipt.</h1>
+        <p class="sub">
+          QA Architect turns security findings, tests, remediation, and runtime
+          probes into one Release Receipt for the exact candidate under review.
+        </p>
+        <p class="stat-line">
+          Know what passed. Know what blocks. Know what never ran.
+          <strong>Missing evidence is INCOMPLETE, never green.</strong>
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#assurance"
+            >See the Release Receipt</a
+          >
+          <a
+            class="btn btn-ghost"
+            href="https://github.com/buildproven/qa-architect#quick-start"
+            >Run the free audit</a
+          >
         </div>
       </div>
 
-      <div class="cta-row">
-        <a
-          class="btn btn-primary"
-          href="https://github.com/buildproven/qa-architect#quick-start"
-          >Run the free audit</a
-        >
-        <a class="btn btn-ghost" href="#assurance">See what Pro proves</a>
-      </div>
+      <article class="receipt-card" aria-label="Example Release Receipt">
+        <div class="receipt-heading">
+          <div>
+            <p>Example Release Receipt</p>
+            <strong>QA Architect / Pro</strong>
+          </div>
+          <div class="receipt-id">receipt 9f6c…2a10<br />schema 1.0.0</div>
+        </div>
+        <div class="receipt-rows">
+          <div class="receipt-row">
+            <span>candidate</span><strong>8b71c2e → 2e4d9a1</strong>
+          </div>
+          <div class="receipt-row">
+            <span>changed-code gate</span><strong>PASS</strong>
+          </div>
+          <div class="receipt-row">
+            <span>remediation evidence</span><strong>VERIFIED</strong>
+          </div>
+          <div class="receipt-row">
+            <span>authorization pack</span><strong>4 / 4 PASS</strong>
+          </div>
+          <div class="receipt-row">
+            <span>required evidence</span><strong>8 / 8 COMPLETE</strong>
+          </div>
+        </div>
+        <div class="receipt-verdict">
+          <span
+            >Exact candidate satisfied its configured assurance policy.</span
+          >
+          <strong class="receipt-stamp">PASS / REVIEW</strong>
+        </div>
+        <p class="receipt-command">
+          $ npx create-qa-architect@latest receipt create --base-sha … --head …
+          --artifact-dir /tmp/release-receipt
+        </p>
+      </article>
     </div>
 
     <section id="coverage">
@@ -821,12 +905,11 @@
         <p class="kicker">What Pro is for</p>
         <div class="assurance-grid">
           <div class="assurance-copy">
-            <h2>Pro turns “we fixed it” into evidence.</h2>
+            <h2>The evidence chain behind the receipt.</h2>
             <p>
-              When a change matters, a one-time scan is not enough. Pro checks
-              the exact revision under review, records the required evidence,
-              and makes missing or stale checks visible instead of calling them
-              safe.
+              A scanner reports findings. QA Architect records the release
+              decision: the candidate, required checks, verified remediation,
+              and bounded runtime probes that produced the verdict.
             </p>
             <ul class="assurance-points">
               <li>
@@ -852,10 +935,11 @@
               <li>
                 <span class="point-mark">03</span>
                 <div>
-                  <strong>Make the release call</strong>
+                  <strong>Exercise the authorization boundary</strong>
                   <span
-                    >Ship Check reports PASS, BLOCK, or INCOMPLETE for the
-                    evidence that actually ran.</span
+                    >The AI SaaS Authorization Pack runs configured
+                    unauthenticated and two-user preview probes with explicit
+                    mutation consent and cleanup.</span
                   >
                 </div>
               </li>
@@ -864,42 +948,42 @@
 
           <div
             class="terminal assurance-terminal"
-            aria-label="Example Pro release assurance output"
+            aria-label="Example AI SaaS Authorization Pack output"
           >
             <div class="terminal-head">
               <div class="dots"><span></span><span></span><span></span></div>
-              <div class="label">qa-architect — ship-check</div>
+              <div class="label">release-receipt / authorization-pack</div>
             </div>
             <div class="terminal-body">
               <div class="cmd">
-                <span class="prompt">❯</span> npx create-qa-architect@latest
-                --ship-check --json
+                <span class="prompt">❯</span> receipt create --preview-url
+                https://preview.example.test
               </div>
               <div class="t-rule">
                 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
               </div>
-              <div class="t-title">Revision-bound release assurance</div>
+              <div class="t-title">AI SaaS Authorization Pack</div>
               <div class="evidence-line">
-                <span>candidate</span><strong>8b71c2e → 2e4d9a1</strong>
+                <span>revision binding</span
+                ><strong class="evidence-pass">MATCHED</strong>
               </div>
               <div class="evidence-line">
-                <span>changed-code gate</span
+                <span>unauthenticated route</span
                 ><strong class="evidence-pass">PASS</strong>
               </div>
               <div class="evidence-line">
-                <span>remediation evidence</span
-                ><strong class="evidence-pass">VERIFIED</strong>
+                <span>cross-user access</span
+                ><strong class="evidence-pass">DENIED</strong>
               </div>
               <div class="evidence-line">
-                <span>required checks</span
-                ><strong class="evidence-pass">COMPLETE</strong>
+                <span>synthetic cleanup</span
+                ><strong class="evidence-pass">PASS</strong>
               </div>
               <div class="t-verdict" style="margin-top: 18px">
-                PASS — READY FOR REVIEW
+                PACK PASS — RECORDED IN RECEIPT
               </div>
               <div class="terminal-note">
-                Evidence is bound to this candidate, not to a different
-                checkout.
+                Example output. Production-like hosts require explicit consent.
               </div>
             </div>
           </div>
@@ -908,6 +992,11 @@
           A PASS means the configured checks and evidence are complete. It is
           not a security certification or a promise that an application has no
           bugs.
+        </p>
+        <p class="trust-note">
+          A freshness check does not authenticate the receipt producer or prove
+          trusted execution. Independent authenticity requires a future signed
+          or CI-attested receipt.
         </p>
       </div>
     </section>
@@ -965,7 +1054,7 @@
               <li>
                 Evidence-backed affected tests with complete audit fallback
               </li>
-              <li>Ship Check, PR Risk Check, and CI Doctor</li>
+              <li>Release Receipt, PR Risk Check, and CI Doctor</li>
               <li>
                 Full-history secrets scan (Gitleaks) + ESLint security ruleset
               </li>
@@ -973,17 +1062,21 @@
             </ul>
             <a
               class="btn btn-primary"
-              href="https://buildproven.ai/qa-architect"
+              href="mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list"
               style="justify-content: center"
             >
-              Get Pro
+              Join the Pro launch list
             </a>
+            <p class="trust-note">
+              Paid checkout is not open. Join the launch list for availability
+              updates; this does not create a subscription or issue a key.
+            </p>
           </div>
         </div>
         <p class="trust-note">
-          Best fit: a solo builder with weekly releases or a small team shipping
-          AI-generated changes across more than one repository. If you only need
-          a one-time audit, stay on Free.
+          Best fit: small AI-development agencies and product studios that need
+          repeatable release evidence across several client repositories. If you
+          only need a one-time audit, stay on Free.
         </p>
       </div>
     </section>
@@ -992,13 +1085,14 @@
       <div class="wrap">
         <div class="pilot-band">
           <div>
-            <p class="kicker">For teams</p>
+            <p class="kicker">For agencies and product studios</p>
             <h3>Need a guided rollout across several repositories?</h3>
             <p>
-              We are testing a four-week Merge Assurance pilot for teams with
-              rising CI waste or unreliable review loops. It includes policy
-              setup, a canary repository, weekly evidence, and an operator
-              session. This is a pilot, not a security certification.
+              We are testing a four-week Merge Assurance pilot for small
+              AI-development agencies and product studios. It includes policy
+              setup, a canary repository, weekly Release Receipts, and an
+              operator session. This is a pilot, not a validated subscription or
+              security certification.
             </p>
           </div>
           <a

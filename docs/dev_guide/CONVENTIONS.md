@@ -124,7 +124,7 @@ QAA_DEVELOPER=true npm test
 npm run test:unit
 
 # Single test file
-QAA_DEVELOPER=true node tests/licensing.test.js
+NODE_ENV=test QAA_DEVELOPER=true node tests/licensing.test.js
 
 # CLI smoke test (dry run — no changes)
 node setup.js --dry-run
