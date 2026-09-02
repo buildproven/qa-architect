@@ -243,6 +243,17 @@ test('invalid Release Receipt syntax has an actionable usage contract', () => {
         'receipt',
         'check-freshness',
         'first.json',
+        '--verify-ship-manifest',
+        'second.json',
+      ]),
+    error => error instanceof ReleaseReceiptUsageError
+  )
+  assert.throws(
+    () =>
+      normalizeReleaseReceiptArgs([
+        'receipt',
+        'check-freshness',
+        'first.json',
         'second.json',
       ]),
     error => error instanceof ReleaseReceiptUsageError
@@ -687,7 +698,7 @@ test('artifact directory writes two projections and preserves unrelated files', 
   const unrelatedPath = path.join(artifactDir, 'customer-note.txt')
   fs.writeFileSync(unrelatedPath, 'keep me\n')
 
-  const files = writeReceiptBundle(artifactDir, report)
+  const files = writeReceiptBundle(artifactDir, report, artifactDir)
 
   assert.deepStrictEqual(
     files.map(filename => path.basename(filename)).sort(),
@@ -716,7 +727,7 @@ test('artifact directory refuses dangling output symlinks before any write', () 
   fs.symlinkSync(escapedPath, outputPath)
 
   assert.throws(
-    () => writeReceiptBundle(artifactDir, report),
+    () => writeReceiptBundle(artifactDir, report, artifactDir),
     /Refusing to write Release Receipt through a symlink/
   )
   assert.ok(!fs.existsSync(escapedPath))
@@ -733,10 +744,82 @@ test('artifact directory refuses a symlinked destination directory', () => {
   fs.symlinkSync(redirectedDir, artifactDir)
 
   assert.throws(
-    () => writeReceiptBundle(artifactDir, report),
-    /Release Receipt artifact directory must not be a symlink/
+    () => writeReceiptBundle(artifactDir, report, parent),
+    /symlink/
   )
   assert.deepStrictEqual(fs.readdirSync(redirectedDir), [])
+})
+
+test('artifact directory refuses symlinked components below its trusted root', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const redirectedDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-redirect-'))
+  const controlledPath = path.join(target.root, '.qa-architect')
+  const artifactDir = path.join(controlledPath, 'release-receipt')
+  fs.symlinkSync(redirectedDir, controlledPath)
+
+  assert.throws(
+    () => writeReceiptBundle(artifactDir, report, target.root),
+    /Release Receipt path contains a symlink/
+  )
+  assert.deepStrictEqual(fs.readdirSync(redirectedDir), [])
+})
+
+test('artifact bundle preflight preserves an existing pair on invalid target type', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-receipt-'))
+  const jsonPath = path.join(artifactDir, 'release-receipt.json')
+  const markdownPath = path.join(artifactDir, 'release-receipt.md')
+  fs.writeFileSync(jsonPath, 'old-json\n')
+  fs.mkdirSync(markdownPath)
+
+  assert.throws(
+    () => writeReceiptBundle(artifactDir, report, artifactDir),
+    /Release Receipt output must be a regular file/
+  )
+  assert.strictEqual(fs.readFileSync(jsonPath, 'utf8'), 'old-json\n')
+  assert.ok(fs.statSync(markdownPath).isDirectory())
+})
+
+test('artifact bundle rolls back both projections when publication is partial', () => {
+  const target = fixture()
+  const report = runFixture(target).report
+  const artifactDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qaa-receipt-'))
+  const jsonPath = path.join(artifactDir, 'release-receipt.json')
+  const markdownPath = path.join(artifactDir, 'release-receipt.md')
+  fs.writeFileSync(jsonPath, 'old-json\n')
+  fs.writeFileSync(markdownPath, 'old-markdown\n')
+  const renameSync = fs.renameSync
+  fs.renameSync = (source, destination) => {
+    const sourcePath = source.toString()
+    if (
+      path.basename(sourcePath).startsWith('.release-receipt.md.') &&
+      sourcePath.endsWith('.tmp')
+    ) {
+      const error = Object.assign(
+        new Error('injected second-publication failure'),
+        { code: 'EIO' }
+      )
+      throw error
+    }
+    return renameSync(source, destination)
+  }
+  try {
+    assert.throws(
+      () => writeReceiptBundle(artifactDir, report, artifactDir),
+      /injected second-publication failure/
+    )
+  } finally {
+    fs.renameSync = renameSync
+  }
+
+  assert.strictEqual(fs.readFileSync(jsonPath, 'utf8'), 'old-json\n')
+  assert.strictEqual(fs.readFileSync(markdownPath, 'utf8'), 'old-markdown\n')
+  assert.deepStrictEqual(fs.readdirSync(artifactDir).sort(), [
+    'release-receipt.json',
+    'release-receipt.md',
+  ])
 })
 
 test('receipt create routes through the packaged CLI and writes the bundle', () => {

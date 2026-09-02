@@ -61,7 +61,7 @@ Stack detection selects only checks applicable to declared dependencies or recog
 | `dynamic-html-assignment`                   | 1.0.0   | high     | javascript, typescript | CWE-79   | A03:2021 | `.semgrep/vibe-audit-rules.yaml`   |
 | `dynamic-require-variable`                  | 1.0.0   | high     | javascript, typescript | CWE-706  | —        | `.semgrep/vibe-audit-rules.yaml`   |
 | `env-var-in-client-component`               | 1.0.0   | medium   | javascript, typescript | CWE-526  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `express-no-helmet`                         | 1.2.0   | medium   | javascript, typescript | CWE-693  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `express-no-helmet`                         | 1.3.0   | medium   | javascript, typescript | CWE-693  | —        | `.semgrep/vibe-audit-rules.yaml`   |
 | `file-upload-unchecked`                     | 1.0.0   | medium   | javascript, typescript | CWE-434  | —        | `.semgrep/vibe-audit-rules.yaml`   |
 | `hardcoded-admin-identity`                  | 1.0.0   | critical | javascript, typescript | CWE-798  | —        | `.semgrep/vibe-audit-rules.yaml`   |
 | `hardcoded-api-key`                         | 1.0.0   | critical | javascript, typescript | CWE-798  | —        | `.semgrep/defensive-patterns.yaml` |

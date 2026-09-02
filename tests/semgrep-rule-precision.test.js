@@ -605,6 +605,23 @@ if (!semgrepAvailable()) {
     assert.deepStrictEqual(results, [])
   })
 
+  test('Helmet loaded after app construction protects later registrations', () => {
+    const results = resultsFor(
+      {
+        'server/app.js': [
+          "const express = require('express')",
+          'const app = express()',
+          "const helmet = require('helmet')",
+          'app.use(helmet())',
+          "app.get('/safe', handler)",
+          '',
+        ].join('\n'),
+      },
+      'express-no-helmet'
+    )
+    assert.deepStrictEqual(results, [])
+  })
+
   test('fixed and generic error messages stay silent', () => {
     const results = resultsFor(
       {

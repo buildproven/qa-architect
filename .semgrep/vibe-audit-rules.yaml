@@ -351,6 +351,20 @@ rules:
               ...
               $APP.use($HELMET(...))
               ...
+          - pattern-not-inside: |
+              const $APP = express()
+              ...
+              const $HELMET = require('helmet')
+              ...
+              $APP.use($HELMET(...))
+              ...
+          - pattern-not-inside: |
+              const $APP = express()
+              ...
+              import $HELMET from 'helmet'
+              ...
+              $APP.use($HELMET(...))
+              ...
       # Helmet exists but is late: bind the result to each earlier call's first
       # argument so changed-line assurance retains that exact registration.
       - patterns:
@@ -359,6 +373,16 @@ rules:
                   const $HELMET = require('helmet')
                   ...
               - pattern-inside: |
+                  import $HELMET from 'helmet'
+                  ...
+              - pattern-inside: |
+                  const $APP = express()
+                  ...
+                  const $HELMET = require('helmet')
+                  ...
+              - pattern-inside: |
+                  const $APP = express()
+                  ...
                   import $HELMET from 'helmet'
                   ...
           - pattern: |
@@ -374,7 +398,7 @@ rules:
           - pattern-not: $APP.use($HELMET(...))
     metadata:
       category: security
-      rule-version: '1.2.0'
+      rule-version: '1.3.0'
       cwe: 'CWE-693'
       fix: "const helmet = require('helmet'); app.use(helmet())"
 
