@@ -2,13 +2,14 @@
 
 // @ts-nocheck
 /**
- * Test the REAL purchase flow for paying customers
+ * Test a simulated purchase-to-activation flow with generated keys and a
+ * localhost registry. This is not payment-provider or production evidence.
  *
  * Verifies:
  * 1. Webhook handler can populate license database
  * 2. Database can be served via HTTP endpoint
- * 3. CLI can fetch and validate against server database
- * 4. Real purchased licenses work end-to-end
+ * 3. CLI can fetch and validate against the localhost fixture database
+ * 4. Generated fixture licenses work end-to-end
  * 5. Offline fallback works for existing activated licenses
  */
 
@@ -78,14 +79,14 @@ function createMockServer(database) {
   })
 }
 
-console.log('🧪 Testing Real Purchase Flow (Network License Validation)...\\n')
+console.log('🧪 Testing Simulated Purchase Flow (Localhost Registry)...\\n')
 
 /**
- * Test 1: Simulate webhook populating server database
+ * Test 1: Simulate webhook output in a signed registry
  */
 async function testWebhookLicensePopulation() {
   cleanup()
-  console.log('Test 1: Webhook populates server database')
+  console.log('Test 1: Fixture creates signed webhook output')
 
   try {
     // Simulate a legitimate license database as webhook would create
@@ -119,7 +120,7 @@ async function testWebhookLicensePopulation() {
 }
 
 /**
- * Test 2: CLI fetches database and validates real purchase
+ * Test 2: CLI fetches a simulated registry and validates activation
  */
 async function testNetworkLicenseValidation() {
   console.log('Test 2: CLI validates against network database')
@@ -318,20 +319,20 @@ async function testNetworkFallback() {
 }
 
 /**
- * Test 6: End-to-end real purchase simulation
+ * Test 6: End-to-end signed-registry activation simulation
  */
-async function testEndToEndRealPurchase() {
-  console.log('Test 6: End-to-end real purchase simulation')
+async function testEndToEndSimulatedPurchase() {
+  console.log('Test 6: End-to-end signed-registry activation simulation')
 
   try {
     cleanup() // Start fresh
 
-    // Step 1: Customer buys license → webhook populates server database
+    // Step 1: Fixture models the registry output of a successful webhook
     const purchaseEntry = buildSignedLicenseEntry({
       licenseKey: 'QAA-E2E5-1234-5678-AB12',
       tier: 'PRO',
       isFounder: false,
-      email: 'realpurchase@example.com',
+      email: 'simulated-purchase@example.com',
       privateKey,
     })
     const purchaseDatabase = buildSignedRegistry(
@@ -352,7 +353,7 @@ async function testEndToEndRealPurchase() {
     const { server, port } = await createMockServer(purchaseDatabase)
 
     try {
-      // Step 3: Customer receives license key and tries to activate
+      // Step 3: The generated fixture key is activated
       // Override license DB URL via environment variable
       const originalUrl = process.env.QAA_LICENSE_DB_URL
       process.env.QAA_LICENSE_DB_URL = `http://localhost:${port}/legitimate-licenses.json`
@@ -361,13 +362,13 @@ async function testEndToEndRealPurchase() {
       // Step 4: CLI activation (simulating user running npx create-qa-architect@latest --activate-license)
       const activationResult = await activateLicense(
         'QAA-E2E5-1234-5678-AB12',
-        'realpurchase@example.com'
+        'simulated-purchase@example.com'
       )
 
       if (activationResult.success && activationResult.tier === 'PRO') {
-        console.log('  ✅ End-to-end real purchase flow successful')
+        console.log('  ✅ Simulated signed-registry activation successful')
         console.log(
-          `  ✅ Customer can activate purchased license: ${activationResult.tier}`
+          `  ✅ Generated fixture key activates: ${activationResult.tier}`
         )
 
         // Step 5: Verify license persists for future CLI runs
@@ -376,7 +377,7 @@ async function testEndToEndRealPurchase() {
 
         if (
           licenseInfo.tier === 'PRO' &&
-          licenseInfo.email === 'realpurchase@example.com'
+          licenseInfo.email === 'simulated-purchase@example.com'
         ) {
           console.log('  ✅ License persists for future CLI operations')
 
@@ -411,9 +412,9 @@ async function testEndToEndRealPurchase() {
 /**
  * Run all tests
  */
-async function runRealPurchaseTests() {
+async function runSimulatedPurchaseTests() {
   console.log('============================================================')
-  console.log('Testing Real Purchase Flow with Network License Validation')
+  console.log('Testing Simulated Purchase Flow with Localhost Registry')
   console.log('============================================================\\n')
 
   let allPassed = true
@@ -422,7 +423,7 @@ async function runRealPurchaseTests() {
   allPassed = (await testOfflineLicenseValidation()) && allPassed
   allPassed = (await testUnknownLicenseRejection()) && allPassed
   allPassed = (await testNetworkFallback()) && allPassed
-  allPassed = (await testEndToEndRealPurchase()) && allPassed
+  allPassed = (await testEndToEndSimulatedPurchase()) && allPassed
 
   cleanup()
 
@@ -430,15 +431,15 @@ async function runRealPurchaseTests() {
     console.log(
       '\\n============================================================'
     )
-    console.log('✅ ALL REAL PURCHASE FLOW TESTS PASSED!')
+    console.log('✅ ALL SIMULATED PURCHASE FLOW TESTS PASSED!')
     console.log(
       '============================================================\\n'
     )
     console.log(
-      '🛍️ PURCHASE FLOW: Real customers can activate purchased licenses'
+      '🧪 SIMULATION: Generated keys activate against a localhost registry'
     )
     console.log(
-      '🌐 NETWORK VALIDATION: CLI fetches latest license database from server'
+      '🌐 NETWORK VALIDATION: CLI fetches the localhost fixture registry'
     )
     console.log(
       '📱 OFFLINE SUPPORT: Previously activated licenses work without network'
@@ -446,27 +447,30 @@ async function runRealPurchaseTests() {
     console.log('🛡️ SECURITY: Unknown/invalid licenses properly rejected')
     console.log('🔄 FALLBACK: Local database used when network unavailable')
     console.log('')
-    console.log('Real purchase flow verified:')
-    console.log(
-      '  • ✅ Customer buys license → webhook updates server database'
-    )
-    console.log('  • ✅ CLI fetches database from server during activation')
-    console.log('  • ✅ License validated against live server data')
+    console.log('Simulated activation flow verified:')
+    console.log('  • ✅ A fixture models webhook output in a signed registry')
+    console.log('  • ✅ CLI fetches fixture data during activation')
+    console.log('  • ✅ License validated against localhost fixture data')
     console.log('  • ✅ Activated license stored locally for offline use')
     console.log('  • ✅ Future CLI operations work without network calls')
     console.log('')
-    console.log('🎉 Ready for production with paying customers!')
+    console.log(
+      'No payment provider, webhook delivery, or live sale was tested.'
+    )
     console.log('')
   } else {
-    console.log('\\n❌ Some real purchase flow tests failed!')
+    console.log('\\n❌ Some simulated purchase flow tests failed!')
     process.exit(1)
   }
 }
 
 // Run tests
 if (require.main === module) {
-  runRealPurchaseTests().catch(error => {
-    console.error('❌ Real purchase flow test runner error:', error.message)
+  runSimulatedPurchaseTests().catch(error => {
+    console.error(
+      '❌ Simulated purchase flow test runner error:',
+      error.message
+    )
     process.exit(1)
   })
 }
@@ -476,5 +480,5 @@ module.exports = {
   testOfflineLicenseValidation,
   testUnknownLicenseRejection,
   testNetworkFallback,
-  testEndToEndRealPurchase,
+  testEndToEndSimulatedPurchase,
 }

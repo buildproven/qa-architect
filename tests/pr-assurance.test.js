@@ -175,7 +175,7 @@ async function main() {
       '1.170.0'
     )
     assert.strictEqual(packFinding.ruleVersion, '1.0.0')
-    assert.strictEqual(packFinding.engine.rulePackVersion, '2.0.0')
+    assert.strictEqual(packFinding.engine.rulePackVersion, '2.1.0')
     assert.match(packFinding.remediation.guidance, /allowlisted server-side/)
     assert.strictEqual(packFinding.assuranceMappings[0].standard, 'OWASP ASVS')
     const collidingFinding = mapFinding(
@@ -199,6 +199,23 @@ async function main() {
       'Custom remediation'
     )
     assert.deepStrictEqual(collidingFinding.assuranceMappings, [])
+    const versionedFinding = mapFinding(
+      {
+        check_id: 'semgrep.express-no-helmet',
+        path: 'src/app.js',
+        start: { line: 2 },
+        end: { line: 2 },
+        extra: {
+          severity: 'WARNING',
+          message: 'Missing Helmet',
+          lines: "app.get('/health', handler)",
+          metadata: { 'rule-version': '1.1.0' },
+        },
+      },
+      directory,
+      '1.170.0'
+    )
+    assert.strictEqual(versionedFinding.ruleVersion, '1.1.0')
 
     const range = resolvePrRange(directory, {
       baseSha,

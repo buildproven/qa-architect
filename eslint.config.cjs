@@ -161,7 +161,7 @@ configs.push({
     'tests/interactive.test.js',
     'tests/project-maturity-boundary.test.js',
     'tests/project-maturity.test.js',
-    'tests/real-purchase-flow.test.js',
+    'tests/simulated-purchase-flow.test.js',
   ],
   rules: {
     complexity: 'off',

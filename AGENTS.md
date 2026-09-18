@@ -20,9 +20,9 @@ npm run lint                # ESLint + Stylelint
 npm run format              # Prettier
 
 # Run single test file
-node tests/licensing.test.js
-node tests/workflow-tiers.test.js
-QAA_DEVELOPER=true node tests/setup.test.js
+NODE_ENV=test QAA_DEVELOPER=true node tests/licensing.test.js
+NODE_ENV=test QAA_DEVELOPER=true node tests/workflow-tiers.test.js
+NODE_ENV=test QAA_DEVELOPER=true node tests/setup.test.js
 
 # Validation
 npm run validate:all        # Full validation suite

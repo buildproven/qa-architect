@@ -1,5 +1,11 @@
 # Polar.sh Deployment Guide
 
+> **Legacy reference implementation:** This guide describes the self-hosted
+> Polar adapter in this repository. It is not evidence of BuildProven's current
+> production payment or fulfillment authority. Do not use it to change
+> BuildProven production without an approved provider decision and a verified
+> end-to-end lifecycle test.
+
 Deploy `webhook-handler.js` to process Polar.sh subscription events and issue signed Pro licenses automatically.
 
 ## Overview

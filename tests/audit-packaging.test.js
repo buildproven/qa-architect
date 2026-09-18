@@ -130,6 +130,7 @@ test('verified-remediation runtime and schemas are in the published tarball', ()
 
 test('ship assurance runtime, schema, and risk boundary are in the tarball', () => {
   const requiredFiles = [
+    'lib/commands/release-receipt.js',
     'lib/commands/ship-check.js',
     'config/ship-assurance-manifest-v1.schema.json',
     'harness-config.json',

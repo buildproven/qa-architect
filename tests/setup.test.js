@@ -281,6 +281,12 @@ try {
 
   assert.deepStrictEqual(pkg.scripts, expectedScripts)
   assert.deepStrictEqual(pkg.devDependencies, expectedDevDependencies)
+  assert(pkg.devDependencies['@commitlint/cli'])
+  assert.strictEqual(
+    pkg.devDependencies.commitlint,
+    undefined,
+    'generated dependencies must have one owner for the commitlint executable'
+  )
   assertLintStagedEqual(pkg['lint-staged'], expectedLintStaged)
 
   expectFile(jsProjectDirFree, '.prettierrc')
@@ -362,6 +368,12 @@ try {
 
   assert.deepStrictEqual(pkg.scripts, expectedScripts)
   assert.deepStrictEqual(pkg.devDependencies, expectedDevDependencies)
+  assert(pkg.devDependencies['@commitlint/cli'])
+  assert.strictEqual(
+    pkg.devDependencies.commitlint,
+    undefined,
+    'generated dependencies must have one owner for the commitlint executable'
+  )
   assertLintStagedEqual(pkg['lint-staged'], expectedLintStaged)
 
   expectFile(jsProjectDirPro, '.prettierrc')
@@ -440,6 +452,12 @@ try {
   // Temporarily disable script assertion while fixing enhanced script integration
   // assert.deepStrictEqual(pkg.scripts, expectedScripts)
   assert.deepStrictEqual(pkg.devDependencies, expectedDevDependencies)
+  assert(pkg.devDependencies['@commitlint/cli'])
+  assert.strictEqual(
+    pkg.devDependencies.commitlint,
+    undefined,
+    'generated dependencies must have one owner for the commitlint executable'
+  )
   // Temporarily disable lint-staged assertion while fixing enhanced integration
   // assertLintStagedEqual(pkg['lint-staged'], expectedLintStaged)
   assert.ok(pkg['lint-staged']['src/**/*.ts'].includes('custom-ts'))

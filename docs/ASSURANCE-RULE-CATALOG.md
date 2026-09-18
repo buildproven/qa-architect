@@ -1,6 +1,6 @@
 # QA Architect assurance rule catalog
 
-Rule pack: `2.0.0`
+Rule pack: `2.1.0`
 
 This catalog is generated from the shipped Semgrep rule files. It describes supported static checks, not a claim of complete application security.
 
@@ -42,57 +42,57 @@ Stack detection selects only checks applicable to declared dependencies or recog
 
 ## Rules
 
-| Rule ID                                     | Severity | Languages              | CWE      | OWASP    | Source                             |
-| ------------------------------------------- | -------- | ---------------------- | -------- | -------- | ---------------------------------- |
-| `auth-bypass-or-condition`                  | medium   | javascript, typescript | CWE-287  | —        | `.semgrep/defensive-patterns.yaml` |
-| `auth-skip-on-dev`                          | medium   | javascript, typescript | CWE-287  | —        | `.semgrep/defensive-patterns.yaml` |
-| `bracket-notation-user-key`                 | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `client-side-auth-check`                    | high     | javascript, typescript | CWE-602  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
-| `command-injection-shell-option`            | critical | javascript, typescript | CWE-78   | —        | `.semgrep/defensive-patterns.yaml` |
-| `command-injection-template`                | critical | javascript, typescript | CWE-78   | A03:2021 | `.semgrep/defensive-patterns.yaml` |
-| `console-log-credential`                    | medium   | javascript, typescript | CWE-532  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `cookie-no-httponly`                        | medium   | javascript, typescript | CWE-1004 | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `cors-allow-all`                            | medium   | javascript, typescript | CWE-942  | —        | `.semgrep/defensive-patterns.yaml` |
-| `debug-flag-hardcoded`                      | medium   | javascript, typescript | CWE-489  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `destructive-database-migration`            | high     | generic                | CWE-732  | A04:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `drizzle-request-body-mass-assignment`      | high     | javascript, typescript | CWE-915  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `drizzle-where-eq-id-unscoped`              | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `dynamic-href-user-input`                   | medium   | javascript, typescript | CWE-79   | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `dynamic-html-assignment`                   | high     | javascript, typescript | CWE-79   | A03:2021 | `.semgrep/vibe-audit-rules.yaml`   |
-| `dynamic-require-variable`                  | high     | javascript, typescript | CWE-706  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `env-var-in-client-component`               | medium   | javascript, typescript | CWE-526  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `express-no-helmet`                         | medium   | javascript, typescript | CWE-693  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `file-upload-unchecked`                     | medium   | javascript, typescript | CWE-434  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `hardcoded-admin-identity`                  | critical | javascript, typescript | CWE-798  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `hardcoded-api-key`                         | critical | javascript, typescript | CWE-798  | —        | `.semgrep/defensive-patterns.yaml` |
-| `hardcoded-jwt-secret`                      | critical | javascript, typescript | CWE-798  | —        | `.semgrep/defensive-patterns.yaml` |
-| `hardcoded-live-secret-literal`             | critical | javascript, typescript | CWE-798  | A02:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `idor-prisma-no-owner-filter`               | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
-| `insecure-random-array`                     | medium   | javascript, typescript | CWE-330  | —        | `.semgrep/defensive-patterns.yaml` |
-| `insecure-random-token`                     | high     | javascript, typescript | CWE-330  | —        | `.semgrep/defensive-patterns.yaml` |
-| `jwt-no-expiry`                             | high     | javascript, typescript | CWE-613  | —        | `.semgrep/vibe-audit-rules.yaml`   |
-| `missing-auth-api-route`                    | medium   | javascript, typescript | CWE-306  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
-| `next-route-handler-missing-auth`           | medium   | javascript, typescript | CWE-862  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `next-untrusted-redirect`                   | high     | javascript, typescript | CWE-601  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `path-traversal-join`                       | medium   | javascript, typescript | CWE-22   | —        | `.semgrep/defensive-patterns.yaml` |
-| `path-traversal-resolve`                    | medium   | javascript, typescript | CWE-22   | —        | `.semgrep/defensive-patterns.yaml` |
-| `prisma-find-by-request-id-unscoped`        | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `prisma-request-body-mass-assignment`       | high     | javascript, typescript | CWE-915  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `prototype-pollution-json-parse`            | high     | javascript, typescript | CWE-1321 | A03:2021 | `.semgrep/defensive-patterns.yaml` |
-| `prototype-pollution-object-assign`         | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/defensive-patterns.yaml` |
-| `prototype-pollution-spread`                | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/defensive-patterns.yaml` |
-| `public-env-holds-secret`                   | high     | javascript, typescript | CWE-200  | A02:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `react-dangerous-html`                      | high     | javascript, typescript | CWE-79   | A07:2021 | `.semgrep/defensive-patterns.yaml` |
-| `react-href-javascript`                     | high     | javascript, typescript | CWE-79   | —        | `.semgrep/defensive-patterns.yaml` |
-| `service-key-in-client-component`           | high     | javascript, typescript | CWE-200  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `sql-injection-string-concat`               | critical | javascript, typescript | CWE-89   | —        | `.semgrep/defensive-patterns.yaml` |
-| `sql-injection-template-string`             | critical | javascript, typescript | CWE-89   | A03:2021 | `.semgrep/defensive-patterns.yaml` |
-| `stripe-request-controlled-amount`          | high     | javascript, typescript | CWE-602  | A04:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `stripe-request-customer-without-ownership` | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `stripe-webhook-json-without-signature`     | medium   | javascript, typescript | CWE-345  | A08:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `supabase-select-on-user-table`             | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `supabase-service-role-client`              | medium   | javascript, typescript | CWE-250  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
-| `unbounded-array-growth`                    | medium   | javascript, typescript | CWE-400  | —        | `.semgrep/defensive-patterns.yaml` |
-| `unsafe-eval`                               | critical | javascript, typescript | CWE-95   | —        | `.semgrep/defensive-patterns.yaml` |
-| `unvalidated-redirect`                      | medium   | javascript, typescript | CWE-601  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
-| `verbose-error-to-client`                   | medium   | javascript, typescript | CWE-209  | A05:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| Rule ID                                     | Version | Severity | Languages              | CWE      | OWASP    | Source                             |
+| ------------------------------------------- | ------- | -------- | ---------------------- | -------- | -------- | ---------------------------------- |
+| `auth-bypass-or-condition`                  | 1.0.0   | medium   | javascript, typescript | CWE-287  | —        | `.semgrep/defensive-patterns.yaml` |
+| `auth-skip-on-dev`                          | 1.0.0   | medium   | javascript, typescript | CWE-287  | —        | `.semgrep/defensive-patterns.yaml` |
+| `bracket-notation-user-key`                 | 1.0.0   | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `client-side-auth-check`                    | 1.0.0   | high     | javascript, typescript | CWE-602  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| `command-injection-shell-option`            | 1.0.0   | critical | javascript, typescript | CWE-78   | —        | `.semgrep/defensive-patterns.yaml` |
+| `command-injection-template`                | 1.0.0   | critical | javascript, typescript | CWE-78   | A03:2021 | `.semgrep/defensive-patterns.yaml` |
+| `console-log-credential`                    | 1.0.0   | medium   | javascript, typescript | CWE-532  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `cookie-no-httponly`                        | 1.0.0   | medium   | javascript, typescript | CWE-1004 | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `cors-allow-all`                            | 1.0.0   | medium   | javascript, typescript | CWE-942  | —        | `.semgrep/defensive-patterns.yaml` |
+| `debug-flag-hardcoded`                      | 1.0.0   | medium   | javascript, typescript | CWE-489  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `destructive-database-migration`            | 1.1.0   | high     | generic                | CWE-732  | A04:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `drizzle-request-body-mass-assignment`      | 1.0.0   | high     | javascript, typescript | CWE-915  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `drizzle-where-eq-id-unscoped`              | 1.0.0   | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `dynamic-href-user-input`                   | 1.0.0   | medium   | javascript, typescript | CWE-79   | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `dynamic-html-assignment`                   | 1.0.0   | high     | javascript, typescript | CWE-79   | A03:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| `dynamic-require-variable`                  | 1.0.0   | high     | javascript, typescript | CWE-706  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `env-var-in-client-component`               | 1.0.0   | medium   | javascript, typescript | CWE-526  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `express-no-helmet`                         | 1.3.0   | medium   | javascript, typescript | CWE-693  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `file-upload-unchecked`                     | 1.0.0   | medium   | javascript, typescript | CWE-434  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `hardcoded-admin-identity`                  | 1.0.0   | critical | javascript, typescript | CWE-798  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `hardcoded-api-key`                         | 1.0.0   | critical | javascript, typescript | CWE-798  | —        | `.semgrep/defensive-patterns.yaml` |
+| `hardcoded-jwt-secret`                      | 1.0.0   | critical | javascript, typescript | CWE-798  | —        | `.semgrep/defensive-patterns.yaml` |
+| `hardcoded-live-secret-literal`             | 1.0.0   | critical | javascript, typescript | CWE-798  | A02:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `idor-prisma-no-owner-filter`               | 1.0.0   | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| `insecure-random-array`                     | 1.0.0   | medium   | javascript, typescript | CWE-330  | —        | `.semgrep/defensive-patterns.yaml` |
+| `insecure-random-token`                     | 1.0.0   | high     | javascript, typescript | CWE-330  | —        | `.semgrep/defensive-patterns.yaml` |
+| `jwt-no-expiry`                             | 1.0.0   | high     | javascript, typescript | CWE-613  | —        | `.semgrep/vibe-audit-rules.yaml`   |
+| `missing-auth-api-route`                    | 1.0.0   | medium   | javascript, typescript | CWE-306  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| `next-route-handler-missing-auth`           | 1.0.0   | medium   | javascript, typescript | CWE-862  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `next-untrusted-redirect`                   | 1.0.0   | high     | javascript, typescript | CWE-601  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `path-traversal-join`                       | 1.0.0   | medium   | javascript, typescript | CWE-22   | —        | `.semgrep/defensive-patterns.yaml` |
+| `path-traversal-resolve`                    | 1.0.0   | medium   | javascript, typescript | CWE-22   | —        | `.semgrep/defensive-patterns.yaml` |
+| `prisma-find-by-request-id-unscoped`        | 1.0.0   | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `prisma-request-body-mass-assignment`       | 1.0.0   | high     | javascript, typescript | CWE-915  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `prototype-pollution-json-parse`            | 1.0.0   | high     | javascript, typescript | CWE-1321 | A03:2021 | `.semgrep/defensive-patterns.yaml` |
+| `prototype-pollution-object-assign`         | 1.0.0   | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/defensive-patterns.yaml` |
+| `prototype-pollution-spread`                | 1.0.0   | medium   | javascript, typescript | CWE-1321 | —        | `.semgrep/defensive-patterns.yaml` |
+| `public-env-holds-secret`                   | 1.0.0   | high     | javascript, typescript | CWE-200  | A02:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `react-dangerous-html`                      | 1.0.0   | high     | javascript, typescript | CWE-79   | A07:2021 | `.semgrep/defensive-patterns.yaml` |
+| `react-href-javascript`                     | 1.0.0   | high     | javascript, typescript | CWE-79   | —        | `.semgrep/defensive-patterns.yaml` |
+| `service-key-in-client-component`           | 1.0.0   | high     | javascript, typescript | CWE-200  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `sql-injection-string-concat`               | 1.0.0   | critical | javascript, typescript | CWE-89   | —        | `.semgrep/defensive-patterns.yaml` |
+| `sql-injection-template-string`             | 1.0.0   | critical | javascript, typescript | CWE-89   | A03:2021 | `.semgrep/defensive-patterns.yaml` |
+| `stripe-request-controlled-amount`          | 1.0.0   | high     | javascript, typescript | CWE-602  | A04:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `stripe-request-customer-without-ownership` | 1.0.0   | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `stripe-webhook-json-without-signature`     | 1.2.0   | medium   | javascript, typescript | CWE-345  | A08:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `supabase-select-on-user-table`             | 1.0.0   | critical | javascript, typescript | CWE-639  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `supabase-service-role-client`              | 1.0.0   | medium   | javascript, typescript | CWE-250  | A01:2021 | `.semgrep/vibe-moat-rules.yaml`    |
+| `unbounded-array-growth`                    | 1.0.0   | medium   | javascript, typescript | CWE-400  | —        | `.semgrep/defensive-patterns.yaml` |
+| `unsafe-eval`                               | 1.0.0   | critical | javascript, typescript | CWE-95   | —        | `.semgrep/defensive-patterns.yaml` |
+| `unvalidated-redirect`                      | 1.0.0   | medium   | javascript, typescript | CWE-601  | A01:2021 | `.semgrep/vibe-audit-rules.yaml`   |
+| `verbose-error-to-client`                   | 1.1.0   | medium   | javascript, typescript | CWE-209  | A05:2021 | `.semgrep/vibe-audit-rules.yaml`   |

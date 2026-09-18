@@ -128,7 +128,26 @@ canonical_primary_checkout() {
   [ -n "$git_dir" ] && [ "$git_dir" = "$common_dir" ]
 }
 
-declare -A SEEN_ORIGINS
+# macOS ships Bash 3.2, which does not support associative arrays. Git remote
+# URLs cannot contain a newline, so a newline-delimited set gives us the same
+# deduplication without requiring a newer shell.
+SEEN_ORIGINS=""
+origin_seen() {
+  case "
+$SEEN_ORIGINS
+" in
+    *"
+$1
+"*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+remember_origin() {
+  SEEN_ORIGINS="${SEEN_ORIGINS}$1
+"
+}
+
 CONSUMERS=()
 CANARY_DIR=""
 for projects_dir in "${PROJECTS_DIRS[@]}"; do
@@ -142,8 +161,8 @@ for projects_dir in "${PROJECTS_DIRS[@]}"; do
     grep -q 'WORKFLOW_MODE:' "$workflow" 2>/dev/null || continue
     origin_url="$(git -C "$repo_dir" remote get-url origin 2>/dev/null || true)"
     [ -n "$origin_url" ] || continue
-    [ -z "${SEEN_ORIGINS[$origin_url]:-}" ] || continue
-    SEEN_ORIGINS[$origin_url]="$repo_dir"
+    origin_seen "$origin_url" && continue
+    remember_origin "$origin_url"
     if [ -n "$CANARY_REPO" ] && [ "$repo_name" = "$CANARY_REPO" ]; then
       CANARY_DIR="$repo_dir"
     else

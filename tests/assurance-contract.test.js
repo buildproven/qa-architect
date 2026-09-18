@@ -566,6 +566,11 @@ test('generated catalog agrees with shipped Semgrep IDs and severities', () => {
     catalog.rules.every(rule => rule.languages.length > 0),
     'every shipped Semgrep rule must publish its language scope'
   )
+  assert.strictEqual(catalog.rulePackVersion, '2.1.0')
+  assert.strictEqual(
+    catalog.rules.find(rule => rule.id === 'express-no-helmet').ruleVersion,
+    '1.3.0'
+  )
   assert.strictEqual(
     catalog.rules.find(rule => rule.id === 'sql-injection-template-string')
       .severity,

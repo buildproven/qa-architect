@@ -80,7 +80,6 @@ const baseDevDependencies = {
   '@lhci/cli': '^0.14.0',
   vitest: '^2.1.8',
   '@vitest/coverage-v8': '^2.1.8',
-  commitlint: '^20.4.1',
   '@commitlint/cli': '^20.4.1',
   '@commitlint/config-conventional': '^20.4.1',
 }

@@ -591,7 +591,9 @@ jobs:
   # Smart skip: Draft PRs skip tests (saves CI costs during WIP)
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Selector-policy migrations run the complete suite. Keep the normal
+    # focused-test budget below, but give that rare fail-closed path room.
+    timeout-minutes: 20
     needs: detect-maturity
     if: |
       fromJSON(needs.detect-maturity.outputs.test-count) > 0 &&
@@ -663,7 +665,7 @@ jobs:
               exit 0
             fi
             echo "Base test-impact policy is absent. Running the complete migration audit once."
-            timeout 300 npm test
+            timeout 900 npm test
             exit 0
           fi
 
@@ -679,7 +681,7 @@ jobs:
               exit 0
             fi
             echo "Test-impact policy and application code changed together. Running the complete selector-policy audit."
-            timeout 300 npm test
+            timeout 900 npm test
             exit 0
           fi
           git -C "$KIT_ROOT" init --quiet

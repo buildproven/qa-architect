@@ -223,7 +223,7 @@ try {
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run quality:lint'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run format:check'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run typecheck'))
-  assert(workflowAfterFirstRun.includes('timeout 300 pnpm run test'))
+  assert(workflowAfterFirstRun.includes('timeout 900 pnpm run test'))
   assert(workflowAfterFirstRun.includes('timeout 300 pnpm run build'))
   assert.strictEqual(
     workflowAfterFirstRun.match(/- name: Tests\n/g)?.length || 0,
@@ -354,7 +354,7 @@ try {
     path.join(npmRepo, '.github/workflows/quality.yml'),
     'utf8'
   )
-  assert(workflow.includes('timeout 300 npm run test'))
+  assert(workflow.includes('timeout 900 npm run test'))
   assert(
     workflow.includes('timeout 300 npm run format:check'),
     'Generated check-mode gates must survive the final project-profile overlay'

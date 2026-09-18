@@ -1,70 +1,82 @@
 # Commercial Terms — QA Architect Pro
 
-**Effective:** 2026-05-17
-**Applies to:** Use of features gated by a paid license key in `create-qa-architect`.
+**Effective:** 2026-08-26
 
-The source code in this repository is licensed under **Apache-2.0** (see `LICENSE`). The terms below apply _in addition_ to Apache-2.0 when you use the **Pro tier features** at runtime — that is, any feature unlocked only when a valid signed license key is present.
+**Applies to:** BuildProven-issued Pro subscriptions, license keys, updates, and
+support for `create-qa-architect`.
 
-## What's covered by which terms
+The source code in this repository is licensed under Apache-2.0. The
+[Apache-2.0 license](LICENSE) governs use, modification, and distribution of
+that source code. Nothing in these commercial terms reduces the rights granted
+by Apache-2.0.
 
-|                                                                                                                    | Apache-2.0 (`LICENSE`) | Commercial (this file) |
-| ------------------------------------------------------------------------------------------------------------------ | ---------------------- | ---------------------- |
-| The source code in this repo                                                                                       | ✅                     | —                      |
-| Free CLI features (linting, formatting, basic CI setup)                                                            | ✅                     | —                      |
-| Pro features unlocked by a signed license key (security scanning, Smart Test Strategy, ship-check, pr-check, etc.) | ✅ for the code        | ✅ for the runtime use |
-
-Apache-2.0 lets you read, modify, and redistribute the source. It does **not** grant you the right to run the Pro features without a valid license key.
+These terms govern the commercial relationship between BuildProven and a
+customer who receives a BuildProven-issued Pro subscription or license key.
 
 ## Tiers and pricing
 
-- **Free** — $0. Works without a license key. Includes the free CLI features above.
-- **Pro** — $29/month or $290/year. Unlocks Pro features via a signed license key issued at purchase.
+- **Free** — $0. No license key is required.
+- **Pro** — the planned list price is $29/month or $290/year. A valid signed
+  key enables the supported Pro tier in the official package while the related
+  subscription or entitlement is active.
 
-Purchase Pro at [buildproven.ai/qa-architect](https://buildproven.ai/qa-architect).
+Paid checkout is not open. To receive availability updates, email
+[support@buildproven.ai](mailto:support@buildproven.ai?subject=QA%20Architect%20Pro%20launch%20list).
+Joining the launch list does not create a subscription or issue a key.
 
-## Your license-key grant
+## License keys and service access
 
-When you purchase Pro and receive a license key, BuildProven grants you a non-exclusive, non-transferable, non-sublicensable right to:
+When BuildProven issues a Pro key, the customer may use that key on the
+customer's own development machines and CI environments for personal or
+commercial projects, subject to the offer accepted at checkout.
 
-- Use Pro features in any number of your own personal or commercial projects, for as long as the subscription is active.
-- Use the key on your own development machines and CI environments.
+Customers must not:
 
-## What you may not do with the Pro tier
+- sell, sublicense, publish, or transfer a BuildProven-issued key;
+- share a key outside the organization covered by the purchase; or
+- use a key after its subscription or entitlement is revoked.
 
-- Resell, sublicense, or redistribute Pro features or the license key itself.
-- Share your license key with parties outside your own organization.
-- Bypass, circumvent, or remove the license verification logic.
-- Use the key after the subscription is canceled or revoked. Revocation is
-  enforced when the CLI can complete a signature-verified registry check;
-  offline use remains available until that check succeeds, and no fixed timing
-  is guaranteed.
+These key-use limits do not restrict rights in the Apache-2.0 source code.
 
 ## Subscription lifecycle
 
-- **Activation** — license key is issued automatically on successful checkout. Activate locally with `npx create-qa-architect --activate-license`.
-- **Renewal** — handled by Polar; key remains valid as long as the subscription is active.
-- **Cancellation** — you keep Pro until the end of the billing period you've paid for, then the key is revoked.
-- **Refunds** — handled by Polar.sh per their refund policy (typically 30 days). Contact `support@buildproven.ai` if Polar can't resolve it.
-- **Failed payment** — Polar handles dunning; if all retries fail, the key is moved to the revocation list.
+The checkout presented for a future paid offer must identify the payment
+provider and state its renewal, cancellation, refund, failed-payment, and tax
+terms before purchase. Those exact terms are not verified for a current
+self-serve offer. Existing key holders can contact
+`support@buildproven.ai` for account, cancellation, refund, or activation help.
+
+When a key is revoked, the official CLI removes Pro access after it completes a
+successful signature-verified registry check that confirms the revocation.
+Offline or unverifiable checks do not cause a downgrade, so no fixed revocation
+time is guaranteed.
 
 ## Modifications and derivative works
 
-Apache-2.0 lets you fork the repo, modify it, and ship your own derivative. If your derivative ships the Pro feature _gates removed or bypassed_, that's a violation of these terms and BuildProven may revoke any license keys associated with your account.
-
-If your derivative ships only Apache-2.0 code (free features), you're free to redistribute it as long as you comply with Apache-2.0's notice requirements.
+Apache-2.0 permits forks, modifications, and redistribution subject to its
+conditions. A derivative must not imply BuildProven endorsement or use
+BuildProven trademarks in a way that creates confusion about its source.
 
 ## Trademarks
 
-"BuildProven", "QA Architect", and "QA Architect Pro" are trademarks of BuildProven. Apache-2.0's Section 6 reserves trademark rights — you can't use these names to brand your fork or competing product.
+"BuildProven", "QA Architect", and "QA Architect Pro" are BuildProven marks.
+Apache-2.0 does not grant permission to use trade names or marks except as
+needed for reasonable and customary description of the work's origin and
+NOTICE-file reproduction.
 
 ## Warranty and liability
 
-The Pro features are provided **as-is**, without warranty of any kind. BuildProven's total liability is limited to the amount you paid in the 12 months preceding any claim. This matches the standard Apache-2.0 disclaimer for the underlying code.
+The Pro service is provided as-is, without warranty of any kind. To the extent
+permitted by applicable law, BuildProven's total liability under these
+commercial terms is limited to the amount the customer paid for Pro in the 12
+months before the claim. The Apache-2.0 warranty and liability terms continue
+to govern the source code.
 
 ## Changes
 
-We may update these commercial terms. Material changes will be published in this file and announced via your purchase email. Continued use after a material change constitutes acceptance.
+Material changes to these terms will be published in this file. Terms presented
+and accepted at checkout govern that purchase.
 
 ## Contact
 
-Licensing questions: `support@buildproven.ai`
+Licensing and billing questions: `support@buildproven.ai`
