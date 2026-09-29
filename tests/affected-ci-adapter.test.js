@@ -13,11 +13,20 @@ const workflow = fs.readFileSync(
 
 assert(workflow.includes('fetch-depth: 0'))
 assert(
-  workflow.includes('CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69')
+  workflow.includes('AGENT_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69')
 )
 assert(workflow.includes('git show "$BASE_SHA:.buildproven/test-impact.json"'))
 assert(
-  workflow.includes('merge-base --is-ancestor "$CLAUDE_KIT_SHA" FETCH_HEAD')
+  workflow.includes(
+    'git -C "$KIT_ROOT" remote add origin https://github.com/buildproven/agent-kit.git'
+  )
+)
+assert(
+  !workflow.includes('claude-kit'),
+  'generated workflow must not depend on the renamed claude-kit repo'
+)
+assert(
+  workflow.includes('merge-base --is-ancestor "$AGENT_KIT_SHA" FETCH_HEAD')
 )
 assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
 assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))

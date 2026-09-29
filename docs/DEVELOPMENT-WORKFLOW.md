@@ -181,5 +181,5 @@ npx create-qa-architect@latest --update-test-impact
 The generator detects declared Vitest, Jest, plain Node, and Pytest suites.
 Source files without a sound dependency selector need repository-owned mappings.
 Pass reviewed mappings with `--mapping-file <path>`. QA Architect does not
-change CI for this feature. The shared `claude-kit` selector and the
-`claude-setup` repository adapter own execution.
+change CI for this feature. The quality workflow runs the shared `agent-kit`
+selector, pinned to an immutable commit, which owns execution.
