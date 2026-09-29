@@ -28,6 +28,10 @@ assert(
 assert(
   workflow.includes('merge-base --is-ancestor "$AGENT_KIT_SHA" FETCH_HEAD')
 )
+assert(
+  workflow.includes('timeout 600 node "$KIT_ROOT/scripts/test-impact.js"'),
+  'selector budget must leave headroom over the ~5 minute full-suite run (BUI-989)'
+)
 assert(workflow.includes('--policy-sha256 "$POLICY_SHA256"'))
 assert(workflow.includes('--git-range "$BASE_SHA" "$HEAD_SHA"'))
 assert(workflow.includes('Base test-impact policy is absent'))
