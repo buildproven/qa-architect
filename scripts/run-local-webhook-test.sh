@@ -5,9 +5,8 @@
 #
 # Required env (override any of these inline; sensible local defaults shown):
 #   POLAR_WEBHOOK_SECRET   webhook signing secret. If unset, sourced from
-#                          $QAA_SECRET_ENV_FILE (default ~/.config/buildproven/.env
-#                          then ~/Projects/internal/claude-setup/.env) by grepping
-#                          QA_ARCHITECT_SECRET=. Set the var directly to skip the file.
+#                          $QAA_SECRET_ENV_FILE (default ~/.config/buildproven/.env)
+#                          by grepping QA_ARCHITECT_SECRET=. Set the var directly to skip the file.
 #   LICENSE_PRIVATE_BLOB_READ_WRITE_TOKEN  Private license-database Blob token.
 #   BLOB_READ_WRITE_TOKEN  Public signed-registry Blob token.
 #   POLAR_PRO_PRODUCT_ID   defaults to the QA Architect Pro product id.
@@ -22,8 +21,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -z "${POLAR_WEBHOOK_SECRET:-}" ]; then
   for candidate in \
     "${QAA_SECRET_ENV_FILE:-}" \
-    "$HOME/.config/buildproven/.env" \
-    "$HOME/Projects/internal/claude-setup/.env"; do
+    "$HOME/.config/buildproven/.env"; do
     if [ -n "$candidate" ] && [ -f "$candidate" ]; then
       POLAR_WEBHOOK_SECRET=$(grep -m1 '^QA_ARCHITECT_SECRET=' "$candidate" | cut -d= -f2-)
       [ -n "$POLAR_WEBHOOK_SECRET" ] && break
