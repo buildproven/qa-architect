@@ -153,9 +153,7 @@ function assertValidYamlStructure(content, tier) {
   )
   assert(content.includes('tests:'), `${tier} workflow must have tests job`)
   assert(
-    content.includes(
-      'CLAUDE_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69'
-    ),
+    content.includes('AGENT_KIT_SHA: 6209610058b95a3d3f2a9d1af7a10f9c69f0dd69'),
     `${tier} workflow must pin the shared affected-test selector`
   )
   assert(

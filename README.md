@@ -449,9 +449,9 @@ Unknown impact uses the declared complete suite as an explicit safe fallback.
 Mapped, related-test, direct-test, and documentation-only changes stay focused.
 Plain Node same-name tests are suggestions only. Supply reviewed mappings
 with `--mapping-file <path>`. QA Architect does not install or replace CI for
-this feature. Use the shared `claude-kit` selector through the repository's
-normal `claude-setup` CI adapter. The generated pre-push hook stays fast and
-does not run the complete suite.
+this feature. The quality workflow runs the shared `agent-kit` selector, pinned
+to an immutable commit. The generated pre-push hook stays fast and does not run
+the complete suite.
 
 On update, QA Architect replaces only a recognized legacy smart-test hook. It
 saves the old hook as `.husky/pre-push.qa-architect-legacy`. Restore that file
