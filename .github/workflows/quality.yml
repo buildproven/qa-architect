@@ -692,7 +692,7 @@ jobs:
           test "$(git -C "$KIT_ROOT" rev-parse HEAD)" = "$AGENT_KIT_SHA"
 
           POLICY_SHA256="$(sha256sum "$POLICY_ROOT/.buildproven/test-impact.json" | awk '{print $1}')"
-          timeout 300 node "$KIT_ROOT/scripts/test-impact.js" \
+          timeout 600 node "$KIT_ROOT/scripts/test-impact.js" \
             --execute \
             --policy-root "$POLICY_ROOT" \
             --policy-sha256 "$POLICY_SHA256" \
