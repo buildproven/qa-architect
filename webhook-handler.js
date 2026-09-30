@@ -568,20 +568,66 @@ async function handleSubscriptionRevoked(event) {
 
 // ─── Webhook endpoint ────────────────────────────────────────────────────────
 
+function verifyPolarSignature(req) {
+  // standard-webhooks signature verification
+  const headers = {
+    'webhook-id': req.headers['webhook-id'],
+    'webhook-timestamp': req.headers['webhook-timestamp'],
+    'webhook-signature': req.headers['webhook-signature'],
+  }
+  const payload = req.body.toString('utf8')
+  const event = polarWebhook.verify(payload, headers)
+  // verify returns the parsed payload if valid, throws otherwise
+  if (typeof event !== 'string') return event
+  try {
+    return JSON.parse(event)
+  } catch (err) {
+    // Surface as a verification failure (400) with the original parse message
+    throw new SyntaxError(err.message)
+  }
+}
+
+function assertValidEvent(event) {
+  if (!event || typeof event !== 'object') {
+    throw new Error('Invalid webhook event: event must be an object')
+  }
+  if (!event.type || typeof event.type !== 'string') {
+    throw new Error('Invalid webhook event: missing or invalid event.type')
+  }
+  if (!event.data || typeof event.data !== 'object') {
+    throw new Error('Invalid webhook event: missing or invalid event.data')
+  }
+}
+
+async function dispatchSubscriptionEvent(event) {
+  switch (event.type) {
+    case 'subscription.created':
+    case 'subscription.active':
+      await handleSubscriptionActivated(event)
+      break
+
+    case 'subscription.updated':
+      await handleSubscriptionUpdated(event)
+      break
+
+    case 'subscription.canceled':
+      await handleSubscriptionCanceled(event)
+      break
+
+    case 'subscription.revoked':
+      await handleSubscriptionRevoked(event)
+      break
+
+    default:
+      console.log(`🔄 Unhandled event type: ${event.type}`)
+  }
+}
+
 app.post('/webhook', async (req, res) => {
   let event
 
   try {
-    // standard-webhooks signature verification
-    const headers = {
-      'webhook-id': req.headers['webhook-id'],
-      'webhook-timestamp': req.headers['webhook-timestamp'],
-      'webhook-signature': req.headers['webhook-signature'],
-    }
-    const payload = req.body.toString('utf8')
-    event = polarWebhook.verify(payload, headers)
-    // verify returns the parsed payload if valid, throws otherwise
-    if (typeof event === 'string') event = JSON.parse(event)
+    event = verifyPolarSignature(req)
   } catch (err) {
     console.error(
       '⚠️ Polar webhook signature verification failed:',
@@ -595,38 +641,8 @@ app.post('/webhook', async (req, res) => {
   }
 
   try {
-    if (!event || typeof event !== 'object') {
-      throw new Error('Invalid webhook event: event must be an object')
-    }
-    if (!event.type || typeof event.type !== 'string') {
-      throw new Error('Invalid webhook event: missing or invalid event.type')
-    }
-    if (!event.data || typeof event.data !== 'object') {
-      throw new Error('Invalid webhook event: missing or invalid event.data')
-    }
-
-    switch (event.type) {
-      case 'subscription.created':
-      case 'subscription.active':
-        await handleSubscriptionActivated(event)
-        break
-
-      case 'subscription.updated':
-        await handleSubscriptionUpdated(event)
-        break
-
-      case 'subscription.canceled':
-        await handleSubscriptionCanceled(event)
-        break
-
-      case 'subscription.revoked':
-        await handleSubscriptionRevoked(event)
-        break
-
-      default:
-        console.log(`🔄 Unhandled event type: ${event.type}`)
-    }
-
+    assertValidEvent(event)
+    await dispatchSubscriptionEvent(event)
     res.json({ received: true })
   } catch (error) {
     console.error('❌ Webhook processing error:', error.message)
