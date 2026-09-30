@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.8] - 2026-09-29
+
+### Added
+
+- **Release receipts:** release receipts are now the assurance interface, with
+  hardened receipt output, closed trust gaps, and paid-launch readiness fixes
+  (#260).
+
+### Changed
+
+- **Generated CI clones `agent-kit`:** the quality workflow template fetches
+  `buildproven/agent-kit` at the same pinned commit instead of the renamed
+  `claude-kit` repository, and a test asserts the generated workflow never
+  mentions `claude-kit`. Consumers pick this up through
+  `scripts/deploy-consumers.sh`.
+- **Selector budget:** the affected-test selector step now allows 600 seconds
+  (was 300) so the full-suite selection on this repository no longer flakes.
+- **Consumer rollout on macOS Bash:** `deploy-consumers.sh` runs under the
+  system Bash.
+
+### Removed
+
+- **Dead `claude-setup` probes:** `pattern-check.sh`, `run-semgrep.sh`, and
+  `run-local-webhook-test.sh` no longer look for files in the archived
+  `claude-setup` repository.
+
 ## [5.16.7] - 2026-08-14
 
 ### Changed
