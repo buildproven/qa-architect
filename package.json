@@ -1,6 +1,6 @@
 {
   "name": "create-qa-architect",
-  "version": "5.16.8",
+  "version": "5.16.9",
   "description": "Revision-bound Release Receipts, security audits, and quality automation for AI-built software.",
   "main": "setup.js",
   "bin": {

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.16.9] - 2026-09-29
+
+### Fixed
+
+- **Release audit:** refreshed `package-lock.json` (`npm audit fix`) to clear
+  three `undici` advisories, one high severity, that failed the pre-release
+  `security:audit` gate. Version 5.16.8 was tagged but never published because
+  of that failure; 5.16.9 carries everything listed under 5.16.8.
+
 ## [5.16.8] - 2026-09-29
 
 ### Added
