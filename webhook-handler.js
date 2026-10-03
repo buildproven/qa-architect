@@ -419,6 +419,21 @@ async function addLicenseToDatabase(licenseKey, customerInfo) {
   return true
 }
 
+function sweepPendingCancel(database, now) {
+  const cutoff = new Date(now).getTime()
+  let revoked = 0
+  Object.keys(database).forEach(key => {
+    if (key === '_metadata') return
+    const entry = database[key]
+    if (entry.status !== 'pending_cancel') return
+    if (new Date(entry.cancelAt).getTime() < cutoff) {
+      entry.status = 'revoked'
+      revoked++
+    }
+  })
+  return revoked
+}
+
 function markLicensePendingCancel(subscriptionId, cancelAt) {
   return mutateLicenseDatabase(database => {
     let found = false
@@ -708,6 +723,33 @@ app.get(
   serveLicenseDatabase
 )
 
+async function handleSweepPendingCancel(req, res) {
+  const secret = process.env.CRON_SECRET
+  const authHeader = req.headers.authorization || ''
+  const expected = Buffer.from(`Bearer ${secret}`)
+  const actual = Buffer.from(authHeader)
+  if (
+    !secret ||
+    actual.length !== expected.length ||
+    !crypto.timingSafeEqual(actual, expected)
+  ) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  try {
+    let revoked = 0
+    await mutateLicenseDatabase(database => {
+      revoked = sweepPendingCancel(database, new Date())
+    })
+    res.json({ status: 'ok', revoked })
+  } catch (error) {
+    console.error('Sweep pending_cancel error:', error.message)
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+app.get('/cron/sweep-pending-cancel', handleSweepPendingCancel)
+
 app.get('/status', async (req, res) => {
   const authHeader = req.headers.authorization
   const expectedToken = process.env.STATUS_API_TOKEN || 'disabled'
@@ -775,6 +817,7 @@ if (!process.env.VERCEL && process.env.NODE_ENV !== 'test') {
 }
 
 module.exports = app
+module.exports.sweepPendingCancel = sweepPendingCancel
 
 // Internal functions exposed for unit testing only. The Express `app` above
 // remains the deployment contract; these are pure/near-pure helpers whose
@@ -786,5 +829,7 @@ module.exports.__testExports = {
   generateLicenseKey,
   extractSubscription,
   buildPublicRegistry,
+  sweepPendingCancel,
+  handleSweepPendingCancel,
   LICENSE_KEY_PATTERN,
 }
