@@ -233,6 +233,30 @@ async function run() {
     )
   }
 
+  // --- REQ-LIC-1: content changed between read and write is not overwritten ---
+  {
+    const v = freshValidator()
+    writeLocalLicense(v, {})
+    const realRead = fs.readFileSync
+    fs.readFileSync = function (target, ...rest) {
+      const out = realRead.call(fs, target, ...rest)
+      if (target === v.licenseFile) {
+        fs.readFileSync = realRead
+        fs.writeFileSync(v.licenseFile, '{"replaced":true}')
+      }
+      return out
+    }
+    try {
+      v.refreshVerifiedAt()
+    } finally {
+      fs.readFileSync = realRead
+    }
+    check(
+      'REQ-LIC-1: refreshVerifiedAt does not overwrite a changed license file',
+      fs.readFileSync(v.licenseFile, 'utf8') === '{"replaced":true}'
+    )
+  }
+
   fs.rmSync(TEST_LICENSE_DIR, { recursive: true, force: true })
   console.log(
     `\n✅ All license re-validation tests passed (${passed} checks)\n`
