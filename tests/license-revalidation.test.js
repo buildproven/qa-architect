@@ -209,6 +209,30 @@ async function run() {
     )
   }
 
+  // --- REQ-LIC-1/REQ-LIC-2: revocation between read and write is not undone ---
+  {
+    const v = freshValidator()
+    writeLocalLicense(v, {})
+    const realRead = fs.readFileSync
+    fs.readFileSync = function (target, ...rest) {
+      const out = realRead.call(fs, target, ...rest)
+      if (target === v.licenseFile) {
+        fs.readFileSync = realRead
+        v.removeLicense()
+      }
+      return out
+    }
+    try {
+      v.refreshVerifiedAt()
+    } finally {
+      fs.readFileSync = realRead
+    }
+    check(
+      'REQ-LIC-2: refreshVerifiedAt does not resurrect a revoked license',
+      !fs.existsSync(v.licenseFile)
+    )
+  }
+
   fs.rmSync(TEST_LICENSE_DIR, { recursive: true, force: true })
   console.log(
     `\n✅ All license re-validation tests passed (${passed} checks)\n`
