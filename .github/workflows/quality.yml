@@ -740,6 +740,45 @@ jobs:
           QAA_DEVELOPER=true RUN_REAL_BINARY_TEST=1 node tests/gitleaks-real-binary-test.js
       # {{QA_ARCHITECT_ONLY_END}}
 
+  # {{QA_ARCHITECT_ONLY_BEGIN}}
+  # Step 3b: Coverage enforcement - separate from the tests job so a red
+  # "Tests" check means tests broke and a red "Coverage threshold" check means
+  # coverage slipped. Thresholds live in .c8rc.json (check-coverage: true), so
+  # c8 exits non-zero on a miss and this job fails visibly on its own.
+  coverage:
+    name: Coverage threshold
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: detect-maturity
+    if: |
+      fromJSON(needs.detect-maturity.outputs.test-count) > 0 &&
+      needs.detect-maturity.outputs.quality-only != 'true' &&
+      (github.event.pull_request.draft != true || github.event_name != 'pull_request')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: ${{ needs.detect-maturity.outputs.package-manager }}
+
+      - name: Install dependencies
+        run: ${{ needs.detect-maturity.outputs.install-cmd }}
+
+      - name: Install semgrep CLI (for rule-precision tests)
+        run: |
+          python3 -m pip install --quiet --user semgrep
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Enforce coverage thresholds
+        run: npm run test:coverage
+  # {{QA_ARCHITECT_ONLY_END}}
+
   # Step 4: Documentation - run for production-ready projects
   documentation:
     runs-on: ubuntu-latest
@@ -888,6 +927,9 @@ jobs:
       - security
       - audit-report
       - tests
+      # {{QA_ARCHITECT_ONLY_BEGIN}}
+      - coverage
+      # {{QA_ARCHITECT_ONLY_END}}
       - documentation
     if: always()
 
@@ -896,6 +938,9 @@ jobs:
         env:
           SECURITY_RESULT: ${{ needs.security.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          # {{QA_ARCHITECT_ONLY_BEGIN}}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
+          # {{QA_ARCHITECT_ONLY_END}}
           DOCS_RESULT: ${{ needs.documentation.result }}
         run: |
           echo "## Quality Checks Summary 📊" >> $GITHUB_STEP_SUMMARY
@@ -934,6 +979,19 @@ jobs:
           else
             echo "- ⚠️ Tests: $TESTS_RESULT" >> $GITHUB_STEP_SUMMARY
           fi
+          # {{QA_ARCHITECT_ONLY_BEGIN}}
+
+          # Coverage threshold (separate job: a miss here means coverage slipped, not that tests broke)
+          if [ "$COVERAGE_RESULT" == "success" ]; then
+            echo "- ✅ Coverage threshold: Met" >> $GITHUB_STEP_SUMMARY
+          elif [ "$COVERAGE_RESULT" == "failure" ]; then
+            echo "- ❌ Coverage threshold: Below .c8rc.json minimums" >> $GITHUB_STEP_SUMMARY
+          elif [ "$COVERAGE_RESULT" == "skipped" ]; then
+            echo "- ⏭️ Coverage threshold: Skipped (no test files)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️ Coverage threshold: $COVERAGE_RESULT" >> $GITHUB_STEP_SUMMARY
+          fi
+          # {{QA_ARCHITECT_ONLY_END}}
 
           # Documentation
           if [ "$DOCS_RESULT" == "success" ]; then
@@ -962,6 +1020,7 @@ jobs:
           SECURITY_RESULT: ${{ needs.security.result }}
           AUDIT_RESULT: ${{ needs.audit-report.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          COVERAGE_RESULT: ${{ needs.coverage.result }}
           DOCS_RESULT: ${{ needs.documentation.result }}
         run: |
           failed=""
@@ -970,6 +1029,7 @@ jobs:
             "security:$SECURITY_RESULT" \
             "audit-report:$AUDIT_RESULT" \
             "tests:$TESTS_RESULT" \
+            "coverage:$COVERAGE_RESULT" \
             "documentation:$DOCS_RESULT"
           do
             name="${check%%:*}"
