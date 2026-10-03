@@ -24,8 +24,18 @@
       "dest": "webhook-handler.js"
     },
     {
+      "src": "/cron/sweep-pending-cancel",
+      "dest": "webhook-handler.js"
+    },
+    {
       "src": "/legitimate-licenses.json",
       "dest": "webhook-handler.js"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/cron/sweep-pending-cancel",
+      "schedule": "0 3 * * *"
     }
   ],
   "env": {

@@ -50,8 +50,10 @@ const {
   generateLicenseKey,
   extractSubscription,
   buildPublicRegistry,
+  handleSweepPendingCancel,
   LICENSE_KEY_PATTERN,
 } = app.__testExports
+const { sweepPendingCancel } = app
 
 let passed = 0
 function ok(cond, msg) {
@@ -275,6 +277,87 @@ console.log('\nbuildPublicRegistry:')
   ok(
     verifyPayload(canonicalPayload, entry.signature, publicKey) === true,
     'per-license signature verifies against the public key'
+  )
+}
+
+// ─── sweepPendingCancel (QA-159b) ────────────────────────────────────────────
+console.log('\nsweepPendingCancel:')
+{
+  const now = new Date('2026-06-01T00:00:00.000Z')
+  const dueKey = generateLicenseKey('cust_due', 'PRO', false)
+  const futureKey = generateLicenseKey('cust_future', 'PRO', false)
+  const activeKey = generateLicenseKey('cust_active', 'PRO', false)
+  const mk = (status, cancelAt) => ({
+    tier: 'PRO',
+    isFounder: false,
+    email: 'a@example.com',
+    issued: '2026-01-01T00:00:00.000Z',
+    status,
+    cancelAt,
+  })
+  const database = {
+    _metadata: { created: '2026-01-01T00:00:00.000Z' },
+    [dueKey]: mk('pending_cancel', '2026-05-31T00:00:00.000Z'),
+    [futureKey]: mk('pending_cancel', '2026-06-30T00:00:00.000Z'),
+    [activeKey]: mk('active', '2026-01-01T00:00:00.000Z'),
+  }
+  const count = sweepPendingCancel(database, now)
+  ok(count === 1, 'REQ-SWEEP-1: returns number of entries revoked')
+  ok(database[dueKey].status === 'revoked', 'REQ-SWEEP-1: due entry revoked')
+  ok(
+    database[futureKey].status === 'pending_cancel' &&
+      database[activeKey].status === 'active',
+    'REQ-SWEEP-1: other entries unchanged'
+  )
+  const registry = buildPublicRegistry(database)
+  ok(!(dueKey in registry), 'REQ-SWEEP-2: swept entry absent from registry')
+  ok(
+    futureKey in registry,
+    'REQ-SWEEP-2: not-yet-due pending_cancel entry still present'
+  )
+}
+
+console.log('\nsweep route auth:')
+{
+  process.env.CRON_SECRET = 'cron-test-secret'
+  const call = headers => {
+    const out = {}
+    const res = {
+      status(code) {
+        out.code = code
+        return this
+      },
+      json(body) {
+        out.body = body
+        return this
+      },
+    }
+    // 401 paths respond synchronously, before any await in the handler.
+    handleSweepPendingCancel({ headers }, res)
+    return out
+  }
+  ok(
+    call({}).code === 401,
+    'REQ-SWEEP-3: missing authorization rejected with 401'
+  )
+  ok(
+    call({ authorization: 'Bearer wrong' }).code === 401,
+    'REQ-SWEEP-3: wrong secret rejected with 401'
+  )
+  const cfg = JSON.parse(
+    require('node:fs').readFileSync(
+      require('node:path').join(__dirname, '..', 'vercel.json'),
+      'utf8'
+    )
+  )
+  ok(
+    cfg.crons.some(c => c.path === '/cron/sweep-pending-cancel') &&
+      cfg.routes.some(
+        r =>
+          r.src === '/cron/sweep-pending-cancel' &&
+          r.dest === 'webhook-handler.js'
+      ),
+    'REQ-SWEEP-3: vercel.json registers cron and route'
   )
 }
 
