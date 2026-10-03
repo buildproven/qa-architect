@@ -31,12 +31,9 @@ jobs:
           close-pr-message: >
             Auto-closed: PR exceeded 48h without merge. Re-open and rebase if still needed.
 
-          # Exemptions
-          exempt-pr-labels: 'do-not-close,wip'
+          # Exemptions (Dependabot PRs carry the `dependencies` label)
+          exempt-pr-labels: 'do-not-close,wip,dependencies'
           exempt-all-pr-assignees: false
-
-          # Exempt dependabot PRs (author filter)
-          exempt-pr-authors: 'dependabot[bot],dependabot'
 
           # CI minutes budget: process max 10 PRs per run
           operations-per-run: 10
