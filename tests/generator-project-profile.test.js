@@ -1030,6 +1030,36 @@ try {
   console.log('✅ node-version matches consumer and package-manager minimums')
 }
 
+// A consumer's .nvmrc is the Node version source of truth: the generated
+// workflow must not pin Node 20 and must follow .nvmrc in setup-node steps.
+{
+  console.log('Generator: node-version follows .nvmrc')
+  const repo = createRepo({ name: 'node-version-nvmrc' })
+  try {
+    fs.writeFileSync(path.join(repo, '.nvmrc'), '24.18.0\n')
+    runSetup(repo)
+    const workflow = fs.readFileSync(
+      path.join(repo, '.github/workflows/quality.yml'),
+      'utf8'
+    )
+    assert(
+      !workflow.includes("node-version: '20'"),
+      'workflow must not hardcode node-version: 20 when .nvmrc is present'
+    )
+    assert(
+      workflow.includes("node-version-file: '.nvmrc'"),
+      'workflow must use node-version-file: .nvmrc'
+    )
+    assert(
+      workflow.includes('node-version: [24.18.0]'),
+      'test matrix must default to the .nvmrc version'
+    )
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true })
+  }
+  console.log('✅ node-version follows .nvmrc')
+}
+
 // setup.js's Lighthouse config copy always wrote .lighthouserc.js — a
 // CommonJS template (`module.exports = {...}`) — even into ESM projects
 // ("type": "module" in package.json), where Node treats a plain .js file as
