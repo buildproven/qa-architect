@@ -5,5 +5,8 @@
   },
   "testCommand": "npm test",
   "linearProject": "qa-architect",
-  "dailyBudgetUsd": 5
+  "dailyBudgetUsd": 5,
+  "review": true,
+  "heldOutAuthorTier": 3,
+  "install": "npm ci"
 }
