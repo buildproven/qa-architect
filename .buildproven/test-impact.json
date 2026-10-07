@@ -400,6 +400,10 @@
         {
           "executable": "node",
           "args": ["tests/generator-project-profile.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/generator-nvmrc-node-version.test.js"]
         }
       ]
     },
@@ -409,6 +413,10 @@
         {
           "executable": "node",
           "args": ["tests/consumer-workflow-integration.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/generator-nvmrc-node-version.test.js"]
         }
       ]
     }
