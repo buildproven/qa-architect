@@ -8,5 +8,6 @@
   "dailyBudgetUsd": 5,
   "review": true,
   "heldOutAuthorTier": 3,
-  "install": "npm ci"
+  "install": "npm ci",
+  "smoke": "curl -fsS -o /dev/null --max-time 30 \"$KEEL_DEPLOY_URL/health\""
 }
