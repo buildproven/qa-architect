@@ -106,7 +106,7 @@ Coverage: 75% lines / 70% functions / 65% branches. Pre-commit: staged lint and 
 
 ## Agent Workflow
 
-Session start: read `docs/dev_guide/CONVENTIONS.md`. Planning: `/bs:plan <name>` → `docs/plans/`. Handoff: `/bs:context --save` / `--resume`.
+Session start: read `docs/dev_guide/CONVENTIONS.md`. Planning: use plan mode and save the plan to `docs/plans/<name>.md`. Handoff: `/handoff save` / `/handoff resume` (pushes the branch and leaves a note on its PR; resumable on any computer or in the cloud).
 
 ## Shipping Policy
 

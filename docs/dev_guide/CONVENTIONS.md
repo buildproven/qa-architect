@@ -36,7 +36,7 @@ qa-architect/
 ├── tests/                 # 40+ test files (Node's assert module, no test runner)
 ├── docs/                  # Dev guides and plans
 │   ├── dev_guide/         # This file and other dev references
-│   └── plans/             # Agent planning docs (/bs:plan output)
+│   └── plans/             # Agent planning docs (plan mode output)
 └── .claude/               # Claude Code workspace metadata
 ```
 
