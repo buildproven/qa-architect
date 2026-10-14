@@ -431,7 +431,10 @@ gh variable delete CI_RUNS_ON                                     # back to GitH
 A pull request from a fork always runs on GitHub-hosted runners, whatever the
 variable says, so code from outside the repository never runs on your machine.
 Prefer an ephemeral, isolated runner (for example a container with no host
-mounts) over one that runs directly on a workstation.
+mounts) over one that runs directly on a workstation. The blocking security job runs
+Semgrep only from its digest-pinned Docker image, so a self-hosted runner needs
+Docker for that job; without it the job fails closed instead of installing an
+unpinned scanner.
 
 The required `summary` check fails when any job it depends on failed or was
 cancelled, on every tier, so it is safe to make it the only required check.

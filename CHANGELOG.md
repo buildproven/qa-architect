@@ -24,9 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Fewer minutes:** minimal mode no longer reruns on push to main. Standard
   and comprehensive keep the push trigger. Jobs carry `timeout-minutes`.
 - **Portable security job:** gitleaks has pinned binaries for Linux x64, Linux
-  arm64 and macOS arm64; Semgrep falls back to the same pinned version (1.172.0)
-  from a venv when Docker is not available; the install budget is 6 minutes on
-  self-hosted runners (2 on GitHub-hosted).
+  arm64 and macOS arm64; Semgrep still runs only from the digest-pinned image
+  and fails closed with a clear error on a runner without Docker; the install
+  budget is 6 minutes on self-hosted runners (2 on GitHub-hosted).
 
 ## [5.16.9] - 2026-09-29
 

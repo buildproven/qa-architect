@@ -340,21 +340,19 @@ jobs:
             SEMGREP_ARGS+=(--baseline-commit "$BASE_SHA")
           fi
           SEMGREP_ARGS+=(--config p/security-audit --config p/javascript --metrics=off)
-          if docker info >/dev/null 2>&1; then
-            docker run --rm \
-              --mount "type=bind,source=$PWD,target=/src,readonly" \
-              --workdir /src \
-              --tmpfs /tmp:rw,nosuid,nodev,size=512m \
-              --env HOME=/tmp \
-              'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b' \
-              semgrep scan --error "${SEMGREP_ARGS[@]}"
-          else
-            # No Docker (e.g. a containerized self-hosted runner): the same Semgrep version as the pinned image
-            # (1.172.0) from a venv, with the same arguments. GitHub-hosted runners always take the image path.
-            python3 -m venv "$RUNNER_TEMP/semgrep-venv"
-            "$RUNNER_TEMP/semgrep-venv/bin/pip" install --quiet 'semgrep==1.172.0'
-            "$RUNNER_TEMP/semgrep-venv/bin/semgrep" scan --error "${SEMGREP_ARGS[@]}"
+          # Blocking scans run only from the digest-pinned image, never a runtime package install. A runner without
+          # Docker (e.g. a containerized self-hosted runner) fails closed: give it Docker, or run this job elsewhere.
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Semgrep needs Docker for the digest-pinned image, and this runner has none (${RUNNER_ENVIRONMENT:-unknown} ${RUNNER_OS}-${RUNNER_ARCH}). The blocking security scan cannot run here."
+            exit 1
           fi
+          docker run --rm \
+            --mount "type=bind,source=$PWD,target=/src,readonly" \
+            --workdir /src \
+            --tmpfs /tmp:rw,nosuid,nodev,size=512m \
+            --env HOME=/tmp \
+            'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b' \
+            semgrep scan --error "${SEMGREP_ARGS[@]}"
 
   # {{PRO_ASSURANCE_BEGIN}}
   # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,

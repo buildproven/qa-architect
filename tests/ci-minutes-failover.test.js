@@ -117,6 +117,15 @@ for (const mode of ['minimal', 'standard', 'comprehensive']) {
       `${mode}: gitleaks x64`
     )
   }
+  const security = JSON.stringify(workflow.jobs.security)
+  assert(
+    !/pip3? install|npx semgrep|uv pip/.test(security),
+    `${mode}: the blocking security job must not install packages at run time`
+  )
+  assert(
+    security.includes('semgrep/semgrep@sha256:') && security.includes('exit 1'),
+    `${mode}: Semgrep runs only from the pinned image and fails closed without Docker`
+  )
   assert(
     out.includes(
       "timeout ${{ runner.environment == 'self-hosted' && 360 || 120 }}"
