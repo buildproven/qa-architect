@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Required check gates in consumer workflows:** the `summary` job's
+  "Enforce check results" step shipped only in qa-architect's own workflow,
+  so a consumer's required `summary` check passed even when security or tests
+  failed or were cancelled. It now ships in every tier.
+- **Docs-only PRs can merge:** `pull_request` no longer has `paths-ignore`, so
+  the required `summary` check always reports.
+
+### Added
+
+- **Runner failover (`CI_RUNS_ON`):** every job takes its runner from the repo
+  variable `CI_RUNS_ON` (JSON, e.g. `["self-hosted","my-runner"]`); unset means
+  `ubuntu-latest`. A PR from a fork always runs on GitHub-hosted runners.
+- **Fewer minutes:** minimal mode no longer reruns on push to main. Standard
+  and comprehensive keep the push trigger. Jobs carry `timeout-minutes`.
+- **Portable security job:** gitleaks has pinned binaries for Linux x64, Linux
+  arm64 and macOS arm64; Semgrep falls back to the same pinned version (1.172.0)
+  from a venv when Docker is not available; the install budget is 6 minutes on
+  self-hosted runners (2 on GitHub-hosted).
+
 ## [5.16.9] - 2026-09-29
 
 ### Fixed

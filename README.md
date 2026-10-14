@@ -416,6 +416,26 @@ npx create-qa-architect@latest --update --workflow-minimal
 
 The `quality.yml` workflow is adaptive - it runs appropriate checks based on your project's maturity level, so a separate `ci.yml` is unnecessary.
 
+### Runner Failover (`CI_RUNS_ON`)
+
+Every job in `quality.yml` takes its runner from the repository variable
+`CI_RUNS_ON`. Leave it unset and jobs run on `ubuntu-latest`. When GitHub-hosted
+runners are blocked (an outage, a failed payment or a spent spending limit) or
+cost too much, register a self-hosted runner and point the variable at it:
+
+```bash
+gh variable set CI_RUNS_ON --body '["self-hosted","my-runner"]'   # fail over
+gh variable delete CI_RUNS_ON                                     # back to GitHub-hosted
+```
+
+A pull request from a fork always runs on GitHub-hosted runners, whatever the
+variable says, so code from outside the repository never runs on your machine.
+Prefer an ephemeral, isolated runner (for example a container with no host
+mounts) over one that runs directly on a workstation.
+
+The required `summary` check fails when any job it depends on failed or was
+cancelled, on every tier, so it is safe to make it the only required check.
+
 ### Analyzing Your Costs (Pro Feature)
 
 ```bash

@@ -263,15 +263,17 @@ const setupPath = path.join(__dirname, '../setup.js')
       'Minimal must retain maturity detection'
     )
 
-    // Minimal-specific: single node version, path filters, schedule
+    // Minimal-specific: single node version, no push rerun, PRs never
+    // path-filtered (the required summary check must report), schedule
     assert(
       content.includes('node-version: [22]'),
       'Minimal must have single Node 22'
     )
-    assert(content.includes('paths-ignore:'), 'Minimal must have path filters')
+    const on = yaml.load(content).on
+    assert(!('push' in on), 'Minimal must not rerun on push')
     assert(
-      /pull_request:[\s\S]*?paths-ignore:/m.test(content),
-      'Minimal must apply path filters to pull_request events'
+      on.pull_request && !on.pull_request['paths-ignore'],
+      'Minimal must run on every pull_request, unfiltered'
     )
     assert(content.includes('schedule:'), 'Minimal must have schedule trigger')
     assert(

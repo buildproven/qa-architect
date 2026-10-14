@@ -9,6 +9,9 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const yaml = require('js-yaml')
+
+const triggers = content => yaml.load(content).on
 
 console.log('🧪 Testing workflow tier system...\n')
 
@@ -75,18 +78,19 @@ function createTempGitRepo() {
       'Should have minimal mode marker'
     )
 
-    // Check for path filters
+    // Minimal: no rerun on push to main, and the required `summary` check
+    // must report on every PR (a docs-only PR that never reports it can never merge)
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Should have path filters'
+      !('push' in triggers(workflowContent)),
+      'Minimal should not rerun on push (the PR run already checked the tree)'
     )
     assert(
-      workflowContent.includes("- '**.md'"),
-      'Should ignore markdown files'
+      'pull_request' in triggers(workflowContent),
+      'Should run on pull_request events'
     )
     assert(
-      /pull_request:[\s\S]*?paths-ignore:/m.test(workflowContent),
-      'Should apply path filters to pull_request events'
+      !workflowContent.includes('paths-ignore:'),
+      'Minimal should not path-filter PRs: the required summary check must report'
     )
 
     // Check for monthly security schedule
@@ -147,14 +151,15 @@ function createTempGitRepo() {
       'Should have standard mode marker'
     )
 
-    // Check for path filters
+    // Standard keeps the push trigger (tests on main) with its path filters;
+    // PRs are never path-filtered so the required summary check always reports
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Should have path filters'
+      triggers(workflowContent).push['paths-ignore'],
+      'Standard should keep path filters on push'
     )
     assert(
-      /pull_request:[\s\S]*?paths-ignore:/m.test(workflowContent),
-      'Should apply path filters to pull_request events'
+      !triggers(workflowContent).pull_request['paths-ignore'],
+      'Should not path-filter pull_request events'
     )
 
     // Check for monthly security schedule
@@ -329,8 +334,8 @@ function createTempGitRepo() {
       'Update should change to minimal mode'
     )
     assert(
-      workflowContent.includes('paths-ignore:'),
-      'Minimal should have path filters'
+      !('push' in triggers(workflowContent)),
+      'Minimal should not rerun on push'
     )
     assert(
       workflowContent.includes('node-version: [22]'),
