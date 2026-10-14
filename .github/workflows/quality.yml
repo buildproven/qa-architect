@@ -8,8 +8,17 @@ name: Quality Checks
 #
 # The local gate stays fast. CI is the full safety net for this generator repo.
 
+# Minutes and failover:
+# - Minimal mode has no push trigger: the PR run already checked the tree that merges, so a rerun on main only spends
+#   minutes. Standard keeps push (it runs tests on main only); comprehensive keeps it (every commit).
+# - pull_request has no path filter: `summary` is the required check, and a docs-only PR that never reports it can
+#   never merge.
+# - The runner comes from the repo variable CI_RUNS_ON (JSON), e.g. '["self-hosted","my-runner"]', when
+#   GitHub-hosted runners are blocked (billing, outage) or too costly; unset means ubuntu-latest. A PR from a fork
+#   always runs on GitHub-hosted runners, so untrusted code never reaches a self-hosted runner.
 on:
-  push: # Kept: catches direct pushes and scheduled scans
+  # {{PUSH_TRIGGER_BEGIN}}
+  push: # Standard/comprehensive: tests on main / every commit
     branches: [main, master, develop]
     paths-ignore:
       - '**.md'
@@ -17,14 +26,9 @@ on:
       - 'LICENSE'
       - '.gitignore'
       - '.editorconfig'
+  # {{PUSH_TRIGGER_END}}
   pull_request:
     branches: [main, master, develop]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'LICENSE'
-      - '.gitignore'
-      - '.editorconfig'
   schedule:
     - cron: '0 0 1 * *' # Monthly on 1st (security scans)
   workflow_dispatch: # Manual trigger
@@ -46,7 +50,7 @@ jobs:
   # Skip for Dependabot PRs - they auto-merge based on their own checks
   # This reduces GitHub Actions minutes by ~50% on active repos
   detect-maturity:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     if: github.actor != 'dependabot[bot]' || github.event_name == 'schedule'
     outputs:
@@ -192,8 +196,8 @@ jobs:
   # These are optional - workflow functions with defaults but enhanced tokens
   # provide better reliability on GHES/self-hosted and unlock premium features
   security:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 20 # a self-hosted runner may start each job without an npm or semgrep cache
     needs: detect-maturity
     # Least privilege: this job only needs to read the code and post a PR
     # comment. Scoping the token here means a compromised scan dependency
@@ -301,10 +305,15 @@ jobs:
         run: |
           set -euo pipefail
           GITLEAKS_VERSION='8.28.0'
-          GITLEAKS_SHA256='5fd1b3b0073269484d40078662e921d07427340ab9e6ed526ccd215a565b3298'
+          case "${RUNNER_OS}-${RUNNER_ARCH}" in
+            Linux-X64) GITLEAKS_ASSET=linux_x64; GITLEAKS_SHA256='5fd1b3b0073269484d40078662e921d07427340ab9e6ed526ccd215a565b3298' ;;
+            Linux-ARM64) GITLEAKS_ASSET=linux_arm64; GITLEAKS_SHA256='3770c7ebeb625e3e96c183525ca18285a01aedef2d75a2c41ceb3e141af2e8b7' ;;
+            macOS-ARM64) GITLEAKS_ASSET=darwin_arm64; GITLEAKS_SHA256='5588b5d942dffa048720f7e6e1d274283219fb5722a2c7564d22e83ba39087d7' ;;
+            *) echo "::error::no pinned gitleaks binary for ${RUNNER_OS}-${RUNNER_ARCH}"; exit 1 ;;
+          esac
           GITLEAKS_DIR="$(mktemp -d)"
           curl --fail --location --proto '=https' --tlsv1.2 \
-            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_${GITLEAKS_ASSET}.tar.gz" \
             --output "${GITLEAKS_DIR}/gitleaks.tar.gz"
           tar -xzf "${GITLEAKS_DIR}/gitleaks.tar.gz" -C "${GITLEAKS_DIR}" gitleaks
           echo "${GITLEAKS_SHA256}  ${GITLEAKS_DIR}/gitleaks" | sha256sum --check -
@@ -330,25 +339,27 @@ jobs:
             fi
             SEMGREP_ARGS+=(--baseline-commit "$BASE_SHA")
           fi
+          SEMGREP_ARGS+=(--config p/security-audit --config p/javascript --metrics=off)
+          # Blocking scans run only from the digest-pinned image, never a runtime package install. A runner without
+          # Docker (e.g. a containerized self-hosted runner) fails closed: give it Docker, or run this job elsewhere.
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::Semgrep needs Docker for the digest-pinned image, and this runner has none (${RUNNER_ENVIRONMENT:-unknown} ${RUNNER_OS}-${RUNNER_ARCH}). The blocking security scan cannot run here."
+            exit 1
+          fi
           docker run --rm \
             --mount "type=bind,source=$PWD,target=/src,readonly" \
             --workdir /src \
             --tmpfs /tmp:rw,nosuid,nodev,size=512m \
             --env HOME=/tmp \
             'semgrep/semgrep@sha256:65dcd4408adda7c183a6b4550cb1e9b19f7f627a6fbb7e0559bd466bedc44d7b' \
-            semgrep scan \
-            --config p/security-audit \
-            --config p/javascript \
-            --error \
-            --metrics=off \
-            "${SEMGREP_ARGS[@]}"
+            semgrep scan --error "${SEMGREP_ARGS[@]}"
 
   # {{PRO_ASSURANCE_BEGIN}}
   # Pro changed-code gate. Configure QAA_LICENSE_JSON as a repository secret,
   # then require the `pr-assurance` check in branch protection.
   pr-assurance:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     permissions:
       contents: read
@@ -497,7 +508,7 @@ jobs:
   # posts them as a sticky PR comment. PR-only: the comment is meaningless on
   # push/schedule, so this adds no cost to those runs.
   audit-report:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     needs: detect-maturity
     permissions:
@@ -590,7 +601,7 @@ jobs:
   # Step 3: Tests - run if test files exist (development+)
   # Smart skip: Draft PRs skip tests (saves CI costs during WIP)
   tests:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # Selector-policy migrations run the complete suite. Keep the normal
     # focused-test budget below, but give that rare fail-closed path room.
     timeout-minutes: 20
@@ -631,9 +642,10 @@ jobs:
 
       - name: Install dependencies
         run: |
-          echo "⏱️ Performance Budget: Dependency installation must complete within 2 minutes"
-          timeout 120 ${{ needs.detect-maturity.outputs.install-cmd }} || {
-            echo "::error::Dependency installation exceeded 2-minute performance budget!"
+          # A self-hosted runner may start each job in a fresh container with no package cache: 6 minutes there.
+          echo "⏱️ Performance Budget: Dependency installation must complete within ${{ runner.environment == 'self-hosted' && '6 minutes' || '2 minutes' }}"
+          timeout ${{ runner.environment == 'self-hosted' && 360 || 120 }} ${{ needs.detect-maturity.outputs.install-cmd }} || {
+            echo "::error::Dependency installation exceeded the ${{ runner.environment == 'self-hosted' && '6-minute' || '2-minute' }} performance budget!"
             exit 1
           }
 
@@ -747,7 +759,7 @@ jobs:
   # c8 exits non-zero on a miss and this job fails visibly on its own.
   coverage:
     name: Coverage threshold
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
     needs: detect-maturity
     if: |
@@ -781,7 +793,7 @@ jobs:
 
   # Step 4: Documentation - run for production-ready projects
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     needs: detect-maturity
     if: needs.detect-maturity.outputs.maturity == 'production-ready' && needs.detect-maturity.outputs.quality-only != 'true'
@@ -922,7 +934,7 @@ jobs:
 
   # Step 5: Summary - report what checks ran
   summary:
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
     needs:
       - detect-maturity
@@ -1009,33 +1021,39 @@ jobs:
           fi
             # PR comment step not enabled (use --pr-comments to add)
 
-      # {{QA_ARCHITECT_ONLY_BEGIN}}
       # This job is the required status check in branch protection, so it must
       # actually gate. Without this step it runs with `if: always()` and exits
       # 0 unconditionally — a failing security or test job would still report a
-      # green required check and merge cleanly.
+      # green required check and merge cleanly. (Until 2.x this step shipped only
+      # in qa-architect's own workflow, so consumer `summary` checks never gated.)
       #
-      # `skipped` is a pass: jobs are deliberately conditional (path filters,
-      # no test files, docs only on production-ready). `cancelled` is a fail —
-      # it must not read as success.
+      # `skipped` is a pass: jobs are deliberately conditional (no test files,
+      # docs only on production-ready, security on schedule). `cancelled` and
+      # any other result fail — they must not read as success.
       - name: Enforce check results
+        if: always()
         env:
           DETECT_RESULT: ${{ needs.detect-maturity.result }}
           SECURITY_RESULT: ${{ needs.security.result }}
           AUDIT_RESULT: ${{ needs.audit-report.result }}
           TESTS_RESULT: ${{ needs.tests.result }}
+          # {{QA_ARCHITECT_ONLY_BEGIN}}
           COVERAGE_RESULT: ${{ needs.coverage.result }}
+          # {{QA_ARCHITECT_ONLY_END}}
           DOCS_RESULT: ${{ needs.documentation.result }}
         run: |
-          failed=""
-          for check in \
-            "detect-maturity:$DETECT_RESULT" \
-            "security:$SECURITY_RESULT" \
-            "audit-report:$AUDIT_RESULT" \
-            "tests:$TESTS_RESULT" \
-            "coverage:$COVERAGE_RESULT" \
+          checks=(
+            "detect-maturity:$DETECT_RESULT"
+            "security:$SECURITY_RESULT"
+            "audit-report:$AUDIT_RESULT"
+            "tests:$TESTS_RESULT"
             "documentation:$DOCS_RESULT"
-          do
+          )
+          # {{QA_ARCHITECT_ONLY_BEGIN}}
+          checks+=("coverage:$COVERAGE_RESULT")
+          # {{QA_ARCHITECT_ONLY_END}}
+          failed=""
+          for check in "${checks[@]}"; do
             name="${check%%:*}"
             result="${check#*:}"
             case "$result" in
@@ -1054,6 +1072,5 @@ jobs:
           echo "✅ Quality gate passed"
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "**✅ Quality gate passed**" >> "$GITHUB_STEP_SUMMARY"
-      # {{QA_ARCHITECT_ONLY_END}}
 
   # Slack alerts not enabled (use --alerts-slack to add)
