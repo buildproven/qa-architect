@@ -3,14 +3,41 @@ name: Dependabot Auto-Merge
 on: pull_request
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  dependabot:
+  # A pip update in /.github rebuilds .github/semgrep-release-requirements.txt
+  # without .github/semgrep-release-overrides.txt and can restore a vulnerable
+  # pin (BUI-1433). No Dependabot PR merges until the lock test passes. This job
+  # runs PR code, so it gets a read-only token.
+  release-lock:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify Semgrep release lock
+        run: node tests/release-workflow.test.js
+
+  dependabot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: release-lock
+    if: github.actor == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - name: Dependabot metadata
         id: metadata

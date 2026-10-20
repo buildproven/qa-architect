@@ -789,6 +789,30 @@ jobs:
 
       - name: Enforce coverage thresholds
         run: npm run test:coverage
+
+  # Step 3c: Dependabot PRs skip detect-maturity and so every test. A pip update
+  # in /.github rebuilds .github/semgrep-release-requirements.txt without
+  # .github/semgrep-release-overrides.txt and can restore a vulnerable pin
+  # (BUI-1433), so every Dependabot PR runs the lock test. It needs no install.
+  release-lock:
+    name: Semgrep release lock
+    runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Verify Semgrep release lock
+        run: node tests/release-workflow.test.js
   # {{QA_ARCHITECT_ONLY_END}}
 
   # Step 4: Documentation - run for production-ready projects
@@ -943,6 +967,7 @@ jobs:
       - tests
       # {{QA_ARCHITECT_ONLY_BEGIN}}
       - coverage
+      - release-lock
       # {{QA_ARCHITECT_ONLY_END}}
       - documentation
     if: always()
@@ -1039,6 +1064,7 @@ jobs:
           TESTS_RESULT: ${{ needs.tests.result }}
           # {{QA_ARCHITECT_ONLY_BEGIN}}
           COVERAGE_RESULT: ${{ needs.coverage.result }}
+          RELEASE_LOCK_RESULT: ${{ needs.release-lock.result }}
           # {{QA_ARCHITECT_ONLY_END}}
           DOCS_RESULT: ${{ needs.documentation.result }}
         run: |
@@ -1051,6 +1077,7 @@ jobs:
           )
           # {{QA_ARCHITECT_ONLY_BEGIN}}
           checks+=("coverage:$COVERAGE_RESULT")
+          checks+=("release-lock:$RELEASE_LOCK_RESULT")
           # {{QA_ARCHITECT_ONLY_END}}
           failed=""
           for check in "${checks[@]}"; do
