@@ -96,15 +96,20 @@ assert.match(
   /name: Install Semgrep CLI for prerelease checks[\s\S]*--no-deps --require-hashes[\s\S]*\.github\/semgrep-release-requirements\.txt/,
   'release workflow must install the hash-locked Semgrep dependency set'
 )
-assert.match(
-  semgrepRequirements,
-  /^mcp==1\.28\.1 /m,
-  'Semgrep release checks must override its vulnerable MCP pin with the fixed version'
+const mcpOverride = semgrepOverrides.match(/^mcp==(\d+)\.(\d+)\.(\d+)$/m)
+assert.ok(mcpOverride, 'Semgrep release override must pin an exact MCP version')
+const mcpVersion = mcpOverride.slice(1, 4).map(Number)
+const MCP_SECURITY_FLOOR = [1, 28, 1]
+const mcpCompare = mcpVersion
+  .map((part, i) => part - MCP_SECURITY_FLOOR[i])
+  .find(diff => diff !== 0)
+assert.ok(
+  (mcpCompare ?? 0) >= 0,
+  `Semgrep release override must pin MCP at or above the security fix ${MCP_SECURITY_FLOOR.join('.')}, got ${mcpVersion.join('.')}`
 )
-assert.match(
-  semgrepOverrides,
-  /^mcp==1\.28\.1$/m,
-  'Semgrep release override must pin the fixed MCP version'
+assert.ok(
+  semgrepRequirements.split('\n').includes(`mcp==${mcpVersion.join('.')} \\`),
+  `Semgrep release lock must contain the overridden MCP ${mcpVersion.join('.')}; regenerate it with scripts/compile-semgrep-release-requirements.sh`
 )
 assert.match(
   semgrepCompiler,
