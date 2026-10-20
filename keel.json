@@ -4,6 +4,7 @@
     "test": "npm test"
   },
   "testCommand": "npm test",
+  "testFilesCommand": "export NODE_ENV=test QAA_DEVELOPER=true && for f in {files}; do node \"$f\" || exit 1; done",
   "linearProject": "qa-architect",
   "dailyBudgetUsd": 5,
   "review": true,
