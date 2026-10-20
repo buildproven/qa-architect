@@ -16,7 +16,8 @@ uv pip compile "$INPUT" \
   --no-annotate \
   --output-file "$OUTPUT"
 
-if ! grep -q '^mcp==1\.28\.1 ' "$OUTPUT"; then
-  echo "error: Semgrep release lock does not contain the fixed MCP override" >&2
+MCP_PIN=$(grep -E '^mcp==[0-9.]+$' "$OVERRIDES")
+if ! grep -qxF "$MCP_PIN \\" "$OUTPUT"; then
+  echo "error: Semgrep release lock does not contain the MCP override $MCP_PIN" >&2
   exit 1
 fi
