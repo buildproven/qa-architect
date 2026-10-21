@@ -199,4 +199,6 @@ assert.ok(
   'release workflow must install Semgrep before running prerelease checks'
 )
 
+require('./dependabot-ci.test')
+
 console.log('✅ Release workflow safety gates verified')
