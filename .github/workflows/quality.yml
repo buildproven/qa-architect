@@ -46,13 +46,12 @@ permissions:
 # WORKFLOW_MODE: minimal
 
 jobs:
-  # Step 1: Detect project maturity level and package manager
-  # Skip for Dependabot PRs - they auto-merge based on their own checks
-  # This reduces GitHub Actions minutes by ~50% on active repos
+  # Step 1: Detect project maturity level and package manager.
+  # Runs for every actor, Dependabot included: its PRs auto-merge on the
+  # required `summary` check, so they must run the same checks (BUI-1755).
   detect-maturity:
     runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
-    if: github.actor != 'dependabot[bot]' || github.event_name == 'schedule'
     outputs:
       maturity: ${{ steps.detect.outputs.maturity }}
       source-count: ${{ steps.detect.outputs.source-count }}
@@ -790,10 +789,10 @@ jobs:
       - name: Enforce coverage thresholds
         run: npm run test:coverage
 
-  # Step 3c: Dependabot PRs skip detect-maturity and so every test. A pip update
-  # in /.github rebuilds .github/semgrep-release-requirements.txt without
+  # Step 3c: A pip update in /.github rebuilds
+  # .github/semgrep-release-requirements.txt without
   # .github/semgrep-release-overrides.txt and can restore a vulnerable pin
-  # (BUI-1433), so every Dependabot PR runs the lock test. It needs no install.
+  # (BUI-1433), so every Dependabot PR also runs this lock test. It needs no install.
   release-lock:
     name: Semgrep release lock
     runs-on: ${{ fromJSON((github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && vars.CI_RUNS_ON || '"ubuntu-latest"') }}
@@ -1052,9 +1051,11 @@ jobs:
       # green required check and merge cleanly. (Until 2.x this step shipped only
       # in qa-architect's own workflow, so consumer `summary` checks never gated.)
       #
-      # `skipped` is a pass: jobs are deliberately conditional (no test files,
-      # docs only on production-ready, security on schedule). `cancelled` and
-      # any other result fail — they must not read as success.
+      # `skipped` is a pass for jobs that are deliberately conditional on
+      # detect-maturity's outputs (no test files, docs only on production-ready).
+      # detect-maturity itself must succeed: when it is skipped every other job
+      # skips too, and the gate would pass with nothing run (BUI-1755).
+      # `cancelled` and any other result fail — they must not read as success.
       - name: Enforce check results
         if: always()
         env:
@@ -1083,8 +1084,10 @@ jobs:
           for check in "${checks[@]}"; do
             name="${check%%:*}"
             result="${check#*:}"
-            case "$result" in
-              success|skipped) ;;
+            case "$name:$result" in
+              detect-maturity:success) ;;
+              detect-maturity:*) failed="$failed $name($result)" ;;
+              *:success|*:skipped) ;;
               *) failed="$failed $name($result)" ;;
             esac
           done

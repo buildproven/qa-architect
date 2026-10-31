@@ -97,6 +97,25 @@ for (const mode of ['minimal', 'standard', 'comprehensive']) {
     0,
     `${mode}: skipped passes`
   )
+  // BUI-1755: Dependabot PRs auto-merge on `summary`, so nothing may skip
+  // detect-maturity for them, and a skipped detect-maturity must not pass.
+  for (const [name, job] of Object.entries(workflow.jobs)) {
+    if (name === 'release-lock') continue
+    assert(
+      !String(job.if ?? '').includes("github.actor != 'dependabot[bot]'"),
+      `${mode}: job ${name} must not skip Dependabot PRs`
+    )
+  }
+  assert.notStrictEqual(
+    runSummary(summary, { ...all('skipped') }),
+    0,
+    `${mode}: detect-maturity skipped (so nothing ran) must fail the required check`
+  )
+  assert.notStrictEqual(
+    runSummary(summary, { ...all('success'), DETECT_RESULT: 'skipped' }),
+    0,
+    `${mode}: DETECT_RESULT=skipped must fail the required check`
+  )
   for (const v of RESULT_VARS) {
     for (const bad of ['failure', 'cancelled']) {
       assert.notStrictEqual(
