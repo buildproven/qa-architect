@@ -479,9 +479,10 @@ c`
         content.includes('cancel-in-progress: true'),
         `${tier} must have cancel-in-progress`
       )
+      // BUI-1755: Dependabot PRs auto-merge on `summary`; they must run the checks.
       assert(
-        content.includes('dependabot[bot]'),
-        `${tier} must have dependabot skip`
+        !content.includes("github.actor != 'dependabot[bot]'"),
+        `${tier} must not skip checks for Dependabot PRs`
       )
       assert(
         content.includes('Display Detection Report'),
