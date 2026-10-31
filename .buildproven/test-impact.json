@@ -105,6 +105,10 @@
         {
           "executable": "node",
           "args": ["tests/dependency-monitoring-basic.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/dependabot-security-groups.test.js"]
         }
       ]
     },
@@ -114,6 +118,10 @@
         {
           "executable": "node",
           "args": ["tests/dependency-monitoring-premium.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/dependabot-security-groups.test.js"]
         }
       ]
     },
@@ -417,6 +425,19 @@
         {
           "executable": "node",
           "args": ["tests/generator-nvmrc-node-version.test.js"]
+        }
+      ]
+    },
+    {
+      "paths": ["lib/yaml-utils.js"],
+      "commands": [
+        {
+          "executable": "node",
+          "args": ["tests/yaml-formatter.test.js"]
+        },
+        {
+          "executable": "node",
+          "args": ["tests/dependabot-security-groups.test.js"]
         }
       ]
     }
