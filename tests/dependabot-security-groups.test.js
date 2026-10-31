@@ -25,9 +25,19 @@ const SECURITY_GROUP = { 'applies-to': 'security-updates', patterns: ['*'] }
 
 // A value starting with a YAML indicator (`*` alias, `&` anchor, `!` tag, ...)
 // must be quoted, or the written file is invalid or changes meaning.
+console.log('🧪 Testing dependabot-security-groups.test.js...')
+
 const indicators = ['*', '&a', '!tag', '%x', ',x', '?x', "'x", '"x']
+let roundTrip
+try {
+  roundTrip = yaml.load(convertToYaml({ values: indicators })).values
+} catch (error) {
+  assert.fail(
+    `convertToYaml wrote YAML that does not parse: ${error.reason || error.message}`
+  )
+}
 assert.deepStrictEqual(
-  yaml.load(convertToYaml({ values: indicators })).values,
+  roundTrip,
   indicators,
   'convertToYaml did not quote a leading YAML indicator'
 )
