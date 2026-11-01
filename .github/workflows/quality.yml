@@ -475,7 +475,7 @@ jobs:
 
       - name: Upload SARIF annotations
         if: always() && steps.evidence.outputs.available == 'true' && github.event.pull_request.head.repo.full_name == github.repository
-        uses: github/codeql-action/upload-sarif@9e3211c9a3b9311dfe05da2ed48eea3386f042dd # v4.37.6
+        uses: github/codeql-action/upload-sarif@5595ccaf912efad79be6eef63a5619ff05969be3 # v4.37.6
         with:
           sarif_file: ${{ runner.temp }}/qa-architect-assurance/assurance.sarif
 
